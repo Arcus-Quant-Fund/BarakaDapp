@@ -28,4 +28,24 @@ contract MockOracle is IOracleAdapter {
         require(p > 0, "MockOracle: no price set");
         return p;
     }
+
+    function getPremium(address asset) external view override returns (int256) {
+        uint256 mark  = markPrices[asset] > 0 ? markPrices[asset] : indexPrices[asset];
+        uint256 index = indexPrices[asset];
+        if (index == 0) return 0;
+        return (int256(mark) - int256(index)) * 1e18 / int256(index);
+    }
+
+    function getKappaSignal(address asset)
+        external view override
+        returns (int256 kappa, int256 premium, uint8 regime)
+    {
+        premium = this.getPremium(asset);
+        int256 abs = premium < 0 ? -premium : premium;
+        if      (abs < 15e14) regime = 0;
+        else if (abs < 40e14) regime = 1;
+        else if (abs < 60e14) regime = 2;
+        else                  regime = 3;
+        kappa = 0; // no history in mock
+    }
 }
