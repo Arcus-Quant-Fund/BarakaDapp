@@ -1,5 +1,5 @@
 # BARAKA PROTOCOL — BUILD CHECKLIST
-**Last Updated:** February 27, 2026 (Session 11)
+**Last Updated:** February 27, 2026 (Session 12)
 **Status Legend:** `[ ]` = Not started · `[~]` = In progress · `[x]` = Complete · `[-]` = Deferred to v2
 
 ---
@@ -12,7 +12,7 @@
 | Tests | ✅ 93/93 | +15 KappaSignal unit tests (premium/regime/kappa/fuzz), 1000 runs each |
 | Slither | ✅ Clean | HIGH 0, MEDIUM 0 |
 | Testnet Deploy | ✅ Live | All 9 contracts on chain 421614 |
-| BRKX Token + Fee System | ✅ Live | PositionManager v2 + BRKXToken deployed + verified |
+| BRKX Token + Fee System | ✅ Live | PM v3 + CollateralVault v2 + OracleAdapter v2 + LiqEngine v2 redeployed |
 | Frontend | ✅ Live | https://baraka.arcusquantfund.com |
 | Subgraph | ✅ Live | https://thegraph.com/studio/subgraph/arcus |
 | CI Pipeline | ✅ Active | .github/workflows/ci.yml (4 jobs) |
@@ -26,6 +26,7 @@
 | GitHub Public Repo | ✅ Live | https://github.com/Arcus-Quant-Fund/BarakaDapp |
 | κ-signal oracle (OracleAdapter) | ✅ Complete | getPremium + getKappaSignal + KappaAlert event + 15 tests |
 | BRKX E2E smoke script | ✅ Complete | `script/BRKXSmoke.s.sol` — 6 on-chain assertions, tier3 verified |
+| On-chain Redeploy + Smoke | ✅ Complete | `script/RedeployAndSmoke.s.sol` — 4 contracts redeployed, smoke test broadcast verified |
 | **Next session starts here →** | ⏳ | Pinata JWT + fatwa IPFS upload → GovernanceModule.setFatwaURI() |
 
 ---
@@ -78,16 +79,20 @@
 ### Deployed Addresses — Arbitrum Sepolia (chainId 421614)
 | Contract | Address | Notes |
 |---|---|---|
-| OracleAdapter | `0xB8d9778288B96ee5a9d873F222923C0671fc38D4` | v1, unchanged |
+| OracleAdapter | `0x86C475d9943ABC61870C6F19A7e743B134e1b563` | **v2 — kappa signal, redeployed Feb 27** |
 | ShariahGuard | `0x26d4db76a95DBf945ac14127a23Cd4861DA42e69` | v1, unchanged |
-| FundingEngine | `0x459BE882BC8736e92AA4589D1b143e775b114b38` | v1, unchanged |
+| FundingEngine | `0x459BE882BC8736e92AA4589D1b143e775b114b38` | v1, setOracle() updated to v2 |
 | InsuranceFund | `0x7B440af63D5fa5592E53310ce914A21513C1a716` | v1, unchanged |
-| CollateralVault | `0x5530e4670523cFd1A60dEFbB123f51ae6cae0c5E` | v1, unchanged |
-| LiquidationEngine | `0x456eBE7BbCb099E75986307E4105A652c108b608` | v1, unchanged |
-| PositionManager | `0x787E15807f32f84aC3D929CB136216897b788070` | **v2 — BRKX fee system** |
+| CollateralVault | `0x0e9e32e4e061Db57eE5d3309A986423A5ad3227E` | **v2 — chargeFromFree(), redeployed Feb 27** |
+| LiquidationEngine | `0x17D9399C7e17690bE23544E379907eC1AB6b7E07` | **v2 — immutable vault updated, redeployed Feb 27** |
+| PositionManager | `0x035E38fd8b34486530A4Cd60cE9D840e1a0A124a` | **v3 — all deps updated, redeployed Feb 27** |
 | GovernanceModule | `0x8c987818dffcD00c000Fe161BFbbD414B0529341` | v1, unchanged |
-| BRKXToken | `0xD3f7E29cAC5b618fAB44Dd8a64C4CC335C154A32` | **NEW — 100M BRKX** |
+| BRKXToken | `0xD3f7E29cAC5b618fAB44Dd8a64C4CC335C154A32` | 100M BRKX, unchanged |
 | PositionManager v1 (legacy) | `0x53E3063FE2194c2DAe30C36420A01A8573B150bC` | deauthorized |
+| PositionManager v2 (legacy) | `0x787E15807f32f84aC3D929CB136216897b788070` | deauthorized (no chargeFromFree in vault) |
+| CollateralVault v1 (legacy) | `0x5530e4670523cFd1A60dEFbB123f51ae6cae0c5E` | deauthorized |
+| LiquidationEngine v1 (legacy) | `0x456eBE7BbCb099E75986307E4105A652c108b608` | deauthorized |
+| OracleAdapter v1 (legacy) | `0xB8d9778288B96ee5a9d873F222923C0671fc38D4` | deauthorized |
 
 ### Testing
 - [x] Unit tests — `FundingEngine.t.sol` (14/14) + `ShariahGuard.t.sol` (16/16)
@@ -216,9 +221,10 @@
 - [x] BRKXToken verified on Arbiscan: `0xD3f7E29cAC5b618fAB44Dd8a64C4CC335C154A32`
 - [x] PositionManager v2 verified on Arbiscan: `0x787E15807f32f84aC3D929CB136216897b788070`
 
-### Tests (78/78 passing)
+### Tests (93/93 passing)
 - [x] `test/unit/BRKXToken.t.sol` — 10/10 (supply, transfer, approve, burn, ERC20Votes, ERC20Permit, Ownable2Step, fuzz)
 - [x] `test/unit/PositionManagerFee.t.sol` — 8/8 (all 4 tiers, disabled mode, InsuranceFund split, treasury split, event)
+- [x] `test/unit/KappaSignal.t.sol` — 15/15 (premium sign, regime 0-3, fuzz 1000 runs)
 - [x] `test/integration/BarakaIntegration.t.sol` — 30/30 (updated for 7-arg PM constructor)
 
 ### Fee tier table (hold-based, no lock-up)
@@ -231,8 +237,13 @@
 
 Revenue split: 50% → InsuranceFund / 50% → Treasury
 
+### On-chain Smoke Test (completed Feb 27 2026)
+- [x] `script/RedeployAndSmoke.s.sol` — redeploys 4 stale contracts + runs 12-step smoke test
+- [x] BRKX tier3 fee verified on-chain: 375,000 / 375,000 tUSDC-wei (IF / treasury) per leg ✓
+- [x] κ-signal verified on-chain: `getKappaSignal()` returns regime=0 (NORMAL) ✓
+- [x] `ONCHAIN EXECUTION COMPLETE & SUCCESSFUL` — Arbitrum Sepolia broadcast confirmed
+
 ### Pending
-- [ ] E2E test on live Sepolia — open position, confirm `FeeCollected` event fires at correct bps
 - [ ] Distribute BRKX to test wallets for fee tier testing (from deployer wallet holding all 100M)
 - [ ] Frontend: add BRKX balance display + fee tier indicator to OrderPanel
 
@@ -242,6 +253,8 @@ Revenue split: 50% → InsuranceFund / 50% → Treasury
 
 - [x] All 8 contracts deployed + verified — Arbitrum Sepolia (Feb 25 2026)
 - [x] PositionManager v2 + BRKXToken deployed + verified (Feb 27 2026)
+- [x] OracleAdapter v2 + CollateralVault v2 + LiquidationEngine v2 + PositionManager v3 redeployed (Feb 27 2026)
+- [x] On-chain smoke test broadcast verified — BRKX fee split + κ-signal (Feb 27 2026)
 - [x] Frontend live — https://baraka.arcusquantfund.com (Feb 26 2026)
 - [x] Subgraph live — indexing all events (Feb 26 2026)
 - [x] **Automated E2E test** — `bash e2e.sh` — forks Arbitrum Sepolia, 6/6 pass in ~20s, zero gas
@@ -350,4 +363,4 @@ npx graph deploy arcus --version-label v0.0.2
 
 ---
 
-*Checklist Version 2.1 — February 26, 2026 — Updated after Session 9 (automated E2E)*
+*Checklist Version 2.3 — February 27, 2026 — Updated after Session 12 (redeploy + on-chain smoke test)*

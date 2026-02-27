@@ -3,43 +3,91 @@
 
 ---
 
-## CURRENT STATUS — February 27, 2026
+## CURRENT STATUS — February 28, 2026
 
 | Phase | Status | Notes |
 |---|---|---|
 | Research & Math | ✅ Complete | 3 papers: ι=0 proof · credit equivalence · IES framework |
 | API Keys | ✅ Complete | All keys in `BarakaDapp/.env` |
 | Environment Setup | ✅ Complete | Foundry 1.5.1, Node.js, Slither, graph-cli |
-| Smart Contracts (9) | ✅ Complete | 8 core + BRKXToken, all deployed + verified Arbiscan |
-| Unit Tests | ✅ 63/63 | FundingEngine (14) + ShariahGuard (16) + BRKXToken (10) + PMFee (8) + KappaSignal (15) |
-| Integration Tests | ✅ 30/30 | Full lifecycle, liquidation, Shariah gate, edge cases |
+| Smart Contracts (9) | ✅ Complete | 8 core + BRKXToken · 4 contracts redeployed v2/v3 Feb 27 |
+| Unit Tests | ✅ 93/93 | FundingEngine (14) + ShariahGuard (16) + BRKXToken (10) + PMFee (8) + KappaSignal (15) + Integration (30) |
 | Slither Analysis | ✅ Clean | HIGH 0, MEDIUM 0 |
 | Simulations | ✅ Complete | cadCAD + RL + GT + MD + Integrated IES (5 ep × 720 steps) |
-| Testnet Deploy | ✅ Live | All 9 contracts on Arbitrum Sepolia (421614) |
-| BRKX Token + Fee System | ✅ Live | PositionManager v2 + BRKXToken · hold-based fee tiers 5→2.5 bps |
+| Testnet Deploy | ✅ Live | All 9 contracts on Arbitrum Sepolia (421614) · v2/v3 redeployed Feb 27 |
+| BRKX Token + Fee System | ✅ Live + Verified | PM v3 + BRKX · on-chain smoke: 375k/375k fee split confirmed |
+| On-chain Smoke Test | ✅ Broadcast Confirmed | RedeployAndSmoke.s.sol · tier3 + κ-signal all pass |
 | Frontend | ✅ Live | https://baraka.arcusquantfund.com |
 | Subgraph | ✅ Live | https://api.studio.thegraph.com/query/1742812/arcus/v0.0.1 |
 | CI Pipeline | ✅ Active | .github/workflows/ci.yml — 4 jobs |
 | Custom Domain | ✅ Live | https://baraka.arcusquantfund.com — HTTP/2 + SSL |
-| GitHub Public Repo | ✅ Live | https://github.com/Arcus-Quant-Fund/BarakaDapp — 171 files |
-| arcusquantfund.com /dapp | ✅ Updated | 9 contracts, 3 papers, IES results, GitHub link |
+| GitHub Public Repo | ✅ Live | https://github.com/Arcus-Quant-Fund/BarakaDapp |
+| arcusquantfund.com /dapp | ✅ Updated | v2/v3 addresses, smoke test badge, κ-signal, 93/93 tests |
 | Paper 1 | ✅ Published | 16pp PDF — ι=0 Shariah perpetuals foundation |
 | Paper 2 | ✅ Published | 11pp PDF — credit equivalence + κ-rate + simulation validation |
 | Paper 3 | ✅ Published | 8pp PDF — IES framework (cadCAD + RL + GT + MD) |
 | Integrated IES | ✅ Complete | 5 ep × 720 steps · 0/5 insolvency · Nash lev 2.72×/3.28× · MD converged |
-| κ-signal Oracle | ✅ Complete | getPremium + getKappaSignal + KappaAlert + 15 tests (93/93 total) |
-| BRKX E2E Smoke | ✅ Complete | `script/BRKXSmoke.s.sol` — 6 on-chain asserts, tier3 (2.5 bps) |
+| κ-signal Oracle | ✅ Complete + Live | getPremium + getKappaSignal + KappaAlert · 15 tests · on-chain verified |
 | Pinata JWT / IPFS | ⏳ Pending | **Next session starts here** |
-| BRKX E2E smoke test | ✅ Complete | `script/BRKXSmoke.s.sol` committed + pushed |
 | Discord / Twitter | ⏳ Pending | Community launch |
 | SSRN Preprint | ⏳ Pending | Upload all 3 papers |
 | Shariah Outreach | ⏳ Pending | AAOIFI contacts |
 
-**Overall: Protocol, papers, and simulation all complete. Next: IPFS fatwa + community launch.**
+**Overall: Protocol complete + on-chain smoke verified. Next: IPFS fatwa + community launch.**
 
 ---
 
 ## LOG ENTRIES
+
+---
+
+### February 28, 2026 — Session 12: Redeploy + On-chain Smoke Test
+
+**Focus:** Fix stale deployed contracts (missing `chargeFromFree` + `getKappaSignal`), redeploy 4 contracts, run broadcast smoke test on Arbitrum Sepolia, update all docs.
+
+**Root Cause Discovered:**
+- `BRKXSmoke.s.sol` failed with "unrecognized function selector" on `snapshotPrice` (added Session 11 but OracleAdapter never redeployed)
+- Then failed again on `chargeFromFree` — CollateralVault was not redeployed in the `UpgradeAndDeployBRKX.s.sol` script (only PositionManager was upgraded)
+- `vault`, `oracle`, `liquidationEngine` are all `public immutable` in PositionManager and LiquidationEngine → cascade: redeploy all 4
+
+**RedeployAndSmoke.s.sol (new script):**
+- Phase 1: Redeploys OracleAdapter v2, CollateralVault v2, LiquidationEngine v2, PositionManager v3
+- Phase 2: Rewires FundingEngine.setOracle(newOracle), vault.setAuthorised(pm+liqEngine), IF.setAuthorised(pm), liqEngine.setPositionManager(pm), pm.setBrkxToken + setTreasury
+- Phase 3: 12-step smoke test (closePosition removed — Forge double-simulation timing issue with block-dependent posId; close fee covered by unit tests 8/8)
+
+**Broadcast Result — ONCHAIN EXECUTION COMPLETE & SUCCESSFUL:**
+- BTC price: 66,099 USD (Chainlink)
+- BRKX balance: 100M → tier3 confirmed
+- Open fee split: InsuranceFund 375,000 / Treasury 375,000 tUSDC-wei ✓
+- κ-signal: kappa=0, premium=0, regime=0 (NORMAL) ✓
+
+**New Addresses (post-redeploy):**
+| Contract | Address |
+|---|---|
+| OracleAdapter v2 | `0x86C475d9943ABC61870C6F19A7e743B134e1b563` |
+| CollateralVault v2 | `0x0e9e32e4e061Db57eE5d3309A986423A5ad3227E` |
+| LiquidationEngine v2 | `0x17D9399C7e17690bE23544E379907eC1AB6b7E07` |
+| PositionManager v3 | `0x035E38fd8b34486530A4Cd60cE9D840e1a0A124a` |
+
+**All Docs Updated:**
+- `contracts/deployments/421614.json` — new addresses + legacy section + smokeTest block
+- `plan/next/CHECKLIST.md` — v2.3, new address table, smoke test checked
+- `plan/next/PROGRESS_LOG.md` — Session 12 entry, status table updated
+- `plan/next/SESSION_LOG.md` — Session 12 entry
+- `website/app/dapp/page.tsx` — v2/v3 addresses, smoke test bullet, redeployed badge
+- Committed + pushed to `Arcus-Quant-Fund/BarakaDapp` (commit `05cada1`)
+
+**Key Engineering Notes:**
+- Forge `--broadcast` double-simulation: `posId = keccak256(msg.sender, asset, token, block.timestamp, block.number)` — posId from simulation doesn't match live chain's mined block → `closePosition` fails in broadcast pre-sim. Fix: remove closePosition from broadcast smoke scripts.
+- `FundingEngine.setOracle()` exists → no redeploy needed for FundingEngine
+- `InsuranceFund.setAuthorised()` needed for new PM (old authorization on v2 PM still valid but PM v3 needs its own)
+
+**Tests Status:** 93/93 ✅ (unchanged — no new test files this session)
+
+**Next session:**
+1. Pinata JWT → upload fatwa placeholder PDF → `GovernanceModule.setFatwaURI(cid)`
+2. SSRN preprint upload (all 3 papers)
+3. Discord + Twitter community launch
 
 ---
 
@@ -333,8 +381,8 @@
 
 | Milestone | Target | Status |
 |---|---|---|
-| Manual E2E test on testnet | Next session | ⏳ |
 | Pinata JWT + IPFS fatwa placeholder | Next session | ⏳ |
+| SSRN preprint upload (all 3 papers) | Next session | ⏳ |
 | Discord + Twitter launch | Next session | ⏳ |
 | Shariah scholar outreach | Month 2 | Not started |
 | External audit (Certik / OZ) | Month 3–4 | Not started |
@@ -356,4 +404,4 @@
 
 ---
 
-*Log started: February 2026 — Last updated: February 26, 2026 (Session 8)*
+*Log started: February 2026 — Last updated: February 28, 2026 (Session 12)*

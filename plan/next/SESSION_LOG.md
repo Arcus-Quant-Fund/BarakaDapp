@@ -7,6 +7,91 @@
 
 ---
 
+### Session 12 — February 28, 2026
+
+**Focus:** Fix stale deployed contracts → redeploy 4 contracts → broadcast smoke test on Arbitrum Sepolia → update all docs and website
+
+**Problem Diagnosed:**
+Running `BRKXSmoke.s.sol --broadcast` failed twice:
+1. `snapshotPrice(address)` selector `0x007356cc` not on deployed OracleAdapter (added Session 11, never redeployed)
+2. `chargeFromFree(address,address,uint256)` not on deployed CollateralVault (added for BRKX fee system but `UpgradeAndDeployBRKX.s.sol` only redeployed PositionManager, not the Vault)
+
+**Root Cause — Immutable Constructor Cascade:**
+- `CollateralVault` must redeploy (missing `chargeFromFree`)
+- `OracleAdapter` must redeploy (missing `getKappaSignal`, `snapshotPrice`)
+- `LiquidationEngine` must redeploy (`address(vault)` is `public immutable`)
+- `PositionManager` must redeploy (`address(oracle)`, `address(vault)`, `address(liquidationEngine)` all `public immutable`)
+- `FundingEngine` does NOT need redeploy — has `setOracle()` admin setter
+
+**Solution: `script/RedeployAndSmoke.s.sol`**
+
+```
+Phase 1 — Redeploy 4 contracts:
+  OracleAdapter v2     (adds kappa signal, snapshotPrice)
+  CollateralVault v2   (adds chargeFromFree)
+  LiquidationEngine v2 (immutable vault updated)
+  PositionManager v3   (all 3 immutable deps updated)
+
+Phase 2 — Rewire 5 dependencies:
+  FundingEngine.setOracle(newOracle)
+  newVault.setAuthorised(newPm, true)
+  newVault.setAuthorised(newLiqEngine, true)
+  InsuranceFund.setAuthorised(newPm, true)
+  newLiqEngine.setPositionManager(newPm)
+  newPm.setBrkxToken(BRKX_TOKEN)
+  newPm.setTreasury(TREASURY)
+
+Phase 3 — 12-step smoke test (open-only E2E):
+  Deploy MockERC20 (tUSDC) → ShariahGuard.approveAsset → mint → deposit
+  snapshotPrice (via OracleAdapter v2) → verify BRKX tier3
+  openPosition 3x long BTC → check fee split → check kappa signal
+  (closePosition omitted — Forge double-simulation timing issue)
+```
+
+**Broadcast Output — ONCHAIN EXECUTION COMPLETE & SUCCESSFUL:**
+```
+Step 5:  BTC price snapshotted: 66099 USD
+Step 6:  BRKX balance: 100000000 BRKX → tier3 confirmed (>=50k BRKX)
+Step 9:  IF delta (got/expected): 375000 375000
+         TR delta (got/expected): 375000 375000
+         -> open fee split VERIFIED (feeBps=25, 2.5 bps, tier3)
+Step 10: kappa: 0 / premium: 0 / regime: 0
+         -> kappa signal VERIFIED (regime 0-3)
+Step 11: closePosition skipped (block-dependent posId; see unit tests)
+```
+
+**Engineering Note — Forge double-simulation posId problem:**
+`posId = keccak256(msg.sender, asset, token, block.timestamp, block.number)`. Forge's `--broadcast` pre-simulates all transactions against the live chain state (where position doesn't yet exist). `closePosition(posId)` reverts "PM: position not open" because the posId from simulation references a position in a forked state, not the live chain. Fix: remove `closePosition` from broadcast smoke scripts. Close fee tested by `PositionManagerFee.t.sol` 8/8.
+
+**New Addresses Deployed:**
+| Contract | v1/v2 Old | v2/v3 New |
+|---|---|---|
+| OracleAdapter | `0xB8d9778...` | `0x86C475d9943ABC61870C6F19A7e743B134e1b563` |
+| CollateralVault | `0x5530e46...` | `0x0e9e32e4e061Db57eE5d3309A986423A5ad3227E` |
+| LiquidationEngine | `0x456eBE7...` | `0x17D9399C7e17690bE23544E379907eC1AB6b7E07` |
+| PositionManager | `0x787E158...` | `0x035E38fd8b34486530A4Cd60cE9D840e1a0A124a` |
+
+**Files Changed/Created:**
+- `contracts/script/RedeployAndSmoke.s.sol` — NEW (redeploy + smoke)
+- `contracts/script/BRKXSmoke.s.sol` — fixed (snapshotPrice → getIndexPrice, kappa step commented)
+- `contracts/deployments/421614.json` — v2/v3 addresses + legacy section + smokeTest block
+- `plan/next/CHECKLIST.md` — v2.3, updated address table + smoke test ✓
+- `plan/next/PROGRESS_LOG.md` — Session 12 entry + status table
+- `plan/next/SESSION_LOG.md` — this entry
+- `website/app/dapp/page.tsx` — v2/v3 contract addresses + smoke test bullet + redeployed badge
+
+**Commits pushed to `Arcus-Quant-Fund/BarakaDapp`:**
+- `05cada1` — Add RedeployAndSmoke.s.sol; update 421614.json with v2/v3 addresses
+
+**Tests Status:** 93/93 ✅ (no new test files this session — all existing tests still pass)
+
+**Next session:**
+1. Pinata JWT → upload `fatwa_placeholder.pdf` → `GovernanceModule.setFatwaURI(cid)` on Sepolia
+2. SSRN preprint upload for all 3 papers
+3. Discord + Twitter community launch
+
+---
+
 ### Session 11 — February 27, 2026
 
 **Focus:** κ-signal oracle implementation + BRKX E2E smoke script
@@ -622,4 +707,4 @@ forge test -vvv  # → 60/60
 
 ---
 
-*Log started: February 2026 — Last updated: February 26, 2026 (Session 8 → Session 9 prep)*
+*Log started: February 2026 — Last updated: February 28, 2026 (Session 12)*
