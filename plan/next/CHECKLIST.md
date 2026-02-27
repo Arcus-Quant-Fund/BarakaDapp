@@ -1,5 +1,5 @@
 # BARAKA PROTOCOL — BUILD CHECKLIST
-**Last Updated:** February 26, 2026 (Session 9)
+**Last Updated:** February 27, 2026 (Session 10)
 **Status Legend:** `[ ]` = Not started · `[~]` = In progress · `[x]` = Complete · `[-]` = Deferred to v2
 
 ---
@@ -8,19 +8,23 @@
 
 | Phase | Status | URL / Notes |
 |---|---|---|
-| Smart Contracts (8) | ✅ Complete | Deployed + verified on Arbitrum Sepolia |
+| Smart Contracts (9) | ✅ Complete | 8 core + BRKXToken, all deployed + verified Arbitrum Sepolia |
 | Tests | ✅ 78/78 | 30 unit + 30 integration + 10 BRKX + 8 fee, 1000 fuzz runs each |
 | Slither | ✅ Clean | HIGH 0, MEDIUM 0 |
-| Testnet Deploy | ✅ Live | All 8 contracts on chain 421614 |
+| Testnet Deploy | ✅ Live | All 9 contracts on chain 421614 |
 | BRKX Token + Fee System | ✅ Live | PositionManager v2 + BRKXToken deployed + verified |
 | Frontend | ✅ Live | https://baraka.arcusquantfund.com |
 | Subgraph | ✅ Live | https://thegraph.com/studio/subgraph/arcus |
 | CI Pipeline | ✅ Active | .github/workflows/ci.yml (4 jobs) |
 | Custom Domain | ✅ Live | baraka.arcusquantfund.com (HTTP/2 + SSL) |
-| arcusquantfund.com | ✅ Updated | "Launch App" button + /dapp page + Navbar + Dr. Bhuyan bio |
+| arcusquantfund.com /dapp | ✅ Updated | 9 contracts, 3 papers, IES simulation, BRKX, GitHub link |
 | Automated E2E (fork) | ✅ 6/6 | `bash e2e.sh` — 20s, zero gas |
-| Paper 2 (Credit Equivalence) | 🔄 Writing | `paper2_credit.tex` — random time ≡ credit event |
-| **Next session starts here →** | ⏳ | Pinata JWT + Discord + Twitter + BRKX E2E test |
+| Paper 1 (ι=0 Shariah Perpetuals) | ✅ Complete | `papers/paper1/` — 16pp, 6 figures, PDF compiled |
+| Paper 2 (Credit Equivalence) | ✅ Complete | `papers/paper2/` — 11pp incl. Section 8 simulation validation |
+| Paper 3 (IES Framework) | ✅ Complete | `papers/paper3/` — 8pp cadCAD+RL+GT+MD |
+| Integrated IES Simulation | ✅ Complete | 5 ep × 720 steps · 0/5 insolvency · MD converged |
+| GitHub Public Repo | ✅ Live | https://github.com/Arcus-Quant-Fund/BarakaDapp |
+| **Next session starts here →** | ⏳ | Pinata JWT + fatwa IPFS + BRKX E2E smoke test |
 
 ---
 

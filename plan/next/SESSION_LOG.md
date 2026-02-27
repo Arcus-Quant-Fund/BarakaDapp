@@ -7,6 +7,49 @@
 
 ---
 
+### Session 10 — February 27, 2026
+
+**Focus:** BRKX token + fee system · 3 papers (write + compile) · 5-episode IES simulation · GitHub public push · arcusquantfund.com /dapp update
+
+**Completed:**
+
+**BRKX Token + Fee System**
+- `BRKXToken.sol` — ERC20Votes + ERC20Permit + Ownable2Step, 100M supply
+- PositionManager v2 — `_collectFee()`, FeeCollected event, fee tiers (hold-based)
+- `CollateralVault.chargeFromFree()` — pulls fee from free balance
+- 10 BRKXToken tests + 8 PositionManagerFee tests → **78/78 total**
+- PM v2: `0x787E15807f32f84aC3D929CB136216897b788070` · BRKX: `0xD3f7E29cAC5b618fAB44Dd8a64C4CC335C154A32`
+
+**Integrated IES Simulation**
+- `simulations/integrated/economic_system.py` — 4-layer (cadCAD + RL + GT + MD)
+- 5 episodes × 720 steps: 0/5 insolvency, Nash 2.72×/3.28×, net Δ ≈ $0, MD converged
+
+**Papers**
+- Paper 1 (`papers/paper1/`): 6 figures generated + 16pp PDF compiled
+- Paper 2 (`papers/paper2/`): Section 8 simulation validation added, 11pp PDF compiled
+- Paper 3 (`papers/paper3/`): NEW 8pp IES framework paper, PDF compiled
+
+**GitHub**
+- Fixed: home-dir git pointed to wrong remote (403 on push)
+- Created `Arcus-Quant-Fund/BarakaDapp` (public) — 171 files, 72,065 lines
+- All API keys redacted from tracked files
+
+**arcusquantfund.com /dapp**
+- 9 contracts (v2 PM + BRKXToken), 78/78 tests, 3 papers, IES simulation card, GitHub source link
+
+**State at end of session:**
+- All code pushed to `https://github.com/Arcus-Quant-Fund/BarakaDapp`
+- arcusquantfund.com /dapp redeployed with all updates
+- 78/78 tests, 9 contracts live, 3 papers compiled and committed
+
+**Next session:**
+1. Pinata JWT → upload fatwa PDF → `GovernanceModule.setFatwaURI(cid)`
+2. BRKX E2E: distribute token → open position → verify FeeCollected
+3. SSRN preprint upload for all 3 papers
+4. Discord + Twitter community launch
+
+---
+
 ### Session 9 — February 26, 2026
 
 **Focus:** Automated E2E test suite (fork script replacing manual testing)

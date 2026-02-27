@@ -3,38 +3,128 @@
 
 ---
 
-## CURRENT STATUS — February 26, 2026
+## CURRENT STATUS — February 27, 2026
 
 | Phase | Status | Notes |
 |---|---|---|
-| Research & Math | ✅ Complete | Ackerer (2024) framework, ι=0 proof, Ahmed-Bhuyan-Islam (2026) paper |
+| Research & Math | ✅ Complete | 3 papers: ι=0 proof · credit equivalence · IES framework |
 | API Keys | ✅ Complete | All keys in `BarakaDapp/.env` |
 | Environment Setup | ✅ Complete | Foundry 1.5.1, Node.js, Slither, graph-cli |
-| Smart Contracts (8) | ✅ Complete | Written, compiling, all 8 deployed + verified Arbiscan |
-| Unit Tests | ✅ 30/30 | FundingEngine (14) + ShariahGuard (16), 1000 fuzz runs |
+| Smart Contracts (9) | ✅ Complete | 8 core + BRKXToken, all deployed + verified Arbiscan |
+| Unit Tests | ✅ 48/48 | FundingEngine (14) + ShariahGuard (16) + BRKXToken (10) + PMFee (8), 1000 fuzz runs |
 | Integration Tests | ✅ 30/30 | Full lifecycle, liquidation, Shariah gate, edge cases |
-| Slither Analysis | ✅ Clean | HIGH 0, MEDIUM 0 — Feb 26 2026 |
-| Simulations | ✅ 22/22 | cadCAD + RL + game theory + mechanism design + stress tests |
-| Testnet Deploy | ✅ Live | All 8 contracts on Arbitrum Sepolia (421614), verified Feb 25 2026 |
-| Frontend | ✅ Live | https://baraka.arcusquantfund.com — Next.js 16, wagmi v2, RainbowKit |
-| Frontend ABIs/Hooks | ✅ Fixed | All 7 files corrected to match deployed contracts — Feb 26 2026 |
-| Deposit/Withdraw | ✅ Complete | DepositPanel + useDeposit + useWithdraw |
-| Position Table | ✅ Complete | Event-based bytes32 scan, close button, PnL display |
+| Slither Analysis | ✅ Clean | HIGH 0, MEDIUM 0 |
+| Simulations | ✅ Complete | cadCAD + RL + GT + MD + Integrated IES (5 ep × 720 steps) |
+| Testnet Deploy | ✅ Live | All 9 contracts on Arbitrum Sepolia (421614) |
+| BRKX Token + Fee System | ✅ Live | PositionManager v2 + BRKXToken · hold-based fee tiers 5→2.5 bps |
+| Frontend | ✅ Live | https://baraka.arcusquantfund.com |
 | Subgraph | ✅ Live | https://api.studio.thegraph.com/query/1742812/arcus/v0.0.1 |
-| usePositions | ✅ Dual mode | Subgraph GraphQL primary, getLogs fallback |
 | CI Pipeline | ✅ Active | .github/workflows/ci.yml — 4 jobs |
 | Custom Domain | ✅ Live | https://baraka.arcusquantfund.com — HTTP/2 + SSL |
-| arcusquantfund.com | ✅ Updated | "Launch App ↗" in Navbar + /dapp page |
-| Manual E2E Test | ✅ Complete | Automated fork script — 6/6 pass, 20s — Feb 26 2026 |
+| GitHub Public Repo | ✅ Live | https://github.com/Arcus-Quant-Fund/BarakaDapp — 171 files |
+| arcusquantfund.com /dapp | ✅ Updated | 9 contracts, 3 papers, IES results, GitHub link |
+| Paper 1 | ✅ Published | 16pp PDF — ι=0 Shariah perpetuals foundation |
+| Paper 2 | ✅ Published | 11pp PDF — credit equivalence + κ-rate + simulation validation |
+| Paper 3 | ✅ Published | 8pp PDF — IES framework (cadCAD + RL + GT + MD) |
+| Integrated IES | ✅ Complete | 5 ep × 720 steps · 0/5 insolvency · Nash lev 2.72×/3.28× · MD converged |
 | Pinata JWT / IPFS | ⏳ Pending | **Next session starts here** |
+| BRKX E2E smoke test | ⏳ Pending | Open position → verify FeeCollected event on Sepolia |
 | Discord / Twitter | ⏳ Pending | Community launch |
+| SSRN Preprint | ⏳ Pending | Upload all 3 papers |
 | Shariah Outreach | ⏳ Pending | AAOIFI contacts |
 
-**Overall: ~99% complete. Protocol fully live + E2E automated. Community launch is next.**
+**Overall: Protocol, papers, and simulation all complete. Next: IPFS fatwa + community launch.**
 
 ---
 
 ## LOG ENTRIES
+
+---
+
+### February 27, 2026 — Session 10: Papers, IES Simulation, BRKX, GitHub Push
+
+**Focus:** Write Papers 2 & 3, run full 5-episode integrated simulation, push codebase to public GitHub, update arcusquantfund.com /dapp page
+
+**Completed:**
+
+**BRKX Token + Fee System (from Session 9 continuation)**
+- `src/token/BRKXToken.sol` — ERC20 + ERC20Votes + ERC20Permit + Ownable2Step, 100M fixed supply
+- `src/interfaces/IPositionManager.sol` — minimal interface (setBrkxToken, setTreasury)
+- `CollateralVault.chargeFromFree()` — new method, deducts from _freeBalance, transfers to caller
+- `PositionManager` v2 — brkxToken + treasury storage, `_collectFee()` internal, FeeCollected event
+- Fee tiers (hold-based, no lock-up): <1k=5bps, ≥1k=4bps, ≥10k=3.5bps, ≥50k=2.5bps
+- Revenue split: 50% InsuranceFund / 50% treasury
+- `script/DeployBRKX.s.sol` — deploys BRKXToken + wires PositionManager + GovernanceModule
+- **78/78 tests passing** (added 10 BRKXToken + 8 PositionManagerFee)
+- PositionManager v2 deployed: `0x787E15807f32f84aC3D929CB136216897b788070`
+- BRKXToken deployed: `0xD3f7E29cAC5b618fAB44Dd8a64C4CC335C154A32`
+- Both verified on Arbiscan
+
+**Integrated IES Simulation (`simulations/integrated/economic_system.py`)**
+- 4-layer closed-loop architecture:
+  - Layer 1: cadCAD (5 PSUB blocks, GBM oracle, mark mean-reversion, funding)
+  - Layer 2: RL Agent (rule-based policy; 8-obs, 12-action gymnasium env; PPO-ready)
+  - Layer 3: Game Theory (nashpy vertex enumeration every 50 steps on live price window)
+  - Layer 4: Mechanism Design (scipy differential_evolution at episode boundary, 70/30 blending)
+- **Full 5-episode run results (5 ep × 720 steps = 3,600 steps):**
+  - 0/5 insolvency events
+  - Nash equilibrium leverage: 2.72× long / 3.28× short (well inside 5× cap)
+  - ι=0 net transfer: ~$−660 ≈ $0 (no riba)
+  - MD converged: F_max 75→41 bps, maintenance margin 2→3.1%, ins_split 50→61%
+- Results: `simulations/results/integrated/` (CSV + dashboard.png + params_evolution.png)
+- `simulations/run_all.py` updated with 5th module (integrated)
+
+**Papers**
+- **Paper 1** (`papers/paper1/`): Already complete — ι=0 Shariah perpetuals. 16pp, 6 figures generated from simulation data and compiled to PDF.
+- **Paper 2** (`papers/paper2/`): Added Section 8 "Simulation Validation" — 4-layer coupling, per-episode tables, 4 verified claims, empirical κ̂≈0.083. 11pp PDF compiled.
+- **Paper 3** (`papers/paper3/`): NEW — "Simulating Full Islamic Economic Systems: An Integrated cadCAD–RL–Game-Theoretic–Mechanism Design Framework". 8pp, full IES methodology, Theorem (ι=0 Nash), Proposition (MD convergence), complete results. PDF compiled.
+
+**GitHub — Public Repo**
+- Problem: home-dir git at `/Users/shehzad` pointed to wrong remote (supermaxlol's repo → 403)
+- Fix: initialized fresh git repo in `/Users/shehzad/Desktop/BarakaDapp/`
+- Removed `contracts/.git` (empty Foundry-init repo), added `contracts/lib/` to `.gitignore`
+- Redacted all API keys from tracked files (Vercel token, Alchemy key, Arbiscan, Graph deploy key)
+- Created: **https://github.com/Arcus-Quant-Fund/BarakaDapp** (public)
+- Pushed: 171 files, 72,065 insertions — full codebase including all 3 paper PDFs + simulation results
+
+**arcusquantfund.com /dapp page updated:**
+- 9 contracts listed (added BRKXToken, updated PM to v2 address)
+- Roadmap Phase 01: 78/78 tests, 3 papers, BRKX token, IES simulation, GitHub link
+- Research section expanded to show all 3 papers with descriptions
+- Simulation section: added IES as 5th card (4-layer closed loop)
+
+**Tests status:**
+- Forge: 78/78 ✅ (10 BRKXToken + 8 PositionManagerFee added)
+- Subgraph: graph build ✅
+- Frontend: 5/5 routes ✅
+
+**Files created/changed this session:**
+- `simulations/integrated/__init__.py` — NEW
+- `simulations/integrated/economic_system.py` — NEW (4-layer IES, ~600 lines)
+- `simulations/run_all.py` — added integrated module
+- `simulations/results/integrated/` — full run outputs (6 files)
+- `papers/paper1/` — 6 figures + PDF
+- `papers/paper2/paper2_credit_equivalence.tex` — Section 8 added, PDF recompiled
+- `papers/paper3/paper3_simulation_framework.tex` — NEW, PDF compiled
+- `contracts/src/token/BRKXToken.sol` — NEW
+- `contracts/src/interfaces/IPositionManager.sol` — NEW
+- `contracts/src/core/CollateralVault.sol` — chargeFromFree() added
+- `contracts/src/core/PositionManager.sol` — v2 with fee system
+- `contracts/script/DeployBRKX.s.sol` — NEW
+- `contracts/test/unit/BRKXToken.t.sol` — NEW (10 tests)
+- `contracts/test/unit/PositionManagerFee.t.sol` — NEW (8 tests)
+- `contracts/deployments/421614.json` — v2 PM + BRKXToken added
+- `frontend/lib/contracts.ts` — v2 PM + BRKXToken + BRKX_TIERS
+- `website/app/dapp/page.tsx` — full update (contracts, tests, papers, simulation)
+- `.gitignore` — updated (contracts/lib/, Python cache, LaTeX artifacts)
+- **Git: `Arcus-Quant-Fund/BarakaDapp` initialized + pushed**
+
+**Next session starts with:**
+1. **Pinata JWT** — get at pinata.cloud → upload fatwa placeholder PDF to IPFS → hardcode CID in GovernanceModule
+2. **BRKX E2E smoke test** — distribute BRKX to test wallet → open position on Sepolia → verify FeeCollected event fires at correct bps
+3. **SSRN preprint** — upload all 3 papers (SSRN.com → Finance category)
+4. **Discord + Twitter** — community launch channels
+5. **PPO training** — 200k timesteps to replace rule-based RL fallback in IES
 
 ---
 
