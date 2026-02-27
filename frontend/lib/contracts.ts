@@ -1,15 +1,15 @@
 // Deployed contract addresses — Arbitrum Sepolia (chainId 421614)
 // Source: contracts/deployments/421614.json
-// PositionManager upgraded 2026-02-27 (added BRKX fee system)
+// v2/v3 redeployed 2026-02-27 (OracleAdapter v2, CollateralVault v2, LiquidationEngine v2, PositionManager v3)
 
 export const CONTRACTS = {
-  OracleAdapter:     '0xB8d9778288B96ee5a9d873F222923C0671fc38D4',
+  OracleAdapter:     '0x86C475d9943ABC61870C6F19A7e743B134e1b563', // v2: kappa signal
   ShariahGuard:      '0x26d4db76a95DBf945ac14127a23Cd4861DA42e69',
   FundingEngine:     '0x459BE882BC8736e92AA4589D1b143e775b114b38',
   InsuranceFund:     '0x7B440af63D5fa5592E53310ce914A21513C1a716',
-  CollateralVault:   '0x5530e4670523cFd1A60dEFbB123f51ae6cae0c5E',
-  LiquidationEngine: '0x456eBE7BbCb099E75986307E4105A652c108b608',
-  PositionManager:   '0x787E15807f32f84aC3D929CB136216897b788070',
+  CollateralVault:   '0x0e9e32e4e061Db57eE5d3309A986423A5ad3227E', // v2: chargeFromFree
+  LiquidationEngine: '0x17D9399C7e17690bE23544E379907eC1AB6b7E07', // v2
+  PositionManager:   '0x035E38fd8b34486530A4Cd60cE9D840e1a0A124a', // v3: BRKX fee system
   GovernanceModule:  '0x8c987818dffcD00c000Fe161BFbbD414B0529341',
   BRKXToken:         '0xD3f7E29cAC5b618fAB44Dd8a64C4CC335C154A32',
 } as const
@@ -74,6 +74,19 @@ export const ORACLE_ADAPTER_ABI = [
     stateMutability: 'view',
     inputs: [{ name: 'asset', type: 'address' }],
     outputs: [{ name: 'price', type: 'uint256' }],
+  },
+  {
+    // v2: returns (kappa, premium, regime) — kappa/premium in 1e18 scale, regime 0-3
+    // NORMAL=0, ELEVATED=1, HIGH=2, CRITICAL=3
+    name: 'getKappaSignal',
+    type: 'function',
+    stateMutability: 'view',
+    inputs: [{ name: 'market', type: 'address' }],
+    outputs: [
+      { name: 'kappa',   type: 'int256' },
+      { name: 'premium', type: 'int256' },
+      { name: 'regime',  type: 'uint8'  },
+    ],
   },
 ] as const
 

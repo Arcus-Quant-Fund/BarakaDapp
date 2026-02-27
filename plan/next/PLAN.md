@@ -370,20 +370,9 @@ This is the deepest contribution: not just halal derivatives, but a mathematical
 | Paper | Topic | Status | Target |
 |---|---|---|---|
 | Paper 1 | ι parameter in perpetual futures — Shariah analysis + empirical evidence | Written | Islamic finance journals |
-| Paper 2 | Random stopping time ≡ credit event — riba-free credit pricing framework | **Writing now** | Mathematical Finance / JBF |
-| Paper 3 | κ-Rate as Islamic monetary alternative — full asset pricing theory | Planned | Journal of Economic Theory |
-| Paper 4 | Empirical test of Layer 1 Baraka Protocol on mainnet | After mainnet | Finance / DeFi journals |
-
----
-
-## SHARIAH COMPLIANCE SUMMARY
-
-| Islamic Prohibition | How Baraka Addresses It |
-|---|---|
-| Riba (interest) | ι = 0 hardcoded, mathematically proven, on-chain enforced |
-| Gharar (uncertainty) | Oracle consensus, transparent κ value, published formula |
-| Maysir (gambling) | MAX_LEVERAGE = 5 immutable, no zero-sum speculation |
-| Qabdh (delivery) | USDC/PAXG/XAUT as real-asset collateral |
+| Paper 2 | Random stopping time ≡ credit event — riba-free credit pricing framework | **Written** `paper2_credit_equivalence.tex` | Mathematical Finance / JBF |
+| Paper 3 | κ-Rate: riba-free monetary alternative from perpetual contract theory — full asset pricing theory, κ-yield curve, policy applications | **Written** `paper3_kappa_rate.tex` | Journal of Economic Theory / RFS |
+| Paper 4 | Empirical test of Baraka Protocol on mainnet (simulation is data generation tool, not a paper) | After mainnet | Finance / DeFi journals |
 
 ---
 

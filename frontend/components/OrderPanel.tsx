@@ -7,6 +7,7 @@ import { parseUnits } from 'viem'
 import { CONTRACTS, POSITION_MANAGER_ABI, BTC_ASSET_ADDRESS, USDC_ADDRESS } from '@/lib/contracts'
 import { useOraclePrices } from '@/hooks/useOraclePrices'
 import { useFundingRate } from '@/hooks/useFundingRate'
+import { useBrkxTier } from '@/hooks/useBrkxTier'
 
 const MAX_LEVERAGE = 5
 
@@ -18,6 +19,7 @@ export default function OrderPanel() {
 
   const { mark } = useOraclePrices()
   const { rateDisplay, isLong } = useFundingRate()
+  const { tierName, feeBps, feeLabel, balanceDisplay, nextTierBrkx } = useBrkxTier()
 
   const { writeContract, data: txHash, isPending } = useWriteContract()
   const { isLoading: isConfirming, isSuccess } = useWaitForTransactionReceipt({
@@ -25,7 +27,8 @@ export default function OrderPanel() {
   })
 
   const collateralNum = parseFloat(collateral) || 0
-  const size = collateralNum * leverage
+  const size    = collateralNum * leverage
+  const estFee  = size * feeBps / 100_000   // USDC, same decimals as size
   const estLiqPrice =
     mark && collateralNum > 0
       ? side === 'long'
@@ -208,7 +211,7 @@ export default function OrderPanel() {
                   : '—'}
               </span>
             </div>
-            <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '6px' }}>
               <span style={{ color: 'var(--text-muted)' }}>Funding rate (1h)</span>
               <span
                 style={{
@@ -217,6 +220,28 @@ export default function OrderPanel() {
                 }}
               >
                 {rateDisplay}
+              </span>
+            </div>
+            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '6px' }}>
+              <span style={{ color: 'var(--text-muted)' }}>Trading fee</span>
+              <span style={{ color: 'var(--gold)', fontFamily: 'var(--font-geist-mono)' }}>
+                ~${estFee.toFixed(4)} ({feeLabel})
+              </span>
+            </div>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <span style={{ color: 'var(--text-muted)' }}>BRKX tier</span>
+              <span
+                style={{
+                  fontSize: '10px',
+                  padding: '1px 6px',
+                  borderRadius: '4px',
+                  background: feeBps === 25 ? 'rgba(82,183,136,0.15)' : 'rgba(212,175,55,0.12)',
+                  color:      feeBps === 25 ? 'var(--green-lite)' : 'var(--gold)',
+                  border:     `1px solid ${feeBps === 25 ? 'rgba(82,183,136,0.3)' : 'rgba(212,175,55,0.25)'}`,
+                  fontWeight: 600,
+                }}
+              >
+                {tierName}
               </span>
             </div>
           </div>
@@ -273,6 +298,32 @@ export default function OrderPanel() {
             >
               {txHash.slice(0, 10)}...
             </a>
+          </div>
+        )}
+
+        {/* BRKX tier indicator */}
+        {isConnected && (
+          <div
+            style={{
+              marginTop: '10px',
+              padding: '8px 10px',
+              background: 'var(--bg-card)',
+              border: '1px solid var(--border)',
+              borderRadius: '6px',
+              display: 'flex',
+              justifyContent: 'space-between',
+              alignItems: 'center',
+              fontSize: '10px',
+            }}
+          >
+            <span style={{ color: 'var(--text-muted)' }}>
+              {balanceDisplay}
+            </span>
+            <span style={{ color: feeBps === 25 ? 'var(--green-lite)' : 'var(--text-muted)' }}>
+              {nextTierBrkx && nextTierBrkx > 0n
+                ? `+${(Number(nextTierBrkx) / 1e18).toLocaleString('en-US', { maximumFractionDigits: 0 })} BRKX → lower fee`
+                : `${feeLabel} · max discount`}
+            </span>
           </div>
         )}
 

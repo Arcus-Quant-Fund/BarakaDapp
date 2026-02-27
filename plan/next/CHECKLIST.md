@@ -280,14 +280,21 @@ Revenue split: 50% → InsuranceFund / 50% → Treasury
 
 ### Paper 2 — Random Stopping Time ≡ Credit Event (Riba-Free Credit Pricing)
 - [x] Conceived — see PLAN.md §PAPER ROADMAP
-- [x] Written — `paper2_credit.tex` (Feb 27 2026)
+- [x] Written — `papers/paper2/paper2_credit_equivalence.tex` (Feb 27 2026)
+- [x] Literature review integrated: Brémaud (1981), Protter (2005), Elliott et al. (2000), Jeanblanc & Rutkowski (2000), Schönbucher (2003), Billah (2007), Htay & Salman (2012), Khan & Ahmed (2001), SeekersGuidance (2025), Jobst (2007)
 - [ ] Submit to Journal of Banking & Finance or Mathematical Finance
 - [ ] Preprint on SSRN / arXiv (q-fin.GN)
 - [ ] Share with AAOIFI for fatwa process input
 
-### Paper 3 — κ-Rate as Islamic Monetary Alternative (planned)
-- [ ] Draft outline
-- [ ] Target: Journal of Economic Theory / Review of Financial Studies
+### Paper 3 — The κ-Rate: Riba-Free Monetary Alternative (written)
+- [x] Written — `papers/paper3/paper3_kappa_rate.tex` (Feb 28 2026)
+- [x] Literature review: Fisher (1930), Böhm-Bawerk (1890), Wicksell (1898), Keynes (1936), Chapra (1985), Khan & Mirakhor (1987), Iqbal & Mirakhor (2011), CIR (1985), Vasicek (1977), Nelson-Siegel (1987), El-Gamal (2006), Zarqa (1983), Khan & Abdallah (2017), Mirakhor & Askari (2010)
+- [x] Core thesis: κ is Wicksell's natural rate minus riba — first rigorous riba-free monetary alternative
+- [x] κ-yield curve: κ(T) = 1/T, Islamic analog of the CIR term structure
+- [x] Applications: credit instruments, takaful, monetary policy signalling, sovereign sukuk benchmark
+- [x] NOTE: simulation (cadCAD/RL/GT/MD) = data tool, cited as data note in Paper 3 (not a standalone paper)
+- [ ] Submit to Journal of Economic Theory / Review of Financial Studies
+- [ ] Preprint on SSRN / arXiv (q-fin.EC, q-fin.MF)
 
 ### Paper 4 — Empirical Baraka Protocol (post-mainnet)
 - [ ] After live trading data exists on mainnet

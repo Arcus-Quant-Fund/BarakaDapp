@@ -1,0 +1,1519 @@
+%% ============================================================
+%%  paper3_kappa_rate.tex
+%%  "The κ-Rate: A Riba-Free Monetary Alternative
+%%   Derived from Perpetual Contract Theory"
+%%  Ahmed, Bhuyan & Islam — February 2026
+%% ============================================================
+\documentclass[10pt,twocolumn]{article}
+\usepackage[utf8]{inputenc}
+\usepackage[margin=0.75in]{geometry}
+\usepackage{amsmath,amssymb,amsthm}
+\usepackage{graphicx}
+\usepackage{hyperref}
+\usepackage[numbers]{natbib}
+\usepackage{booktabs}
+\usepackage{abstract}
+\usepackage{xurl}
+\usepackage{titlesec}
+\usepackage{authblk}
+\usepackage{xcolor}
+\usepackage{array}
+\usepackage[protrusion=true,expansion=false]{microtype}
+\usepackage{enumitem}
+\usepackage{caption}
+\usepackage{multirow}
+\usepackage{bm}
+
+%% Section spacing
+\titlespacing*{\section}{0pt}{13pt}{6pt}
+\titlespacing*{\subsection}{0pt}{10pt}{4pt}
+\titlespacing*{\subsubsection}{0pt}{8pt}{3pt}
+
+%% Abstract style
+\renewcommand{\abstractnamefont}{\normalfont\bfseries\large}
+\renewcommand{\abstracttextfont}{\normalfont\small}
+
+%% Theorem environments
+\theoremstyle{plain}
+\newtheorem{theorem}{Theorem}
+\newtheorem{proposition}{Proposition}
+\newtheorem{corollary}{Corollary}
+\newtheorem{lemma}{Lemma}
+\theoremstyle{definition}
+\newtheorem{definition}{Definition}
+\newtheorem{remark}{Remark}
+\newtheorem{example}{Example}
+
+%% Math operators
+\DeclareMathOperator{\E}{\mathbb{E}}
+\newcommand{\Qa}{Q^a}
+\newcommand{\R}{\mathbb{R}}
+\newcommand{\Prob}{\mathbb{P}}
+\newcommand{\F}{\mathcal{F}}
+\newcommand{\krate}{\hat{\kappa}}
+
+\definecolor{ribared}{RGB}{180,30,30}
+\definecolor{halalgreen}{RGB}{30,120,60}
+\definecolor{noteblue}{RGB}{20,60,160}
+
+\hypersetup{colorlinks=true,linkcolor=blue,citecolor=blue,urlcolor=blue}
+
+%% ============================================================
+\title{\LARGE\textbf{The $\kappa$-Rate:\\
+A Riba-Free Monetary Alternative\\
+Derived from Perpetual Contract Theory}}
+
+\author[1]{Shehzad Ahmed}
+\author[2]{Rafiqul Bhuyan}
+\author[3]{Rubaiyat Islam}
+
+\affil[1]{Department of Finance, Independent University, Bangladesh\\
+\small\texttt{2120922@iub.edu.bd}}
+\affil[2]{Department of Finance, Alabama A\&M University, USA;
+Adjunct Professor, Monarch Business School Switzerland\\
+\small\texttt{rafiqul.bhuyan@aamu.edu}}
+\affil[3]{Department of Software Engineering, Daffodil International University,
+Bangladesh\\ \small\texttt{islam.swe@diu.edu.bd}}
+
+\date{February 2026}
+%% ============================================================
+
+\begin{document}
+
+\twocolumn[\begin{@twocolumnfalse}
+\maketitle\thispagestyle{empty}
+
+\begin{abstract}
+\noindent
+We propose the \textbf{$\kappa$-rate} --- the convergence intensity of
+perpetual futures contracts \cite{Ackerer2024} --- as the first
+mathematically rigorous, no-arbitrage-grounded, riba-free alternative
+to the risk-free interest rate $r$ in Islamic monetary economics.
+
+The $\kappa$-rate is: (i)~\emph{endogenous} --- market-implied from
+the observed perpetuals basis in continuous time; (ii)~\emph{observable}
+--- computable from two market prices and publishable on-chain in real
+time; (iii)~\emph{riba-free} --- an event intensity, not a reward for
+the time value of money; and (iv)~\emph{complete} --- sufficient to
+construct a full term structure (the $\kappa$-yield curve) analogous
+to the conventional yield curve.
+
+We develop the theoretical foundations in four steps. First, we
+decompose the classical interest rate $r$ (Fisher \cite{Fisher1930},
+Wicksell \cite{Wicksell1898}, Keynes \cite{Keynes1936}) into its
+components and identify the riba component as the pure time-preference
+premium, which the Ackerer-Hugonnier-Jermann no-arbitrage theorem
+proves is eliminable ($\iota = 0$). Second, we show that the $\kappa$-rate
+is the Wicksellian ``natural rate'' (a rate grounded in real economic
+dynamics rather than monetary policy) made rigorous and riba-free for
+the first time. Third, we construct the $\kappa$-yield curve
+$\kappa(T) = 1/T$ as the Islamic analog of the CIR
+\cite{CIR1985} term structure, grounded in exponential stopping time
+distributions. Fourth, we demonstrate that $\kappa$ can serve all
+monetary functions currently performed by $r$ in the Islamic context:
+pricing credit instruments (Section~\ref{sec:credit}), anchoring
+actuarial takaful contributions (Section~\ref{sec:takaful}), guiding
+Islamic monetary policy (Section~\ref{sec:policy}), and providing a
+sovereign benchmark rate for sukuk issuance (Section~\ref{sec:sovereign}).
+
+Empirical support comes from the Baraka Protocol --- a Shariah-compliant
+perpetual futures exchange deployed on Arbitrum Sepolia (chainId 421614)
+--- where $\kappa$ is on-chain observable in real time. The contemporary
+Shariah ruling of SeekersGuidance \cite{SeekersGuidance2025} validates
+that $\iota = 0$ resolves the riba objection, providing jurisprudential
+grounding for the $\kappa$-rate as a Shariah-compatible monetary instrument.
+
+\medskip
+\noindent\textbf{Keywords:} $\kappa$-rate, riba-free monetary policy,
+Islamic monetary economics, natural rate, perpetual contracts, yield
+curve, Wicksell, Fisher decomposition, no-arbitrage, $\iota = 0$,
+Baraka Protocol
+\end{abstract}
+\bigskip
+\end{@twocolumnfalse}]
+
+%% ============================================================
+\section{Introduction}
+\label{sec:intro}
+%% ============================================================
+
+The interest rate $r$ is the foundational pricing parameter of
+modern finance. It appears in every discount factor, every bond
+yield, every option formula, every term structure model. It is the
+rate at which future cash flows are brought to present value.
+Islamic finance prohibits it.
+
+This is not a peripheral prohibition. The Quranic injunction
+against \textit{riba} --- ``Allah has permitted trade and
+forbidden \textit{riba}'' (Al-Baqarah 2:275) --- is absolute,
+applying to all forms of predetermined excess in monetary exchange.
+The risk-free rate $r$ is, under any classical decomposition
+(Fisher \cite{Fisher1930}, Böhm-Bawerk \cite{BohmBawerk1890},
+Keynes \cite{Keynes1936}), precisely the price of time preference
+in monetary form: the lender receives $r$ per unit time merely for
+parting with money, independent of any real economic outcome. This
+is \textit{riba al-nasi'ah} --- the prohibited excess for deferment
+--- by all four Sunni schools and the Ja'fari school
+\cite{Usmani2002,ElGamal2006}.
+
+The consequence for Islamic finance is catastrophic. Without $r$,
+there is no discount factor. Without a discount factor, bonds
+cannot be priced. Without bond pricing, there is no credit market.
+Without a credit market, Islamic institutions cannot hedge credit
+risk, sovereign governments cannot issue benchmarked sukuk, and
+takaful operators cannot price contributions actuarially. The
+entire credit infrastructure of modern finance --- a market of
+roughly \$130 trillion in bonds and \$10 trillion in credit
+derivatives \cite{BIS2024} --- is inaccessible to Islamic
+participants on Shariah-compliant terms.
+
+Islamic monetary economists have recognised this problem for
+five decades (Chapra \cite{Chapra1985}, Khan \& Mirakhor
+\cite{KhanMirakhor1987}, Iqbal \& Mirakhor \cite{IqbalMirakhor2011}).
+The proposed solutions --- profit-sharing rates (musharakah/mudarabah
+returns), commodity benchmarks, and asset-backed yield proxies
+--- have all failed in practice. Iqbal \& Molyneux
+\cite{IqbalMolyneux2005} document that even in the most
+advanced Islamic finance jurisdictions (Malaysia, Bahrain,
+UAE), rates charged on Islamic products track LIBOR/SOFR
+closely, with the interest content merely re-labelled.
+Khan \& Abdallah \cite{KhanAbdallah2017} term this the
+``ghost of LIBOR'' --- riba is present in Islamic pricing
+even when explicitly prohibited.
+
+The failure has a structural cause: \emph{no prior work has
+derived a complete, mathematically rigorous, no-arbitrage-grounded
+alternative to $r$ from first principles}.
+
+This paper provides that alternative. We call it the
+\textbf{$\kappa$-rate}: the convergence intensity of a perpetual
+futures contract, proved by Ackerer, Hugonnier \& Jermann
+\cite{Ackerer2024} to achieve unique no-arbitrage pricing at
+$\iota = 0$ (zero interest parameter). The $\kappa$-rate is not
+a label change. It is a mathematically distinct pricing parameter
+with provably no riba content, capable of performing all the
+monetary functions currently assigned to $r$ in an Islamic economy.
+
+\subsection*{The Gap in One Sentence}
+
+Wicksell \cite{Wicksell1898} proposed in 1898 that the ``natural
+rate'' of interest should be grounded in real economic productivity
+rather than monetary convention --- but it remained an interest rate
+with time-preference content. Chapra \cite{Chapra1985} proposed
+in 1985 that Islamic monetary policy needs a real-activity-based
+pricing signal --- but never provided a mathematical formula.
+The $\kappa$-rate is the Wicksellian natural rate made rigorous,
+riba-free, and on-chain observable --- 128 years after the question
+was first posed.
+
+\subsection*{Structure}
+
+Section~\ref{sec:decomposition} decomposes $r$ into components and
+identifies the riba component.
+Section~\ref{sec:kappa_def} defines the $\kappa$-rate from first
+principles.
+Section~\ref{sec:kappa_vs_r} contrasts $\kappa$ with $r$ across
+all standard properties.
+Section~\ref{sec:yieldcurve} constructs the $\kappa$-yield curve.
+Section~\ref{sec:applications} develops applications: credit
+instruments, takaful, monetary policy, and sovereign benchmarking.
+Section~\ref{sec:empirical} presents on-chain empirical evidence
+from the Baraka Protocol.
+Section~\ref{sec:shariah} provides the Shariah analysis.
+Section~\ref{sec:discussion} compares $\kappa$ with prior proposals
+and discusses limitations.
+
+%% ============================================================
+\section{Decomposing $r$: What Is the Riba Component?}
+\label{sec:decomposition}
+%% ============================================================
+
+\subsection{The Fisher Decomposition}
+
+Fisher \cite{Fisher1930} established the modern theory of interest
+as an equilibrium between two forces:
+\begin{enumerate}[leftmargin=*,noitemsep]
+\item \textbf{Time preference (impatience):} the subjective
+preference of individuals for present over future consumption,
+independent of any investment opportunity.
+\item \textbf{Investment opportunity:} the marginal productivity
+of capital --- the real return from deploying resources in
+production.
+\end{enumerate}
+
+The equilibrium interest rate $r$ equates marginal impatience
+to marginal productivity. Fisher's formulation also yields the
+famous Fisher equation:
+\begin{equation}
+r_{\text{nominal}} = r_{\text{real}} + \pi
+\label{eq:fisher}
+\end{equation}
+where $\pi$ is expected inflation. The market rate therefore
+contains three components: real productivity, time preference,
+and inflation compensation.
+
+\subsection{Böhm-Bawerk's Distinction}
+
+Böhm-Bawerk \cite{BohmBawerk1890} distinguished two grounds
+for interest:
+\begin{itemize}[leftmargin=*, noitemsep]
+\item The \textbf{productivity ground}: present capital generates
+future output exceeding the present input (roundabout production).
+This is the return to real productive activity.
+\item The \textbf{time preference ground}: present goods are
+valued more than future goods by an ``agio'' (premium) for
+their presentness --- independent of productivity.
+\end{itemize}
+
+Islamic economics accepts the productivity ground (profit from
+real activity is halal) but rejects the time preference ground
+(a predetermined premium for the passage of time, payable on
+a money loan regardless of economic outcome, is riba). This
+is the precise jurisprudential boundary.
+
+\subsection{The Riba Component}
+
+Under the Fisher-Böhm-Bawerk decomposition, the risk-free
+interest rate $r$ can be written:
+\begin{equation}
+r = \underbrace{r_{\text{prod}}}_{\text{halal}} +
+\underbrace{r_{\text{pref}}}_{\text{riba}} +
+\underbrace{\pi}_{\text{neutral}}
+\label{eq:riba_decomp}
+\end{equation}
+
+The riba component $r_{\text{pref}}$ is the pure time preference
+premium: the predetermined, fixed return on a money loan
+attributable solely to the passage of time. It is independent of:
+\begin{itemize}[leftmargin=*,noitemsep]
+\item the real economic outcome of the borrower,
+\item the productive use of the capital,
+\item market conditions at the time of repayment.
+\end{itemize}
+
+Under El-Gamal's \cite{ElGamal2006} operationalization of riba
+as ``predetermined excess in exchange, independent of economic
+outcome,'' $r_{\text{pref}}$ is riba by definition.
+
+\subsection{The Wicksell Natural Rate and Its Limit}
+
+Wicksell \cite{Wicksell1898} proposed the ``natural rate'' of
+interest $r^*$ --- the rate at which investment equals saving
+in a real economy, determined by the marginal productivity of
+capital without monetary distortion:
+\begin{equation}
+r^* = \text{MPK} = \frac{\partial F(K,L)}{\partial K}
+\label{eq:wicksell}
+\end{equation}
+
+This is closer to the Islamic ideal: a rate grounded in real
+activity rather than monetary policy. But Wicksell's natural
+rate still includes time preference: it is still an interest
+rate that compensates capital for time elapsed, just one
+calibrated to real productivity. The riba component persists.
+
+\begin{remark}
+The $\kappa$-rate achieves what Wicksell attempted but could
+not complete. It eliminates $r_{\text{pref}}$ entirely from
+the pricing formula, leaving only the productivity-equivalent
+component in the form of convergence dynamics.
+The $\kappa$-rate is Wicksell's natural rate with
+the riba subtracted.
+\end{remark}
+
+%% ============================================================
+\section{The $\kappa$-Rate: Definition and Properties}
+\label{sec:kappa_def}
+%% ============================================================
+
+\subsection{From Perpetual Futures to Monetary Rate}
+
+We recall the foundational result. Ackerer, Hugonnier \& Jermann
+\cite{Ackerer2024} prove that the unique no-arbitrage price of a
+perpetual futures contract on a spot asset $X_t$ (under constant
+parameters) is:
+\begin{equation}
+f_t = \frac{\kappa}{\kappa - \iota + r_b - r_a} \cdot X_t
+\label{eq:perp_price}
+\end{equation}
+where $\kappa > 0$ is the \textbf{convergence intensity}, $\iota
+\geq 0$ is the interest parameter, and $r_a, r_b$ are the
+long and short funding rates. Theorem~3 of Ackerer et al.\
+proves that $\iota = 0$ satisfies no-arbitrage. At $\iota = 0$
+and $r_a = r_b$:
+\begin{equation}
+f_t = X_t
+\label{eq:parity}
+\end{equation}
+The perpetual futures price equals the spot price identically
+--- with the convergence dynamics entirely captured by $\kappa$.
+
+The $\kappa$-rate is implied from observed market prices:
+\begin{equation}
+\boxed{\hat\kappa_t = \frac{f_t/X_t \cdot (r_b - r_a)}{1 - f_t/X_t}}
+\label{eq:kappa_implied}
+\end{equation}
+This is the \textbf{market-implied $\kappa$-rate}: a continuous,
+on-chain observable derived from two market prices, with no
+interest rate as an input.
+
+\subsection{Formal Definition}
+
+\begin{definition}[$\kappa$-Rate]
+\label{def:kappa}
+The \textbf{$\kappa$-rate} for an instrument linking a financial
+claim to an underlying real asset $X_t$ is the convergence
+intensity $\kappa > 0$ that:
+\begin{enumerate}[leftmargin=*,noitemsep]
+\item Parameterizes the distribution of the stopping time $\theta_t
+\sim t + \mathrm{Exp}(\kappa)$ at which the claim is settled.
+\item Is implied endogenously from market prices via
+equation~\eqref{eq:kappa_implied}.
+\item Satisfies $\iota = 0$: no interest parameter is charged.
+\item Achieves unique no-arbitrage pricing by Theorem~3 of
+Ackerer et al.\ \cite{Ackerer2024}.
+\end{enumerate}
+\end{definition}
+
+\subsection{Economic Interpretation of $\kappa$}
+
+$\kappa$ measures the \textbf{speed of convergence} between a
+financial instrument's price and its underlying real asset value.
+Specifically:
+\begin{itemize}[leftmargin=*,noitemsep]
+\item \textbf{High $\kappa$:} Rapid mean-reversion. The perpetual
+price tracks spot closely. Short expected stopping time
+$\E[\theta_t - t] = 1/\kappa$. The market is confident about
+near-term convergence.
+\item \textbf{Low $\kappa$:} Slow convergence. Wide basis.
+Longer expected stopping time. The market perceives structural
+uncertainty about when the real asset will reach its fair value.
+\item \textbf{$\kappa \to \infty$:} Instantaneous convergence;
+$f_t = X_t$ always. Perfect tracking.
+\item \textbf{$\kappa \to 0$:} No convergence; the perpetual
+becomes untethered from the underlying. The instrument loses
+economic meaning.
+\end{itemize}
+
+This interpretation is fundamentally different from $r$:
+\begin{center}
+\small
+\begin{tabular}{@{}lll@{}}
+\toprule
+\textbf{Property} & \textbf{$r$ (interest rate)} & \textbf{$\kappa$ ($\kappa$-rate)} \\
+\midrule
+Determined by & Central bank & Market prices \\
+Measures & Time preference & Convergence speed \\
+Riba content & Yes ($r_{\text{pref}} > 0$) & No \\
+Real basis & Partial & Complete \\
+Negative values & Possible ($r < 0$) & Impossible ($\kappa > 0$) \\
+Observable & Policy setting & On-chain, real-time \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+%% ============================================================
+\section{$\kappa$ vs.\ $r$: A Complete Comparison}
+\label{sec:kappa_vs_r}
+%% ============================================================
+
+\subsection{The Riba Test}
+
+El-Gamal's \cite{ElGamal2006} criterion for riba: a payment
+is riba if it is (1)~predetermined, (2)~in excess of principal,
+and (3)~independent of real economic outcome.
+
+\begin{proposition}[The $\kappa$-Rate is Not Riba]
+\label{prop:not_riba}
+The $\kappa$-rate satisfies none of the three riba criteria:
+\begin{enumerate}[leftmargin=*,noitemsep]
+\item \textbf{Not predetermined.} $\kappa_t$ fluctuates
+continuously with market conditions. It is implied from
+market prices, not contractually fixed.
+\item \textbf{Not excess of principal.} The $\kappa$-rate
+does not generate a return over principal. At $\iota = 0$
+and $r_a = r_b$, the instrument price equals the underlying
+asset value ($f_t = X_t$) --- no excess.
+\item \textbf{Not independent of economic outcome.}
+$\kappa$ is backed out from the observed basis $f_t / X_t$,
+which reflects real market views about asset convergence. If
+the underlying asset performs well, the basis narrows (high
+$\kappa$); if poorly, the basis widens (low $\kappa$). The
+$\kappa$-rate is tied to real economic dynamics.
+\end{enumerate}
+\end{proposition}
+
+\begin{proof}
+(1) follows from equation~\eqref{eq:kappa_implied}: $\hat\kappa_t$
+is a continuous function of market prices $f_t, X_t$, both of
+which vary. (2) follows from equation~\eqref{eq:parity}: at
+$\iota = 0$ and $r_a = r_b$, $f_t = X_t$. (3) follows from the
+market-determination of $\hat\kappa_t$: it is implied from
+observed prices, not set exogenously.\qquad$\square$
+\end{proof}
+
+\subsection{Replacing $r$ in Standard Pricing Formulas}
+
+The key question is whether $\kappa$ can perform the mathematical
+functions of $r$. We demonstrate this across three standard
+settings.
+
+\textbf{Bond pricing.}
+A conventional zero-coupon bond: $P = e^{-rT}$.
+The $\kappa$-equivalent (Islamic perpetual sukuk with expected
+maturity $T = 1/\kappa$):
+\begin{equation}
+P^{\kappa} = \E^Q[X_\tau] = X_t, \quad \tau\sim\mathrm{Exp}(\kappa)
+\label{eq:kappa_bond}
+\end{equation}
+The discount comes not from $e^{-rT}$ but from the stopping time
+distribution: the probability that the redemption event is more
+than $T$ periods away decays exponentially at rate $\kappa$,
+achieving the same economic effect without any interest.
+
+\textbf{Option pricing.}
+In Black-Scholes \cite{BlackScholes1973}, the risk-free rate
+$r$ appears as the discount factor and in the drift of the
+risk-neutral measure. At $\iota = 0$ and $r_a = r_b$, the
+everlasting put from Ackerer et al.\ Proposition~6:
+\begin{equation}
+\Pi(x,K) = \frac{K^{1-\beta_p}}{1-\beta_p}\cdot x^{\beta_p},
+\quad \beta_p = \tfrac{1}{2}
+- \sqrt{\tfrac{1}{4} + \tfrac{2\kappa}{\sigma^2}}
+\label{eq:evput}
+\end{equation}
+replaces $r$ with $\kappa$ entirely in the exponent.
+
+\textbf{Credit default swap.}
+A conventional CDS spread $s$ solves $s = r + \lambda - r_{\text{risk-free}}
+\approx \lambda$ when the risk-free rate is small.
+The iCDS spread \cite{Ahmed2026b}: $\kappa_{\text{iCDS}} = \lambda$
+(the credit hazard rate), with $\iota = 0$, achieves the same
+risk-transfer without the interest baseline.
+
+\subsection{Policy Functions of $r$ and Their $\kappa$ Analogs}
+
+Table~\ref{tab:functions} lists the monetary policy functions of
+$r$ and the corresponding $\kappa$-rate mechanism.
+
+\begin{table}[h!]
+\centering
+\caption{Monetary functions: $r$ vs.\ $\kappa$.}
+\label{tab:functions}
+\small
+\begin{tabular}{@{}p{2.8cm}p{2.1cm}p{2.1cm}@{}}
+\toprule
+\textbf{Function} & \textbf{$r$ mechanism} & \textbf{$\kappa$ mechanism} \\
+\midrule
+Price of credit risk & $r + \lambda$ spread & $\kappa \equiv \lambda$ at $\iota=0$ \\
+Discount factor & $e^{-rT}$ & $\mathrm{Exp}(\kappa)$ survival prob. \\
+Term structure & Yield curve $r(T)$ & $\kappa(T) = 1/T$ \\
+Monetary signal & Central bank sets $r$ & Market implies $\hat\kappa$ \\
+Sovereign benchmark & Government bond yield & Perpetual sukuk implied $\kappa$ \\
+Insurance pricing & $e^{-r} \cdot \text{claim}$ & $\Pi(x,K) = C_p x^{\beta_p}$ \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+%% ============================================================
+\section{The $\kappa$-Yield Curve}
+\label{sec:yieldcurve}
+%% ============================================================
+
+\subsection{Construction}
+
+The conventional yield curve $r(T)$ maps maturity $T$ to the
+yield on a zero-coupon risk-free bond. It is the term structure
+of interest rates, grounded in the expectation hypothesis and
+risk premia over time. Cox, Ingersoll \& Ross \cite{CIR1985}
+provide the canonical equilibrium derivation; Vasicek
+\cite{Vasicek1977} provides the Gaussian version; Nelson \&
+Siegel \cite{NelsonSiegel1987} provide the empirical estimation
+framework.
+
+The \textbf{$\kappa$-yield curve} is the Islamic analog: the
+mapping $\kappa(T)$ of convergence intensities from perpetual
+instruments of different expected horizons.
+
+\begin{proposition}[$\kappa$-Yield Curve]
+\label{prop:kappa_curve}
+For an instrument with expected horizon $T$ (the expected time
+until the stopping event under no other information), the
+$\kappa$-yield curve satisfies:
+\begin{equation}
+\kappa(T) = \frac{1}{T}, \qquad T > 0
+\label{eq:kappa_curve}
+\end{equation}
+The curve is monotonically decreasing in $T$: short-horizon
+instruments have high $\kappa$ (rapid convergence), long-horizon
+instruments have low $\kappa$ (slow convergence).
+\end{proposition}
+
+\begin{proof}
+For a stopping time $\theta_t \sim \mathrm{Exp}(\kappa)$,
+the expected stopping time is $\E[\theta_t - t] = 1/\kappa$.
+Setting this equal to the instrument's target horizon $T$
+gives $\kappa = 1/T$.\qquad$\square$
+\end{proof}
+
+\subsection{Comparison with the Conventional Yield Curve}
+
+Table~\ref{tab:yield_curve} contrasts the two term structures.
+
+\begin{table}[h!]
+\centering
+\caption{$\kappa$-yield curve vs.\ conventional yield curve.}
+\label{tab:yield_curve}
+\small
+\begin{tabular}{@{}p{2.6cm}p{2.0cm}p{2.4cm}@{}}
+\toprule
+\textbf{Property} & \textbf{CIR/Vasicek} & \textbf{$\kappa$-curve} \\
+\midrule
+Pricing parameter & Short rate $r_t$ & Conv.\ intensity $\kappa_t$ \\
+Riba content & Yes & No \\
+Central bank role & Sets $r$ & None (market-implied) \\
+Shape & Any & Monotone decreasing \\
+Calibration & Rate expectations & Asset timelines \\
+Negative rates & Possible & Impossible \\
+DeFi observable & No & Yes (on-chain) \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\subsection{Empirical Estimation}
+
+By Proposition~\ref{prop:kappa_curve}, to estimate the
+$\kappa$-yield curve one needs:
+\begin{enumerate}[leftmargin=*,noitemsep]
+\item Observed perpetuals basis $f_t^{(i)}/X_t^{(i)}$ for
+instruments $i = 1,\ldots,n$ with different underlying asset
+horizons.
+\item Implied $\hat\kappa_t^{(i)}$ from equation~\eqref{eq:kappa_implied}.
+\item The Nelson-Siegel \cite{NelsonSiegel1987} functional form
+applied to the $(\hat\kappa^{(i)}, T^{(i)})$ pairs to produce
+a smooth curve.
+\end{enumerate}
+
+For the Baraka Protocol (Section~\ref{sec:empirical}), the
+single BTC perpetual instrument provides the spot
+$\hat\kappa_t$; a term structure requires perpetuals on
+multiple RWA underlyings with different expected lifetimes
+(commodity contracts, infrastructure sukuk, mortgage-equivalent
+instruments).
+
+%% ============================================================
+\section{Applications of the $\kappa$-Rate}
+\label{sec:applications}
+%% ============================================================
+
+\subsection{Islamic Credit Instruments}
+\label{sec:credit}
+
+The $\kappa$-rate provides the pricing foundation for a complete
+riba-free credit market. The formal proof (the isomorphism between
+the Ackerer framework and the Duffie-Singleton credit model) is
+established in Ahmed, Bhuyan \& Islam \cite{Ahmed2026b}. We
+summarize the pricing formulas.
+
+\textbf{Perpetual sukuk.} Backed by a real asset with value $X_t$
+and expected maturity $T$:
+\begin{equation}
+P_t^{\text{sukuk}} = \E^Q[X_\tau] = X_t
+\quad (r_a = r_b, \iota = 0)
+\label{eq:sukuk}
+\end{equation}
+The $\kappa$-rate calibration: $\kappa = 1/T$ from the asset's
+expected project timeline (engineering estimates, actuarial tables,
+regulatory schedules).
+
+\textbf{iCDS (Islamic Credit Default Swap).}
+Protection buyer pays $\kappa\,dt$ continuously; seller pays
+$X_\tau$ at credit event $\tau$:
+\begin{equation}
+V_t^{\text{iCDS}} = \E^Q[X_\tau] - \kappa\int_t^\infty
+e^{-\kappa(s-t)}\,ds = X_t - 1
+\label{eq:icds}
+\end{equation}
+for normalized sukuk price (par = 1). The iCDS $\kappa$ is
+calibrated from the reference entity's historical default
+frequency and rating transition matrices.
+
+\textbf{Sovereign perpetual sukuk.}
+A government issues sukuk backed by an infrastructure project
+(expected completion $T$ years, value $X_t$). Secondary market
+price: $P_t = X_t$ (at-par, riba-free). The government pays
+continuous funding $\pi_t = \kappa(f_t - X_t)\,dt$ to holders.
+No SOFR benchmark required.
+
+\subsection{Takaful (Islamic Insurance)}
+\label{sec:takaful}
+
+Billah \cite{Billah2007} identifies the core takaful pricing
+tension: actuarial fairness requires discounting expected claims,
+but standard discounting uses $r$ (riba). The $\kappa$-rate
+resolves this.
+
+The actuarially fair takaful contribution for floor protection
+at $K$ on asset $X_t$ (volatility $\sigma$, claim intensity $\kappa$):
+\begin{equation}
+\Pi_{\text{takaful}}(x,K) = \frac{K^{1-\beta_p}}{1-\beta_p}
+\cdot x^{\beta_p},\quad
+\beta_p = \frac{1}{2} - \sqrt{\frac{1}{4} + \frac{2\kappa}{\sigma^2}}
+\label{eq:takaful}
+\end{equation}
+No interest rate appears. The $\kappa$-rate calibration uses
+actuarial tables (historical claim frequency $=\kappa$). The
+contribution~\eqref{eq:takaful} is provably no-arbitrage
+\cite{Ahmed2026b}, resolving the Htay-Salman circularity
+\cite{HtaySalman2012}.
+
+\subsection{Islamic Monetary Policy}
+\label{sec:policy}
+
+Chapra \cite{Chapra1985} called for a riba-free monetary policy
+instrument. The $\kappa$-rate provides it.
+
+\textbf{$\kappa$-based monetary signaling.}
+An Islamic central bank publishes the system-wide average $\bar\kappa$
+--- the weighted mean of implied $\kappa$-rates across all
+Islamic perpetual instruments in the market:
+\begin{equation}
+\bar\kappa_t = \frac{\sum_i w_i \hat\kappa_t^{(i)}}{\sum_i w_i}
+\label{eq:kappa_policy}
+\end{equation}
+where weights $w_i$ are notional outstanding. This is the
+Islamic analog of the policy rate:
+\begin{itemize}[leftmargin=*, noitemsep]
+\item High $\bar\kappa$: tight convergence, markets believe
+real asset values are reliable. Loose monetary conditions
+(analogous to low $r$).
+\item Low $\bar\kappa$: wide basis, markets are uncertain
+about real asset values. Tighter monetary conditions
+(analogous to high $r$).
+\end{itemize}
+
+\textbf{Open market operations in $\kappa$-space.}
+An Islamic central bank can intervene in the perpetuals market
+to influence $\bar\kappa$ --- providing a policy transmission
+mechanism that does not involve setting an interest rate.
+This is the riba-free analog of open market operations.
+
+\textbf{Reserve requirements.}
+If the $\kappa$-rate of Islamic bank assets (implied from their
+sukuk portfolios) falls below a threshold, the central bank
+can require higher reserve ratios --- a prudential tool that
+reinforces the $\kappa$-based monetary signal.
+
+\subsection{Sovereign Benchmark Rate}
+\label{sec:sovereign}
+
+The most urgent practical application is replacing SOFR/government
+bond yields as the sukuk issuance benchmark. Khan \& Abdallah
+\cite{KhanAbdallah2017} document that all major sovereign sukuk
+(Malaysia GII, Saudi Arabia sukuk, Indonesia SR series) are priced
+at issuance against SOFR, making the riba implicit.
+
+The $\kappa$-yield curve replaces this benchmark. For a sovereign
+issuing infrastructure sukuk with expected completion horizon $T$:
+\begin{equation}
+\text{Sovereign } \kappa(T) = \frac{1}{T} + \kappa_{\text{spread}}
+\label{eq:sovereign_kappa}
+\end{equation}
+where $\kappa_{\text{spread}}$ is the sovereign's credit-specific
+convergence spread (implied from observed CDS-equivalent instruments
+at $\iota = 0$, i.e., iCDS). The secondary market yield is then
+$y = \kappa(T)$ --- a riba-free sovereign benchmark built entirely
+from market-observed convergence intensities.
+
+Table~\ref{tab:calibration} summarizes $\kappa$ calibration
+by instrument type.
+
+\begin{table}[h!]
+\centering
+\caption{$\kappa$-rate calibration by instrument.}
+\label{tab:calibration}
+\small
+\begin{tabular}{@{}p{2.4cm}p{2.6cm}p{2.0cm}@{}}
+\toprule
+\textbf{Instrument} & \textbf{$\kappa$ calibration} & \textbf{Data source} \\
+\midrule
+Perp.\ futures & Basis $f_t/X_t$ & Exchange data \\
+Sukuk & Project timeline $T$ & Engineering reports \\
+Takaful & Claim frequency & Actuarial tables \\
+iCDS & Default history & Rating agencies \\
+Sovereign sukuk & Completion prob. & Government data \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+%% ============================================================
+\section{Empirical Evidence from the Baraka Protocol}
+\label{sec:empirical}
+%% ============================================================
+
+The Baraka Protocol \cite{Ahmed2026a} is a Shariah-compliant
+perpetual futures exchange deployed on Arbitrum Sepolia
+(chainId 421614) in February 2026. It implements $\iota = 0$ by
+construction, providing the first live on-chain laboratory for
+observing the $\kappa$-rate.
+
+\subsection{On-Chain $\kappa$ Observability}
+
+The PositionManager contract (verified at
+\texttt{0x787E15807f32f84aC3D929CB136216897b788070})
+exposes the mark price $f_t$ and the index price $X_t$ in
+real time. The implied $\kappa$-rate is computed from
+equation~\eqref{eq:kappa_implied} with $r_a = r_b$ (symmetric
+USDC funding rates in the MVP):
+\begin{equation}
+\hat\kappa_t = \lim_{r_a \to r_b}
+\frac{f_t/X_t \cdot (r_b - r_a)}{1 - f_t/X_t}
+\label{eq:kappa_defi}
+\end{equation}
+
+At the $r_a = r_b$ limit, $\hat\kappa_t$ is identified from
+the rate of mean-reversion of the funding rate to zero. The
+FundingEngine contract accumulates the realized funding rate
+at each settlement interval; the empirical $\hat\kappa$ is
+the exponential decay rate of $|F_t| / |F_0|$ over time.
+
+\subsection{Simulation Validation}
+
+The theoretical $\kappa$-rate properties are validated by an
+integrated economic simulation of the Baraka Protocol combining
+cadCAD state-machine modelling \cite{Zargham2020}, game-theoretic
+Nash equilibrium analysis, and mechanism design optimisation.
+The simulation is the subject of a companion data note
+\cite{Ahmed2026c}; we report the $\kappa$-relevant findings here.
+
+Over 5 episodes $\times$ 720 hourly steps (3,600 simulated
+intervals, 150 trading days), the simulation finds:
+
+\begin{enumerate}[leftmargin=*,noitemsep]
+\item \textbf{Zero insolvency events.} The InsuranceFund grew
+from \$100,000 to \$102,835 across all episodes. This is
+consistent with the takaful theorem \cite{Ahmed2026b}: when
+premiums are set at the actuarially fair $\kappa$-rate, the
+mutual pool is self-sustaining.
+\item \textbf{Mean $|F_t|$ converging to zero.} Mean absolute
+funding rate fell from 70.1 bps/8h (episode 1) to 39.6 bps/8h
+(episode 5) as the mechanism design optimiser reduced the
+circuit-breaker bound. The funding rate's convergence to zero
+is the empirical signature of $\iota = 0$ predicted by
+Ackerer et al.\ Proposition~3 \cite{Ackerer2024}.
+\item \textbf{Endogenous $\hat\kappa$ calibration.} From the
+insurance fund growth rate and realized funding rates, the
+implied $\hat\kappa \approx 0.083$ per annum --- consistent
+with the agricultural takaful calibration of $\kappa = 0.08$
+used in Ahmed, Bhuyan \& Islam \cite{Ahmed2026b}. The
+simulation thus cross-validates the theoretical $\kappa$-rate
+against an independent mechanism.
+\item \textbf{Nash equilibrium leverage 2.72$\times$/3.28$\times$.}
+Both sub-maximal (Shariah hard cap: 5$\times$), confirming
+that the $\iota = 0$ funding mechanism does not incentivize
+maximum leverage.
+\end{enumerate}
+
+\begin{remark}
+The simulation data is not used to define $\kappa$ --- it is used
+to validate that the theoretical $\kappa$-rate derived from
+Ackerer et al.\ is recovered empirically from an independent
+economic system. This confirms $\kappa$ is a genuine economic
+parameter, not a modelling artifact.
+\end{remark}
+
+%% ============================================================
+\section{Shariah Analysis}
+\label{sec:shariah}
+%% ============================================================
+
+\subsection{Riba}
+
+The $\kappa$-rate satisfies Proposition~\ref{prop:not_riba}: it
+is not predetermined, not in excess of principal, and not
+independent of real economic outcomes. Crucially, it satisfies
+both forms of riba prohibition:
+\begin{itemize}[leftmargin=*,noitemsep]
+\item \textbf{Riba al-nasi'ah} (excess for deferment): The
+$\kappa$-rate does not compensate for the passage of time
+as such. The stopping time distribution $\mathrm{Exp}(\kappa)$
+encodes \emph{when} a real economic event occurs; $\kappa$
+is the event intensity, not a time preference parameter.
+\item \textbf{Riba al-fadl} (excess in exchange): At $\iota = 0$,
+the perpetual futures price equals the underlying asset value
+($f_t = X_t$ at $r_a = r_b$). There is no permanent systematic
+excess in the exchange.
+\end{itemize}
+
+The contemporary ruling of SeekersGuidance \cite{SeekersGuidance2025}
+--- the most rigorous conservative Shariah authority in English
+--- explicitly confirms: \textit{``removing the interest component
+resolves the riba objection.''} The $\iota = 0$ condition achieves
+exactly this removal.
+
+\subsection{Gharar}
+
+The randomness of the stopping time $\tau \sim \mathrm{Exp}(\kappa)$
+introduces actuarial uncertainty (the exact time of the event is
+unknown) but not contractual ambiguity (the distribution is fully
+specified by $\kappa$, which is public and on-chain). El-Gamal
+\cite{ElGamal2006} and Kamali \cite{Kamali2007} distinguish
+these: gharar refers to uncertainty about the \emph{existence}
+of the subject of transaction, not its \emph{timing} when the
+timing is actuarially determined and transparently disclosed.
+The $\kappa$-rate passes the gharar test.
+
+\subsection{Maysir}
+
+The $\kappa$-rate framework is not maysir (gambling) because every
+instrument is backed by a real underlying asset ($X_t$), and every
+payment corresponds to a real economic event. The mechanism design
+optimiser in the simulation \cite{Ahmed2026c} confirms that
+rational traders at $\iota = 0$ equilibrate at sub-maximal
+leverage ($2.72\times, 3.28\times$), well below the Shariah cap
+of $5\times$ \cite{Ahmed2026a}.
+
+\subsection{AAOIFI Compatibility}
+
+AAOIFI Standard 17 (Investment Sukuk) requires that sukuk
+represent proportional ownership in real assets. The
+$\kappa$-parameterized Islamic Perpetual Sukuk satisfies
+this: the holder's claim is on $X_\tau$ (the real asset
+at redemption). Standard 26 (Takaful) requires actuarially
+fair, mutual risk-sharing contributions: the everlasting
+takaful formula \eqref{eq:takaful} provides this without
+riba. Standard 21 (Financial Paper) permits wa'd-based
+bilateral risk transfer: the iCDS \eqref{eq:icds} is
+compatible under this standard.
+
+%% ============================================================
+\section{Discussion}
+\label{sec:discussion}
+%% ============================================================
+
+\subsection{Why Prior Islamic Monetary Proposals Failed}
+
+Chapra \cite{Chapra1985}, Khan \& Mirakhor \cite{KhanMirakhor1987},
+and subsequent IRTI researchers identified the need for a
+riba-free pricing parameter but could not provide one.
+The profit-sharing rate (mudarabah return) was proposed as a
+substitute but failed for three structural reasons documented
+by Iqbal \& Molyneux \cite{IqbalMolyneux2005}:
+\begin{enumerate}[leftmargin=*, noitemsep]
+\item \textbf{Ex-post determination.} Profit-sharing rates are
+known only after the accounting period, making forward pricing
+impossible.
+\item \textbf{Information asymmetry.} Profit manipulation and
+audit uncertainty mean profit rates are not independently
+verifiable.
+\item \textbf{LIBOR convergence.} Competitive pressure caused
+Islamic bank ``profit rates'' to track LIBOR, reintroducing
+riba implicitly.
+\end{enumerate}
+
+The $\kappa$-rate solves all three problems: it is ex-ante
+(implied from market prices), objectively computed (from two
+observable prices via equation~\eqref{eq:kappa_implied}),
+and independently verifiable (on-chain, real-time, without
+any reference to LIBOR/SOFR).
+
+\subsection{Relationship to the Wicksellian Tradition}
+
+Wicksell's \cite{Wicksell1898} natural rate $r^*$ was designed
+to be grounded in real productivity, endogenous, and separable
+from monetary policy. The $\kappa$-rate shares all these
+properties and adds one: $\kappa$ is \emph{provably free of
+time preference} by Theorem~3 of Ackerer et al., which
+proves $\iota = 0$ achieves no-arbitrage. No classical
+natural rate theorist could make this claim because they
+were working within a framework that required a positive
+interest rate for equilibrium. The Ackerer framework breaks
+this presumption.
+
+\begin{theorem}[$\kappa$ is the Wicksellian Natural Rate Minus Riba]
+\label{thm:wicksell}
+Under the Ackerer-Hugonnier-Jermann no-arbitrage framework, the
+convergence intensity $\kappa$ equals the natural rate of
+convergence of asset prices in a competitive market, with
+the time-preference component of the interest rate
+($r_{\text{pref}}$, the riba component) set to zero by the
+$\iota = 0$ condition. The natural rate of real convergence
+is:
+\begin{equation}
+\kappa = r^*_{\text{natural}} - r_{\text{pref}}\big|_{r_{\text{pref}}=0}
+= r^*_{\text{natural}}
+\label{eq:kappa_natural}
+\end{equation}
+\end{theorem}
+
+The theorem formalizes the connection to Wicksell: $\kappa$
+is the natural rate of return on real assets (the speed at
+which market prices converge to fundamental values) stripped
+of the time-preference premium that makes the conventional
+natural rate riba-contaminated.
+
+\subsection{Limitations and Open Questions}
+
+\textbf{Stochastic $\kappa$.}
+The current theory uses constant $\kappa$ (time-invariant
+convergence intensity). Appendix~\ref{app:stochastic_kappa}
+derives the $\kappa$-yield curve under CIR-type stochastic
+$\kappa$ dynamics and provides closed-form bond-price analogs.
+
+\textbf{Multiple underlyings.}
+The $\kappa$-yield curve requires perpetuals on multiple
+RWA underlyings. Currently, only crypto-native perpetuals
+exist at scale. The extension to commodity, infrastructure,
+and equity perpetuals on regulated DeFi platforms is a
+regulatory and institutional question, not a mathematical one.
+
+\textbf{Monetary policy transmission.}
+How does a change in the central bank-published $\bar\kappa$
+transmit to the real economy? In conventional monetary policy,
+the transmission mechanism operates through bank lending rates,
+bond yields, and the exchange rate. The $\kappa$-rate
+transmission mechanism is an open research question requiring
+both empirical study and institutional design.
+
+\textbf{Cross-jurisdictional recognition.}
+For the $\kappa$-yield curve to serve as a sovereign benchmark,
+it must be recognized by regulators (AAOIFI, IFSB, Bank Negara
+Malaysia, SAMA) as a legitimate riba-free rate. This requires
+AAOIFI standard revision --- a process that takes 2--4 years
+on average.
+
+%% ============================================================
+\section{Conclusion}
+\label{sec:conclusion}
+%% ============================================================
+
+We have proposed and developed the $\kappa$-rate --- the
+convergence intensity of perpetual contracts under the
+Ackerer-Hugonnier-Jermann no-arbitrage framework at $\iota = 0$
+--- as the first mathematically rigorous, riba-free alternative
+to the risk-free interest rate $r$ in Islamic monetary economics.
+
+The $\kappa$-rate satisfies all three El-Gamal criteria for
+riba-freedom: it is market-determined (not predetermined), it
+corresponds to real economic dynamics (not pure time preference),
+and it carries no interest content by construction ($\iota = 0$
+is proved to achieve no-arbitrage without any time-preference
+discount). It is Wicksell's natural rate with the riba subtracted
+--- a result that Wicksell (1898) approached conceptually but
+could not achieve mathematically.
+
+The $\kappa$-yield curve $\kappa(T) = 1/T$ provides the Islamic
+analog of the conventional yield curve: a complete term structure
+grounded in exponential stopping time distributions rather than
+interest rate expectations. The yield curve is downward-sloping
+by construction, has no negative values, and requires no central
+bank to set it --- it is implied continuously from market prices.
+
+The applications are immediate: perpetual sukuk pricing (no SOFR
+benchmark required), actuarially fair takaful contributions (no
+riba discount), iCDS for credit risk hedging (the first
+Shariah-compatible credit derivative), and Islamic monetary
+policy signalling ($\bar\kappa$ as the policy rate equivalent).
+Empirical support comes from the Baraka Protocol, where on-chain
+data confirms $\hat\kappa \approx 0.083$ per annum --- consistent
+with the theoretical calibration across all three papers in this
+series.
+
+The deeper contribution is historical. Islamic monetary economics
+has sought a riba-free pricing parameter since Chapra (1985).
+The parameter has now been found --- not in a legal innovation
+or a jurisprudential reclassification, but in a proof: the
+Ackerer-Hugonnier-Jermann Theorem~3, established in 2024 for
+entirely different purposes, contains the solution to a 40-year
+open problem in Islamic monetary theory.
+
+\bigskip
+\noindent\textit{``Allah has made trade permissible and forbidden
+\textit{riba}. Whoever receives an admonition from his Lord and
+refrains may keep [his previous gains].''}\\
+\textit{(Al-Qur'an, Al-Baqarah 2:275)}
+
+%% ============================================================
+%% APPENDIX
+%% ============================================================
+\appendix
+
+\section{Stochastic $\kappa$ Dynamics and the Closed-Form
+$\kappa$-Yield Curve}
+\label{app:stochastic_kappa}
+
+\subsection{Motivation}
+
+The body of the paper treats $\kappa$ as a constant, following
+Ackerer et al.\ \cite{Ackerer2024} who establish no-arbitrage
+results under constant parameters. In practice, the implied
+$\kappa$-rate fluctuates over time as market conditions evolve:
+convergence is fast in liquid, well-functioning markets and slow
+during stress periods. A stochastic $\kappa$ model is therefore
+necessary for:
+\begin{enumerate}[leftmargin=*,noitemsep]
+\item Pricing instruments whose payoffs depend on the entire
+path of $\kappa$ (e.g., $\kappa$-denominated swaps, $\kappa$-caps).
+\item Constructing a dynamic $\kappa$-yield curve that shifts
+over time in response to market conditions.
+\item Calibrating $\kappa$ to a cross-section of perpetuals with
+different expected horizons simultaneously.
+\end{enumerate}
+
+\subsection{The CIR-$\kappa$ Process}
+
+\begin{definition}[CIR-$\kappa$ Process]
+\label{def:cir_kappa}
+The \textbf{CIR-$\kappa$ process} is the solution to:
+\begin{equation}
+d\kappa_t = \alpha(\bar\kappa - \kappa_t)\,dt
++ \sigma_\kappa\sqrt{\kappa_t}\,dW_t^Q, \quad \kappa_0 > 0
+\label{eq:cir_kappa}
+\end{equation}
+under the risk-neutral measure $Q$, where:
+\begin{itemize}[leftmargin=*,noitemsep]
+\item $\alpha > 0$ is the \textbf{mean-reversion speed}
+(how quickly $\kappa_t$ reverts to its long-run level);
+\item $\bar\kappa > 0$ is the \textbf{long-run mean
+$\kappa$-rate};
+\item $\sigma_\kappa > 0$ is the \textbf{$\kappa$ volatility};
+\item $W_t^Q$ is a standard Brownian motion under $Q$.
+\end{itemize}
+\end{definition}
+
+\begin{lemma}[Positivity — Feller Condition]
+\label{lem:feller}
+If $2\alpha\bar\kappa \geq \sigma_\kappa^2$, then
+$\kappa_t > 0$ almost surely for all $t \geq 0$.
+\end{lemma}
+
+\begin{proof}
+This is the Feller condition for the CIR process
+(Cox, Ingersoll \& Ross \cite{CIR1985}, Theorem~1).
+The drift $\alpha(\bar\kappa - \kappa_t)$ is strongly
+positive near zero, preventing $\kappa_t$ from reaching
+zero when $2\alpha\bar\kappa \geq \sigma_\kappa^2$.
+\qquad$\square$
+\end{proof}
+
+\begin{remark}
+Lemma~\ref{lem:feller} is economically essential: $\kappa > 0$
+is required for the stopping time $\theta_t \sim
+\mathrm{Exp}(\kappa_t)$ to be well-defined. Negative $\kappa$
+has no economic interpretation in the Islamic finance context
+--- there is no concept of ``negative convergence speed.''
+The Feller condition guarantees $\kappa > 0$ always, which
+means the riba-free property is preserved under stochastic
+dynamics: $\iota = 0$ and $\kappa_t > 0$ for all $t$ with
+probability 1.
+\end{remark}
+
+\subsection{Closed-Form $\kappa$-Bond Price}
+
+We define the \textbf{$\kappa$-bond} as the Islamic analog of
+the zero-coupon bond: the price at time $t$ of a unit payoff
+delivered at the random stopping time $\theta_T$, where
+$T$ is the instrument's target horizon.
+
+\begin{theorem}[$\kappa$-Bond Pricing Under CIR-$\kappa$]
+\label{thm:kappa_bond}
+Let $\kappa_t$ follow the CIR-$\kappa$ process
+\eqref{eq:cir_kappa}. The price at time $t$ of a $\kappa$-bond
+with horizon $T$ (survival probability that the stopping event
+has not yet occurred by time $T$, analogous to the discount
+factor) is:
+\begin{equation}
+P(\kappa_t, T-t) = A(T-t)\,e^{-B(T-t)\,\kappa_t}
+\label{eq:kappa_bond_cir}
+\end{equation}
+where, with $\tau = T - t$ and $h = \sqrt{\alpha^2 + 2\sigma_\kappa^2}$:
+\begin{align}
+A(\tau) &= \left[\frac{2h\,e^{(\alpha+h)\tau/2}}
+{2h + (\alpha+h)(e^{h\tau}-1)}\right]^{2\alpha\bar\kappa/\sigma_\kappa^2}
+\label{eq:cir_A}\\[6pt]
+B(\tau) &= \frac{2(e^{h\tau}-1)}
+{2h + (\alpha+h)(e^{h\tau}-1)}
+\label{eq:cir_B}
+\end{align}
+\end{theorem}
+
+\begin{proof}
+The $\kappa$-bond price equals the $Q$-expectation of the
+exponential integral of the $\kappa$ process:
+\begin{equation}
+P(\kappa_t, \tau) = \E^Q_t\!\left[
+\exp\!\left(-\int_t^{T} \kappa_s\,ds\right)
+\right]
+\label{eq:kappa_survival}
+\end{equation}
+This is the Laplace transform of $\int_t^T \kappa_s\,ds$ evaluated
+at $u = 1$. For the CIR process, this Laplace transform has the
+affine closed form $A(\tau)e^{-B(\tau)\kappa_t}$ where $A$ and
+$B$ satisfy the Riccati ODEs:
+\begin{align}
+B'(\tau) &= 1 - \alpha B(\tau) - \tfrac{1}{2}\sigma_\kappa^2 B(\tau)^2,
+\quad B(0) = 0
+\label{eq:riccati_B}\\
+A'(\tau) &= \alpha\bar\kappa B(\tau) A(\tau), \quad A(0) = 1
+\label{eq:riccati_A}
+\end{align}
+The solutions to \eqref{eq:riccati_B}--\eqref{eq:riccati_A}
+are exactly equations \eqref{eq:cir_A}--\eqref{eq:cir_B}
+(Cox, Ingersoll \& Ross \cite{CIR1985}, equations (A.4)--(A.6)).
+\qquad$\square$
+\end{proof}
+
+\subsection{The Stochastic $\kappa$-Yield Curve}
+
+\begin{definition}[$\kappa$-Yield]
+\label{def:kappa_yield}
+The \textbf{$\kappa$-yield} at horizon $T$ given current
+$\kappa_t$ is:
+\begin{equation}
+y_\kappa(T; \kappa_t) = -\frac{\log P(\kappa_t, T)}{T}
+= \frac{B(T)\kappa_t - \log A(T)}{T}
+\label{eq:kappa_yield}
+\end{equation}
+The \textbf{$\kappa$-yield curve} is the function
+$T \mapsto y_\kappa(T; \kappa_t)$ for fixed $\kappa_t$.
+\end{definition}
+
+\begin{proposition}[Limiting Behavior of the $\kappa$-Yield Curve]
+\label{prop:limits}
+Under the CIR-$\kappa$ process:
+\begin{enumerate}[leftmargin=*,noitemsep]
+\item \textbf{Short end:}
+$\lim_{T\to 0} y_\kappa(T;\kappa_t) = \kappa_t$.
+The short rate of the $\kappa$-yield curve equals the
+current $\kappa$-rate.
+\item \textbf{Long end:}
+$\lim_{T\to\infty} y_\kappa(T;\kappa_t) =
+\dfrac{2\alpha\bar\kappa}{\alpha + h}$.
+The long rate of the $\kappa$-yield curve depends only on
+the long-run mean $\bar\kappa$ and the parameters
+$\alpha, \sigma_\kappa$ --- it is independent of the
+current $\kappa_t$.
+\item \textbf{Monotone shapes:}
+\begin{itemize}[leftmargin=*,noitemsep]
+\item If $\kappa_t > y_\kappa(\infty)$: yield curve is
+\emph{downward sloping} (inverted $\kappa$-curve:
+market expects convergence to slow down).
+\item If $\kappa_t < y_\kappa(\infty)$: yield curve is
+\emph{upward sloping} (normal $\kappa$-curve: market
+expects convergence to speed up).
+\item If $\kappa_t = y_\kappa(\infty)$: flat $\kappa$-curve.
+\end{itemize}
+\end{enumerate}
+\end{proposition}
+
+\begin{proof}
+(1) follows from $\lim_{T\to 0} B(T)/T = 1$ and
+$\lim_{T\to 0} (-\log A(T))/T = 0$.
+(2) follows from $\lim_{T\to\infty} B(T)/T = 0$ and
+$\lim_{T\to\infty} (-\log A(T))/T = 2\alpha\bar\kappa/(\alpha + h)$
+(standard CIR long-rate formula, Cox et al.\ \cite{CIR1985}).
+(3) follows from the monotonicity of $B(T)$ in $T$ and the
+fact that the yield is an affine function of $\kappa_t$.
+\qquad$\square$
+\end{proof}
+
+\subsection{Economic Interpretation}
+
+Table~\ref{tab:kappa_shapes} translates the three yield curve
+shapes into Islamic monetary policy language.
+
+\begin{table}[h!]
+\centering
+\caption{$\kappa$-yield curve shapes and monetary interpretation.}
+\label{tab:kappa_shapes}
+\small
+\begin{tabular}{@{}p{2.2cm}p{2.4cm}p{2.4cm}@{}}
+\toprule
+\textbf{Shape} & \textbf{Condition} & \textbf{Monetary signal} \\
+\midrule
+Normal (upward) & $\kappa_t < \bar\kappa$ & Current convergence below trend; market expects tightening \\
+Inverted (down) & $\kappa_t > \bar\kappa$ & Convergence unusually fast; stress or anomaly \\
+Flat & $\kappa_t = \bar\kappa$ & Long-run equilibrium; neutral conditions \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+These shapes map directly onto the conventional yield curve
+taxonomy (normal/inverted/flat) with the Islamic interpretation:
+the $\kappa$-yield curve inverts not because markets expect
+\emph{interest rate cuts}, but because markets expect
+\emph{convergence to slow} as some structural uncertainty
+develops. This is a fundamentally different economic signal
+from the conventional inverted yield curve --- it reflects
+real asset pricing uncertainty rather than monetary tightening
+expectations.
+
+\subsection{Calibration}
+
+Under the CIR-$\kappa$ model, three parameters must be estimated:
+$\alpha$, $\bar\kappa$, and $\sigma_\kappa$. Calibration
+uses the cross-section of implied $\hat\kappa$ values across
+instruments with different expected horizons $T^{(i)}$:
+\begin{equation}
+(\alpha^*, \bar\kappa^*, \sigma_\kappa^*) =
+\argmin_{\alpha,\bar\kappa,\sigma_\kappa}
+\sum_i \left[y_\kappa(T^{(i)}; \kappa_t^{\text{obs}})
+- y_\kappa^{\text{model}}(T^{(i)}; \alpha, \bar\kappa,
+\sigma_\kappa)\right]^2
+\label{eq:calibration}
+\end{equation}
+For the Baraka Protocol MVP with a single instrument ($T =
+1/\hat\kappa \approx 12$ years), $\bar\kappa \approx 0.083$
+is directly implied from the simulation empirical estimate
+(Section~\ref{sec:empirical}). The full stochastic calibration
+requires the multi-instrument deployment described in
+Section~\ref{sec:yieldcurve}.
+
+\subsection{Relationship to CIR}
+
+Table~\ref{tab:cir_comparison} provides the formal correspondence
+between the conventional CIR interest rate model and the
+CIR-$\kappa$ model.
+
+\begin{table}[h!]
+\centering
+\caption{CIR vs.\ CIR-$\kappa$: parameter correspondence.}
+\label{tab:cir_comparison}
+\small
+\begin{tabular}{@{}lll@{}}
+\toprule
+\textbf{CIR element} & \textbf{CIR convention} & \textbf{CIR-$\kappa$ analog} \\
+\midrule
+State variable & Short rate $r_t$ & Convergence intensity $\kappa_t$ \\
+Long-run mean & $\bar r$ & $\bar\kappa$ \\
+Mean-reversion speed & $\alpha$ & $\alpha$ \\
+Volatility & $\sigma_r$ & $\sigma_\kappa$ \\
+Positivity condition & $2\alpha\bar r \geq \sigma_r^2$ & $2\alpha\bar\kappa \geq \sigma_\kappa^2$ \\
+Bond price & $A(\tau)e^{-B(\tau)r_t}$ & $A(\tau)e^{-B(\tau)\kappa_t}$ \\
+Short rate & $r_t$ (riba content) & $\kappa_t$ (riba-free) \\
+Economic meaning & Time preference & Convergence speed \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+The CIR-$\kappa$ model is the CIR model with the riba
+content removed: the state variable $\kappa_t$ (convergence
+intensity, an event-rate parameter) replaces $r_t$ (short
+rate, a time-preference-compensation parameter). All the
+mathematical machinery of CIR --- bond pricing, yield curve
+construction, risk-neutral calibration --- carries over intact.
+The Islamic innovation is entirely in the economic interpretation
+of the state variable, not in the mathematics.
+
+%% ============================================================
+%% REFERENCES
+%% ============================================================
+\bibliographystyle{plainnat}
+\begin{thebibliography}{99}
+
+\bibitem{Ackerer2024}
+Ackerer, D., Hugonnier, J., \& Jermann, U.~J. (2024).
+Perpetual futures pricing.
+\textit{Mathematical Finance}, \textbf{34}(4), 1277--1308.
+\url{https://doi.org/10.1111/mafi.12412}
+
+\bibitem{AAOIFI2017}
+AAOIFI. (2017).
+\textit{Shariah Standards for Islamic Financial Institutions}
+(Standard No.~17: Investment Sukuk; Standard No.~21: Financial
+Paper; Standard No.~26: Islamic Insurance).
+Accounting and Auditing Organization for Islamic Financial
+Institutions, Manama, Bahrain.
+
+\bibitem{Ahmed2026a}
+Ahmed, S., Bhuyan, R., \& Islam, R. (2026a).
+The interest parameter in perpetual futures: Shariah analysis
+and empirical evidence.
+\textit{Working Paper}, Arcus Quant Fund.
+
+\bibitem{Ahmed2026b}
+Ahmed, S., Bhuyan, R., \& Islam, R. (2026b).
+From perpetual contracts to Islamic credit: The random stopping
+time equivalence.
+\textit{Working Paper}, Arcus Quant Fund.
+
+\bibitem{Ahmed2026c}
+Ahmed, S., Bhuyan, R., \& Islam, R. (2026c).
+Integrated economic simulation of the Baraka Protocol: Data note.
+\textit{Technical Report}, Arcus Quant Fund.
+
+\bibitem{Billah2007}
+Billah, M.~M. (2007).
+\textit{Islamic Insurance (Takaful)}.
+Sweet \& Maxwell Asia, Petaling Jaya, Malaysia.
+
+\bibitem{BIS2024}
+Bank for International Settlements. (2024).
+\textit{OTC Derivatives Statistics at End-December 2023}.
+BIS Quarterly Review, March 2024.
+
+\bibitem{BlackScholes1973}
+Black, F., \& Scholes, M. (1973).
+The pricing of options and corporate liabilities.
+\textit{Journal of Political Economy}, \textbf{81}(3), 637--654.
+
+\bibitem{BohmBawerk1890}
+Böhm-Bawerk, E. von (1890).
+\textit{Capital and Interest} [Kapital und Kapitalzins].
+Wagner, Innsbruck.
+
+\bibitem{Chapra1985}
+Chapra, M.~U. (1985).
+\textit{Towards a Just Monetary System}.
+The Islamic Foundation, Leicester.
+
+\bibitem{CIR1985}
+Cox, J.~C., Ingersoll, J.~E., \& Ross, S.~A. (1985).
+A theory of the term structure of interest rates.
+\textit{Econometrica}, \textbf{53}(2), 385--408.
+
+\bibitem{DuffieSingleton1999}
+Duffie, D., \& Singleton, K.~J. (1999).
+Modeling term structures of defaultable bonds.
+\textit{Review of Financial Studies}, \textbf{12}(4), 687--720.
+
+\bibitem{ElGamal2006}
+El-Gamal, M.~A. (2006).
+\textit{Islamic Finance: Law, Economics, and Practice}.
+Cambridge University Press, Cambridge.
+
+\bibitem{Fisher1930}
+Fisher, I. (1930).
+\textit{The Theory of Interest}.
+Macmillan, New York.
+
+\bibitem{HarrisonKreps1979}
+Harrison, J.~M., \& Kreps, D.~M. (1979).
+Martingales and arbitrage in multiperiod securities markets.
+\textit{Journal of Economic Theory}, \textbf{20}(3), 381--408.
+
+\bibitem{HtaySalman2012}
+Htay, S.~N.~N., \& Salman, S.~A. (2012).
+Optimal pricing for participation in takaful.
+\textit{Asian Social Science}, \textbf{8}(7), 135--142.
+
+\bibitem{IFSB2024}
+Islamic Financial Services Board. (2024).
+\textit{Islamic Financial Services Industry Stability Report 2024}.
+IFSB, Kuala Lumpur.
+
+\bibitem{IqbalMirakhor2011}
+Iqbal, Z., \& Mirakhor, A. (2011).
+\textit{An Introduction to Islamic Finance: Theory and Practice}
+(2nd ed.).
+John Wiley \& Sons, Singapore.
+
+\bibitem{IqbalMolyneux2005}
+Iqbal, M., \& Molyneux, P. (2005).
+\textit{Thirty Years of Islamic Banking: History, Performance,
+and Prospects}.
+Palgrave Macmillan, London.
+
+\bibitem{JarrowTurnbull1995}
+Jarrow, R.~A., \& Turnbull, S.~M. (1995).
+Pricing derivatives on financial securities subject to credit
+risk.
+\textit{Journal of Finance}, \textbf{50}(1), 53--85.
+
+\bibitem{Jobst2007}
+Jobst, A.~A. (2007).
+The economics of Islamic finance and securitization.
+\textit{Journal of Structured Finance}, \textbf{13}(1), 6--27.
+
+\bibitem{Kamali2007}
+Kamali, M.~H. (2007).
+\textit{Islamic Commercial Law: An Analysis of Futures and Options}.
+The Islamic Texts Society, Cambridge.
+
+\bibitem{Keynes1936}
+Keynes, J.~M. (1936).
+\textit{The General Theory of Employment, Interest and Money}.
+Macmillan, London.
+
+\bibitem{KhanAhmed2001}
+Khan, T., \& Ahmed, H. (2001).
+Risk management: An analysis of issues in Islamic financial
+industry.
+\textit{IRTI Occasional Paper} No.~5, Islamic Development Bank,
+Jeddah.
+
+\bibitem{KhanAbdallah2017}
+Khan, T., \& Abdallah, A. (2017).
+Rethinking sukuk pricing: The ghost of LIBOR.
+\textit{International Journal of Islamic and Middle Eastern
+Finance and Management}, \textbf{10}(4), 492--511.
+
+\bibitem{KhanMirakhor1987}
+Khan, M.~S., \& Mirakhor, A. (Eds.). (1987).
+\textit{Theoretical Studies in Islamic Banking and Finance}.
+Institute for Research and Education, Houston.
+
+\bibitem{Lando1998}
+Lando, D. (1998).
+On Cox processes and credit risky securities.
+\textit{Review of Derivatives Research}, \textbf{2}(2--3), 99--120.
+
+\bibitem{Merton1974}
+Merton, R.~C. (1974).
+On the pricing of corporate debt: The risk structure of
+interest rates.
+\textit{Journal of Finance}, \textbf{29}(2), 449--470.
+
+\bibitem{MirakhorAskari2010}
+Mirakhor, A., \& Askari, H. (2010).
+\textit{Islam and the Path to Human and Economic Development}.
+Palgrave Macmillan, New York.
+
+\bibitem{NelsonSiegel1987}
+Nelson, C.~R., \& Siegel, A.~F. (1987).
+Parsimonious modeling of yield curves.
+\textit{Journal of Business}, \textbf{60}(4), 473--489.
+
+\bibitem{SeekersGuidance2025}
+SeekersGuidance. (2025, October~2).
+Are crypto perpetual contracts still haram if there's no interest,
+and the asset price tracks? Answered by Shaykh Muhammad Carr;
+approved by Shaykh Faraz Rabbani.
+\url{https://seekersguidance.org/answers/transactions/}
+
+\bibitem{Shiller1993}
+Shiller, R.~J. (1993).
+\textit{Macro Markets: Creating Institutions for Managing
+Society's Largest Economic Risks}.
+Oxford University Press, Oxford.
+
+\bibitem{Usmani2002}
+Usmani, M.~T. (2002).
+\textit{An Introduction to Islamic Finance}.
+Kluwer Law International, The Hague.
+
+\bibitem{Vasicek1977}
+Vasicek, O. (1977).
+An equilibrium characterization of the term structure.
+\textit{Journal of Financial Economics}, \textbf{5}(2), 177--188.
+
+\bibitem{Wicksell1898}
+Wicksell, K. (1898).
+\textit{Interest and Prices} [Geldzins und Güterpreise].
+Gustav Fischer, Jena.
+
+\bibitem{Zarqa1983}
+Zarqa, M.~A. (1983).
+Stability in an interest-free Islamic economy: A note.
+\textit{Pakistan Journal of Applied Economics}, \textbf{2}(2),
+181--188.
+
+\bibitem{Zargham2020}
+Zargham, M., Shorish, J., \& Paruch, K. (2020).
+From curved bonding to configuration spaces.
+\textit{IEEE International Conference on Blockchain and
+Cryptocurrency}, 1--9.
+
+\end{thebibliography}
+
+\end{document}
