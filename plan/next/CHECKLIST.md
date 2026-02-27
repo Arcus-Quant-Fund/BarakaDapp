@@ -1,5 +1,5 @@
 # BARAKA PROTOCOL — BUILD CHECKLIST
-**Last Updated:** February 27, 2026 (Session 10)
+**Last Updated:** February 27, 2026 (Session 11)
 **Status Legend:** `[ ]` = Not started · `[~]` = In progress · `[x]` = Complete · `[-]` = Deferred to v2
 
 ---
@@ -9,7 +9,7 @@
 | Phase | Status | URL / Notes |
 |---|---|---|
 | Smart Contracts (9) | ✅ Complete | 8 core + BRKXToken, all deployed + verified Arbitrum Sepolia |
-| Tests | ✅ 78/78 | 30 unit + 30 integration + 10 BRKX + 8 fee, 1000 fuzz runs each |
+| Tests | ✅ 93/93 | +15 KappaSignal unit tests (premium/regime/kappa/fuzz), 1000 runs each |
 | Slither | ✅ Clean | HIGH 0, MEDIUM 0 |
 | Testnet Deploy | ✅ Live | All 9 contracts on chain 421614 |
 | BRKX Token + Fee System | ✅ Live | PositionManager v2 + BRKXToken deployed + verified |
@@ -24,7 +24,9 @@
 | Paper 3 (IES Framework) | ✅ Complete | `papers/paper3/` — 8pp cadCAD+RL+GT+MD |
 | Integrated IES Simulation | ✅ Complete | 5 ep × 720 steps · 0/5 insolvency · MD converged |
 | GitHub Public Repo | ✅ Live | https://github.com/Arcus-Quant-Fund/BarakaDapp |
-| **Next session starts here →** | ⏳ | Pinata JWT + fatwa IPFS + BRKX E2E smoke test |
+| κ-signal oracle (OracleAdapter) | ✅ Complete | getPremium + getKappaSignal + KappaAlert event + 15 tests |
+| BRKX E2E smoke script | ✅ Complete | `script/BRKXSmoke.s.sol` — 6 on-chain assertions, tier3 verified |
+| **Next session starts here →** | ⏳ | Pinata JWT + fatwa IPFS upload → GovernanceModule.setFatwaURI() |
 
 ---
 

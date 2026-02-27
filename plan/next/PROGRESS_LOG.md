@@ -11,7 +11,7 @@
 | API Keys | ✅ Complete | All keys in `BarakaDapp/.env` |
 | Environment Setup | ✅ Complete | Foundry 1.5.1, Node.js, Slither, graph-cli |
 | Smart Contracts (9) | ✅ Complete | 8 core + BRKXToken, all deployed + verified Arbiscan |
-| Unit Tests | ✅ 48/48 | FundingEngine (14) + ShariahGuard (16) + BRKXToken (10) + PMFee (8), 1000 fuzz runs |
+| Unit Tests | ✅ 63/63 | FundingEngine (14) + ShariahGuard (16) + BRKXToken (10) + PMFee (8) + KappaSignal (15) |
 | Integration Tests | ✅ 30/30 | Full lifecycle, liquidation, Shariah gate, edge cases |
 | Slither Analysis | ✅ Clean | HIGH 0, MEDIUM 0 |
 | Simulations | ✅ Complete | cadCAD + RL + GT + MD + Integrated IES (5 ep × 720 steps) |
@@ -27,8 +27,10 @@
 | Paper 2 | ✅ Published | 11pp PDF — credit equivalence + κ-rate + simulation validation |
 | Paper 3 | ✅ Published | 8pp PDF — IES framework (cadCAD + RL + GT + MD) |
 | Integrated IES | ✅ Complete | 5 ep × 720 steps · 0/5 insolvency · Nash lev 2.72×/3.28× · MD converged |
+| κ-signal Oracle | ✅ Complete | getPremium + getKappaSignal + KappaAlert + 15 tests (93/93 total) |
+| BRKX E2E Smoke | ✅ Complete | `script/BRKXSmoke.s.sol` — 6 on-chain asserts, tier3 (2.5 bps) |
 | Pinata JWT / IPFS | ⏳ Pending | **Next session starts here** |
-| BRKX E2E smoke test | ⏳ Pending | Open position → verify FeeCollected event on Sepolia |
+| BRKX E2E smoke test | ✅ Complete | `script/BRKXSmoke.s.sol` committed + pushed |
 | Discord / Twitter | ⏳ Pending | Community launch |
 | SSRN Preprint | ⏳ Pending | Upload all 3 papers |
 | Shariah Outreach | ⏳ Pending | AAOIFI contacts |

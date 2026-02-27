@@ -7,6 +7,35 @@
 
 ---
 
+### Session 11 — February 27, 2026
+
+**Focus:** κ-signal oracle implementation + BRKX E2E smoke script
+
+**Completed:**
+
+**κ-signal Oracle (OracleAdapter)**
+- Added `getPremium()` + `getKappaSignal()` to `IOracleAdapter.sol` interface
+- `OracleAdapter.sol`: regime constants (NORMAL/ELEVATED/HIGH/CRITICAL), `KappaAlert` event
+- `_kappaSignal()` internal: discrete OU estimator `kappa = (P_old - P_new) * 1e18 / (P_old * dt)`
+- `snapshotPrice()` now emits `KappaAlert` when regime >= 2 (HIGH or CRITICAL)
+- `MockOracle.sol` updated to implement new interface functions
+- `test/unit/KappaSignal.t.sol` — 15 tests: premium sign, regime 0-3, converging/diverging
+  basis, negligible P_old guard, symmetric discount side, event emission, 1000-run fuzz
+- Fix: vm.warp tests refresh feed.setAnswer() to avoid "All oracles stale" revert
+- **93/93 tests passing** (non-fork) — commit `ffe4e7f`
+
+**BRKX E2E Smoke Script**
+- `script/BRKXSmoke.s.sol` — 12-step on-chain verification script for Arbitrum Sepolia
+- Deploys MockERC20 (tUSDC) + ShariahGuard approval → deposits → opens 3x long BTC
+- 6 `require()` assertions: tier3 (>=50k BRKX = 2.5 bps), IF/treasury 50/50 split per trade
+- Also calls `getKappaSignal()` and asserts regime in [0,3]
+- Closes position and verifies total accumulated fee split (open + close)
+- Build clean, commit `ff7cf91`, pushed to `Arcus-Quant-Fund/BarakaDapp`
+
+**Next:** Pinata JWT → upload fatwa PDF → `GovernanceModule.setFatwaURI(cid)` on Sepolia
+
+---
+
 ### Session 10 — February 27, 2026
 
 **Focus:** BRKX token + fee system · 3 papers (write + compile) · 5-episode IES simulation · GitHub public push · arcusquantfund.com /dapp update
