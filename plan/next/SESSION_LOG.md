@@ -7,6 +7,84 @@
 
 ---
 
+### Session 13 — February 28, 2026
+
+**Focus:** Frontend BRKX tier + fee hooks deployed; Paper 3 stochastic κ appendix verified and compiled; all docs updated.
+
+**Completed:**
+
+**Frontend — BRKX tier display + κ signal (baraka.arcusquantfund.com LIVE)**
+
+New hooks:
+- `hooks/useBrkxTier.ts` — reads `BRKXToken.balanceOf(address)`, resolves tier (0–3 based on BRKX balance vs. tier thresholds `<1k/1k/10k/50k`), returns `tierName/feeBps/feeLabel/feePct/balanceDisplay/nextTierBrkx`. Refetches every 30s.
+- `hooks/useKappaSignal.ts` — reads `OracleAdapter.getKappaSignal(BTC_ASSET_ADDRESS)`, returns `kappa/premium/regime/regimeLabel/regimeColor`. Regimes: NORMAL(#52b788) / ELEVATED(#f4a261) / HIGH(#e76f51) / CRITICAL(#e63946). Refetches every 30s.
+
+**Key TypeScript fix (wagmi v2 tuple):**
+```typescript
+// WRONG — wagmi v2 does NOT return named struct for multi-output ABI:
+const regimeNum = Number(data.regime)  // TS error: Property 'regime' does not exist
+
+// CORRECT — returns readonly tuple [bigint, bigint, number]:
+const [rawKappa, rawPremium, rawRegime] = data as [bigint, bigint, number]
+const regimeNum = Number(rawRegime)
+```
+
+`OrderPanel.tsx` additions:
+- `estFee = size * feeBps / 100_000` — "Trading fee" row showing `~$X.XXXX (Y bps)` in gold
+- "BRKX tier" badge — green for Tier3 (25bps), gold for others, shows tier name
+- BRKX balance indicator strip below action button — shows `N BRKX` held and next-tier upgrade delta
+
+**Build + deploy:**
+- `npm run build` → first attempt failed (TypeScript error on `data.regime`) → fixed → **zero errors, 5/5 routes**
+- Deployed to Vercel: `https://baraka.arcusquantfund.com` (aliased) ✅
+
+**Paper 3 — Stochastic κ Dynamics Appendix (Appendix A)**
+
+The appendix was written externally by the user and committed this session. Contains:
+
+| Section | Content |
+|---|---|
+| §A.1 Motivation | Why constant-κ insufficient; path-dependent instruments; dynamic yield curve |
+| §A.2 CIR-κ Process | `dκ_t = α(κ̄−κ_t)dt + σ_κ√κ_t dW_t^Q`; Definition + Feller Lemma + riba-free preservation remark |
+| §A.3 κ-Bond Theorem | `P(κ_t,τ) = A(τ)e^{-B(τ)κ_t}`; Riccati ODEs proof via Laplace transform; explicit A(τ)/B(τ) formulae |
+| §A.4 κ-Yield Curve | `y_κ(T;κ_t) = [B(T)κ_t − log A(T)]/T`; short-rate limit = κ_t; long-rate limit = 2αk̄/(α+h); normal/inverted/flat shapes |
+| §A.5 Monetary interpretation | Table: 3 yield curve shapes ↔ Islamic monetary policy language |
+| §A.6 Calibration | Cross-section argmin; MVP calibration from κ̂≈0.083 |
+| §A.7 CIR comparison | Side-by-side table: κ_t vs r_t — same math, different economic meaning |
+
+**Fix:** `\argmin` was undefined → `! Undefined control sequence` at calibration equation A.10. Fixed: `\DeclareMathOperator*{\argmin}{arg\,min}` added to preamble math operators block.
+
+**Compile:** `pdflatex` × 2 → zero errors · all cross-references resolved · **11 pages** ✅
+
+**Website updated (arcus-website, auto-deployed):**
+- `website/app/dapp/page.tsx` — Paper III description updated to κ-Rate; v2/v3 addresses; Phase 01 bullets
+- Committed `10ffb9a` → pushed → auto-deployed via GitHub Actions
+
+**Files Changed/Created:**
+- `frontend/hooks/useBrkxTier.ts` — NEW
+- `frontend/hooks/useKappaSignal.ts` — NEW (wagmi v2 tuple fix)
+- `frontend/components/OrderPanel.tsx` — fee row + BRKX badge + balance strip
+- `frontend/lib/contracts.ts` — `getKappaSignal` ABI + v2/v3 address confirmation
+- `papers/paper3/paper3_kappa_rate.tex` — `\argmin` fix
+- `papers/paper3/paper3_kappa_rate.pdf` — recompiled (11pp)
+- `plan/next/CHECKLIST.md` — v2.4
+- `plan/next/PROGRESS_LOG.md` — Session 13 entry
+- `plan/next/SESSION_LOG.md` — this entry
+- `website/app/dapp/page.tsx` — Paper III + Phase 01
+
+**Commits pushed to `Arcus-Quant-Fund/BarakaDapp`:**
+- `66c32bb` — Frontend: BRKX tier display, kappa signal hook, v2/v3 addresses; Paper 3 kappa-rate
+- `d2308c0` — Paper 3: fix `\argmin`; recompile clean 11pp PDF with stochastic-kappa appendix
+
+**Tests Status:** 93/93 ✅ (no new contract tests)
+
+**Next session:**
+1. Pinata JWT → upload `fatwa_placeholder.pdf` → `GovernanceModule.setFatwaURI(cid)` on Sepolia
+2. SSRN preprint upload (all 3 papers)
+3. Discord + Twitter community launch
+
+---
+
 ### Session 12 — February 28, 2026
 
 **Focus:** Fix stale deployed contracts → redeploy 4 contracts → broadcast smoke test on Arbitrum Sepolia → update all docs and website
@@ -707,4 +785,4 @@ forge test -vvv  # → 60/60
 
 ---
 
-*Log started: February 2026 — Last updated: February 28, 2026 (Session 12)*
+*Log started: February 2026 — Last updated: February 28, 2026 (Session 13)*

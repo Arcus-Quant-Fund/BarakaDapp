@@ -7,7 +7,7 @@
 
 | Phase | Status | Notes |
 |---|---|---|
-| Research & Math | ✅ Complete | 3 papers: ι=0 proof · credit equivalence · IES framework |
+| Research & Math | ✅ Complete | 3 papers: ι=0 proof · credit equivalence · κ-Rate monetary alternative (11pp + Appendix A) |
 | API Keys | ✅ Complete | All keys in `BarakaDapp/.env` |
 | Environment Setup | ✅ Complete | Foundry 1.5.1, Node.js, Slither, graph-cli |
 | Smart Contracts (9) | ✅ Complete | 8 core + BRKXToken · 4 contracts redeployed v2/v3 Feb 27 |
@@ -25,9 +25,11 @@
 | arcusquantfund.com /dapp | ✅ Updated | v2/v3 addresses, smoke test badge, κ-signal, 93/93 tests |
 | Paper 1 | ✅ Published | 16pp PDF — ι=0 Shariah perpetuals foundation |
 | Paper 2 | ✅ Published | 11pp PDF — credit equivalence + κ-rate + simulation validation |
-| Paper 3 | ✅ Published | 8pp PDF — IES framework (cadCAD + RL + GT + MD) |
+| Paper 3 | ✅ Published | 11pp PDF — κ-Rate riba-free monetary alternative + Appendix A (stochastic κ, CIR-κ SDE) |
 | Integrated IES | ✅ Complete | 5 ep × 720 steps · 0/5 insolvency · Nash lev 2.72×/3.28× · MD converged |
 | κ-signal Oracle | ✅ Complete + Live | getPremium + getKappaSignal + KappaAlert · 15 tests · on-chain verified |
+| Frontend BRKX hooks | ✅ Live | `useBrkxTier` + `useKappaSignal` deployed · OrderPanel fee row + tier badge + BRKX indicator |
+| Paper 3 Appendix A | ✅ Complete | CIR-κ SDE · Feller lemma · κ-bond theorem · stochastic κ-yield curve · 11pp clean PDF |
 | Pinata JWT / IPFS | ⏳ Pending | **Next session starts here** |
 | Discord / Twitter | ⏳ Pending | Community launch |
 | SSRN Preprint | ⏳ Pending | Upload all 3 papers |
@@ -38,6 +40,55 @@
 ---
 
 ## LOG ENTRIES
+
+---
+
+### February 28, 2026 — Session 13: Frontend BRKX/κ hooks + Paper 3 stochastic κ appendix
+
+**Focus:** Deploy useBrkxTier + useKappaSignal hooks with OrderPanel BRKX fee display; verify + compile Paper 3 stochastic κ dynamics appendix; update all docs.
+
+**Frontend Changes (deployed to baraka.arcusquantfund.com):**
+- `hooks/useBrkxTier.ts` — NEW hook: reads `BRKXToken.balanceOf(address)`, resolves tier (0–3 by BRKX balance thresholds), returns `tierName/feeBps/feeLabel/feePct/balanceDisplay/nextTierBrkx` · refetch every 30s
+- `hooks/useKappaSignal.ts` — NEW hook: reads `OracleAdapter.getKappaSignal(BTC_ASSET_ADDRESS)`, returns `kappa/premium/regime/regimeLabel/regimeColor` · refetch every 30s
+  - **Bug fixed:** wagmi v2 returns tuple `readonly [bigint, bigint, number]` for multi-output ABI, NOT a named struct. `data.regime` TypeScript error → fixed with `const [rawKappa, rawPremium, rawRegime] = data as [bigint, bigint, number]`
+- `OrderPanel.tsx` — added: `estFee = size × feeBps / 100_000` display (~$X.XXXX); "BRKX tier" badge (green Tier3/25bps, gold others); BRKX balance indicator strip below action button (next-tier upgrade path)
+- `frontend/lib/contracts.ts` — `getKappaSignal` ABI entry, all v2/v3 addresses confirmed
+
+**Paper 3 (`papers/paper3/paper3_kappa_rate.tex`):**
+- Appendix A already written by user (externally): CIR-κ SDE `dκ_t = α(κ̄−κ_t)dt + σ_κ√κ_t dW_t^Q`, Feller condition lemma, κ-bond pricing theorem (Riccati ODE), stochastic κ-yield curve (proposition w/ short/long-rate limits + 3 shapes), economic table, calibration, CIR correspondence table
+- **Fix:** `\DeclareMathOperator*{\argmin}` missing from preamble → `! Undefined control sequence` at calibration eq. A.10 → added to math operators block
+- **Compiled:** `pdflatex` × 2 → **zero errors, all cross-refs resolved, 11 pages**
+
+**Commits pushed to `Arcus-Quant-Fund/BarakaDapp`:**
+- `66c32bb` — Frontend: BRKX tier display, kappa signal hook, v2/v3 addresses; Paper 3 kappa-rate
+- `d2308c0` — Paper 3: fix `\argmin`; recompile clean 11pp PDF with stochastic-kappa appendix
+
+**arcus-website (`Arcus-Quant-Fund/arcus-website`):**
+- `10ffb9a` — dapp: Paper III κ-Rate description + v2/v3 addresses · auto-deployed to arcusquantfund.com
+
+**Vercel deploy:**
+- `https://baraka.arcusquantfund.com` — redeployed with BRKX tier + fee row + κ hook live
+
+**Files Changed/Created this session:**
+| File | Change |
+|---|---|
+| `frontend/hooks/useBrkxTier.ts` | NEW — BRKX tier hook |
+| `frontend/hooks/useKappaSignal.ts` | NEW — κ signal hook (wagmi v2 tuple fix) |
+| `frontend/components/OrderPanel.tsx` | fee row + BRKX badge + balance strip |
+| `frontend/lib/contracts.ts` | getKappaSignal ABI + v2/v3 addresses |
+| `papers/paper3/paper3_kappa_rate.tex` | `\argmin` fix in preamble |
+| `papers/paper3/paper3_kappa_rate.pdf` | recompiled clean (11pp) |
+| `plan/next/CHECKLIST.md` | v2.4: frontend hooks, Paper 3 appendix, Session 13 |
+| `plan/next/PROGRESS_LOG.md` | Session 13 entry + status table |
+| `plan/next/SESSION_LOG.md` | Session 13 entry |
+| `website/app/dapp/page.tsx` | Paper III desc + Phase 01 bullets |
+
+**Tests Status:** 93/93 ✅ (no new contract tests this session)
+
+**Next session:**
+1. Pinata JWT → upload `fatwa_placeholder.pdf` → `GovernanceModule.setFatwaURI(cid)` on Sepolia
+2. SSRN preprint upload (all 3 papers)
+3. Discord + Twitter community launch
 
 ---
 
@@ -404,4 +455,4 @@
 
 ---
 
-*Log started: February 2026 — Last updated: February 28, 2026 (Session 12)*
+*Log started: February 2026 — Last updated: February 28, 2026 (Session 13)*

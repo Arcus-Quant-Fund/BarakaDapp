@@ -27,6 +27,8 @@
 | κ-signal oracle (OracleAdapter) | ✅ Complete | getPremium + getKappaSignal + KappaAlert event + 15 tests |
 | BRKX E2E smoke script | ✅ Complete | `script/BRKXSmoke.s.sol` — 6 on-chain assertions, tier3 verified |
 | On-chain Redeploy + Smoke | ✅ Complete | `script/RedeployAndSmoke.s.sol` — 4 contracts redeployed, smoke test broadcast verified |
+| Frontend BRKX tier + fee display | ✅ Live | `useBrkxTier` + `useKappaSignal` hooks; OrderPanel fee row + tier badge deployed Feb 28 |
+| Paper 3 stochastic κ appendix | ✅ Complete | CIR-κ SDE, Feller lemma, κ-bond theorem, κ-yield curve — 11pp clean PDF |
 | **Next session starts here →** | ⏳ | Pinata JWT + fatwa IPFS upload → GovernanceModule.setFatwaURI() |
 
 ---
@@ -155,6 +157,8 @@
 - [x] `usePositions.ts` — **dual mode**: subgraph GraphQL (when `NEXT_PUBLIC_SUBGRAPH_URL` set) → fallback getLogs+multicall
 - [x] `useCollateralBalance.ts` — `balance(user, token)` + `freeBalance(user, token)`
 - [x] `useDeposit.ts` / `useWithdraw.ts` — vault approve → deposit, withdraw
+- [x] `useBrkxTier.ts` — `BRKXToken.balanceOf(address)` → tier index 0–3 → feeBps/feeLabel/nextTierBrkx (Feb 28)
+- [x] `useKappaSignal.ts` — `OracleAdapter.getKappaSignal(BTC_ASSET_ADDRESS)` → kappa/premium/regime/regimeLabel/regimeColor (Feb 28) · wagmi v2 tuple fix applied
 
 ### Key ABI Facts (CRITICAL — do not change)
 - `openPosition` args: `(address asset, address collateralToken, uint256 collateral, uint256 leverage, bool isLong)` → returns `bytes32`
@@ -243,9 +247,15 @@ Revenue split: 50% → InsuranceFund / 50% → Treasury
 - [x] κ-signal verified on-chain: `getKappaSignal()` returns regime=0 (NORMAL) ✓
 - [x] `ONCHAIN EXECUTION COMPLETE & SUCCESSFUL` — Arbitrum Sepolia broadcast confirmed
 
+### Frontend BRKX + κ Display (completed Feb 28 2026)
+- [x] `hooks/useBrkxTier.ts` — reads BRKX `balanceOf`, resolves tier (0–3), returns `tierName/feeBps/feeLabel/feePct/balanceDisplay/nextTierBrkx` (refetch 30s)
+- [x] `hooks/useKappaSignal.ts` — reads `OracleAdapter.getKappaSignal()` as tuple `[bigint,bigint,number]`, returns `kappa/premium/regime/regimeLabel/regimeColor` (refetch 30s)
+  - Fixed wagmi v2 TypeScript error: named `.regime` / `.kappa` not on tuple → destructure with `const [rawKappa, rawPremium, rawRegime] = data`
+- [x] `OrderPanel.tsx` — added `estFee = size × feeBps / 100_000` calculation; "Trading fee" row (gold, ~$X.XXXX); "BRKX tier" badge (green=Tier3, gold=others); BRKX balance indicator strip below action button (shows next-tier upgrade path)
+- [x] `frontend/lib/contracts.ts` — `getKappaSignal` ABI entry added; all 4 redeployed contract addresses updated to v2/v3
+
 ### Pending
 - [ ] Distribute BRKX to test wallets for fee tier testing (from deployer wallet holding all 100M)
-- [ ] Frontend: add BRKX balance display + fee tier indicator to OrderPanel
 
 ---
 
@@ -286,12 +296,15 @@ Revenue split: 50% → InsuranceFund / 50% → Treasury
 - [ ] Preprint on SSRN / arXiv (q-fin.GN)
 - [ ] Share with AAOIFI for fatwa process input
 
-### Paper 3 — The κ-Rate: Riba-Free Monetary Alternative (written)
-- [x] Written — `papers/paper3/paper3_kappa_rate.tex` (Feb 28 2026)
+### Paper 3 — The κ-Rate: Riba-Free Monetary Alternative (written + appendix)
+- [x] Written — `papers/paper3/paper3_kappa_rate.tex` (Feb 28 2026) — **11 pages** (compiled clean)
 - [x] Literature review: Fisher (1930), Böhm-Bawerk (1890), Wicksell (1898), Keynes (1936), Chapra (1985), Khan & Mirakhor (1987), Iqbal & Mirakhor (2011), CIR (1985), Vasicek (1977), Nelson-Siegel (1987), El-Gamal (2006), Zarqa (1983), Khan & Abdallah (2017), Mirakhor & Askari (2010)
 - [x] Core thesis: κ is Wicksell's natural rate minus riba — first rigorous riba-free monetary alternative
 - [x] κ-yield curve: κ(T) = 1/T, Islamic analog of the CIR term structure
 - [x] Applications: credit instruments, takaful, monetary policy signalling, sovereign sukuk benchmark
+- [x] **Appendix A: Stochastic κ Dynamics** — CIR-κ SDE `dκ_t = α(κ̄−κ_t)dt + σ_κ√κ_t dW_t^Q`; Feller condition lemma (κ>0 a.s.); closed-form κ-bond pricing theorem (Riccati ODE proof); stochastic κ-yield curve proposition (short/long-rate limits, normal/inverted/flat shapes); calibration equation; CIR correspondence table
+  - Fix applied: `\DeclareMathOperator*{\argmin}` added to preamble (calibration eq. missing this)
+  - PDF recompiled: **zero errors, all cross-refs resolved, 11 pages**
 - [x] NOTE: simulation (cadCAD/RL/GT/MD) = data tool, cited as data note in Paper 3 (not a standalone paper)
 - [ ] Submit to Journal of Economic Theory / Review of Financial Studies
 - [ ] Preprint on SSRN / arXiv (q-fin.EC, q-fin.MF)
@@ -370,4 +383,4 @@ npx graph deploy arcus --version-label v0.0.2
 
 ---
 
-*Checklist Version 2.3 — February 27, 2026 — Updated after Session 12 (redeploy + on-chain smoke test)*
+*Checklist Version 2.4 — February 28, 2026 — Updated after Session 13 (frontend BRKX/κ hooks + Paper 3 stochastic κ appendix)*
