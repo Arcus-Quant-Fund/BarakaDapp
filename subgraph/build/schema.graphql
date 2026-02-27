@@ -1,0 +1,147 @@
+# Baraka Protocol — The Graph Schema
+# Arbitrum Sepolia (chainId 421614)
+# Updated: February 26, 2026
+
+# ──────────────────────────────────────────────────
+# POSITION — full lifecycle (open → settle → close)
+# ──────────────────────────────────────────────────
+
+type Position @entity {
+  id:                 Bytes!        # positionId (bytes32)
+  trader:             Bytes!        # wallet address
+  asset:              Bytes!        # market address (e.g. WBTC)
+  collateralToken:    Bytes!        # USDC / PAXG / XAUT
+  isLong:             Boolean!
+  size:               BigInt!       # notional (USDC 6-dec units)
+  collateral:         BigInt!       # current collateral (shrinks with funding)
+  entryPrice:         BigInt!       # 1e18-scaled oracle price at open
+  openBlock:          BigInt!
+  openTimestamp:      BigInt!
+  closeTimestamp:     BigInt        # null if still open
+  exitPrice:          BigInt        # null if still open
+  realizedPnl:        BigInt        # null if still open (signed int256)
+  totalFundingPaid:   BigInt!       # cumulative funding deducted (can be negative)
+  isOpen:             Boolean!
+  isLiquidated:       Boolean!
+  fundingSettlements: [FundingSettlement!]! @derivedFrom(field: "position")
+}
+
+# ──────────────────────────────────────────────────
+# TRADE — immutable open/close records
+# ──────────────────────────────────────────────────
+
+type Trade @entity(immutable: true) {
+  id:           Bytes!    # tx hash + log index
+  position:     Position!
+  trader:       Bytes!
+  asset:        Bytes!
+  action:       String!   # "OPEN" | "CLOSE" | "LIQUIDATE"
+  size:         BigInt!
+  price:        BigInt!   # 1e18 scale
+  realizedPnl:  BigInt    # null for OPEN
+  timestamp:    BigInt!
+  blockNumber:  BigInt!
+  txHash:       Bytes!
+}
+
+# ──────────────────────────────────────────────────
+# FUNDING SETTLEMENT — per position, per interval
+# ──────────────────────────────────────────────────
+
+type FundingSettlement @entity(immutable: true) {
+  id:             Bytes!    # positionId + tx hash + log index
+  position:       Position!
+  fundingPayment: BigInt!   # signed — negative = trader received
+  newCollateral:  BigInt!
+  timestamp:      BigInt!
+  blockNumber:    BigInt!
+  txHash:         Bytes!
+}
+
+# ──────────────────────────────────────────────────
+# FUNDING RATE — hourly snapshots per market
+# ──────────────────────────────────────────────────
+
+type FundingRateSnapshot @entity(immutable: true) {
+  id:           Bytes!    # market + timestamp
+  market:       Bytes!
+  fundingRate:  BigInt!   # int256 in 1e18 scale (±75bps max)
+  markPrice:    BigInt!   # 1e18
+  indexPrice:   BigInt!   # 1e18
+  premium:      BigInt!   # markPrice - indexPrice (signed)
+  timestamp:    BigInt!
+  blockNumber:  BigInt!
+}
+
+# ──────────────────────────────────────────────────
+# VAULT EVENTS — deposits & withdrawals
+# ──────────────────────────────────────────────────
+
+type DepositEvent @entity(immutable: true) {
+  id:          Bytes!
+  user:        Bytes!
+  token:       Bytes!
+  amount:      BigInt!   # token native decimals
+  timestamp:   BigInt!
+  blockNumber: BigInt!
+  txHash:      Bytes!
+}
+
+type WithdrawEvent @entity(immutable: true) {
+  id:          Bytes!
+  user:        Bytes!
+  token:       Bytes!
+  amount:      BigInt!
+  timestamp:   BigInt!
+  blockNumber: BigInt!
+  txHash:      Bytes!
+}
+
+# ──────────────────────────────────────────────────
+# LIQUIDATION
+# ──────────────────────────────────────────────────
+
+type LiquidationEvent @entity(immutable: true) {
+  id:             Bytes!
+  position:       Position!
+  liquidator:     Bytes!
+  trader:         Bytes!
+  penalty:        BigInt!
+  liquidatorShare: BigInt!
+  insuranceShare: BigInt!
+  timestamp:      BigInt!
+  blockNumber:    BigInt!
+  txHash:         Bytes!
+}
+
+# ──────────────────────────────────────────────────
+# MARKET STATS — per-market aggregates
+# ──────────────────────────────────────────────────
+
+type MarketStats @entity {
+  id:                Bytes!   # asset address
+  totalLongs:        BigInt!  # open long notional
+  totalShorts:       BigInt!  # open short notional
+  openInterest:      BigInt!  # totalLongs + totalShorts
+  totalVolume:       BigInt!  # cumulative notional traded
+  totalTrades:       BigInt!
+  totalLiquidations: BigInt!
+  lastFundingRate:   BigInt!  # most recent funding rate snapshot
+  lastUpdated:       BigInt!
+}
+
+# ──────────────────────────────────────────────────
+# PROTOCOL — global singleton (id = "baraka")
+# ──────────────────────────────────────────────────
+
+type Protocol @entity {
+  id:                  String! # always "baraka"
+  totalDeposited:      BigInt! # cumulative USDC deposited
+  totalWithdrawn:      BigInt! # cumulative USDC withdrawn
+  totalPositions:      BigInt!
+  openPositions:       BigInt!
+  totalTrades:         BigInt!
+  totalLiquidations:   BigInt!
+  totalVolume:         BigInt!
+  lastUpdated:         BigInt!
+}

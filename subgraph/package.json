@@ -1,0 +1,17 @@
+{
+  "name": "baraka-subgraph",
+  "version": "1.0.0",
+  "description": "The Graph subgraph for Baraka Protocol (Arbitrum Sepolia)",
+  "scripts": {
+    "codegen": "graph codegen",
+    "build":   "graph build",
+    "auth":    "graph auth",
+    "deploy":  "graph deploy arcus",
+    "create-local":  "graph create --node http://localhost:8020/ arcus",
+    "deploy-local":  "graph deploy --node http://localhost:8020/ --ipfs http://localhost:5001 arcus"
+  },
+  "dependencies": {
+    "@graphprotocol/graph-cli": "^0.91.0",
+    "@graphprotocol/graph-ts":  "^0.35.1"
+  }
+}

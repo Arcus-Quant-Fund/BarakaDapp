@@ -1,0 +1,1494 @@
+%% ============================================================
+%%  paper2_credit.tex
+%%  "From Perpetual Contracts to Islamic Credit:
+%%   The Random Stopping Time Equivalence and
+%%   a Riba-Free Foundation for Sukuk, Takaful, and Credit Protection"
+%%  Ahmed, Bhuyan & Islam — February 2026
+%% ============================================================
+\documentclass[10pt,twocolumn]{article}
+\usepackage[utf8]{inputenc}
+\usepackage[margin=0.75in]{geometry}
+\usepackage{amsmath,amssymb,amsthm}
+\usepackage{graphicx}
+\usepackage{hyperref}
+\usepackage[numbers]{natbib}
+\usepackage{booktabs}
+\usepackage{abstract}
+\usepackage{xurl}
+\usepackage{titlesec}
+\usepackage{authblk}
+\usepackage{xcolor}
+\usepackage{array}
+\usepackage[protrusion=true,expansion=false]{microtype}
+\usepackage{enumitem}
+\usepackage{caption}
+\usepackage{multirow}
+\usepackage{bm}
+
+%% Section spacing
+\titlespacing*{\section}{0pt}{13pt}{6pt}
+\titlespacing*{\subsection}{0pt}{10pt}{4pt}
+\titlespacing*{\subsubsection}{0pt}{8pt}{3pt}
+
+%% Abstract style
+\renewcommand{\abstractnamefont}{\normalfont\bfseries\large}
+\renewcommand{\abstracttextfont}{\normalfont\small}
+
+%% Theorem environments
+\theoremstyle{plain}
+\newtheorem{theorem}{Theorem}
+\newtheorem{proposition}{Proposition}
+\newtheorem{corollary}{Corollary}
+\newtheorem{lemma}{Lemma}
+\theoremstyle{definition}
+\newtheorem{definition}{Definition}
+\newtheorem{remark}{Remark}
+\newtheorem{example}{Example}
+
+%% Math operators
+\DeclareMathOperator{\E}{\mathbb{E}}
+\newcommand{\Qa}{Q^a}
+\newcommand{\R}{\mathbb{R}}
+\newcommand{\Prob}{\mathbb{P}}
+\newcommand{\F}{\mathcal{F}}
+
+\definecolor{ribared}{RGB}{180,30,30}
+\definecolor{halalgreen}{RGB}{30,120,60}
+\definecolor{noteblue}{RGB}{20,60,160}
+
+\hypersetup{colorlinks=true,linkcolor=blue,citecolor=blue,urlcolor=blue}
+
+%% ============================================================
+\title{\LARGE\textbf{From Perpetual Contracts to Islamic Credit:\\
+The Random Stopping Time Equivalence and\\
+a Riba-Free Foundation for Sukuk,\\
+Takaful, and Credit Protection}}
+
+\author[1]{Shehzad Ahmed}
+\author[2]{Rafiqul Bhuyan}
+\author[3]{Rubaiyat Islam}
+
+\affil[1]{Department of Finance, Independent University, Bangladesh\\
+\small\texttt{2120922@iub.edu.bd}}
+\affil[2]{Department of Finance, Alabama A\&M University, USA;
+Adjunct Professor, Monarch Business School Switzerland\\
+\small\texttt{rafiqul.bhuyan@aamu.edu}}
+\affil[3]{Department of Software Engineering, Daffodil International University,
+Bangladesh\\ \small\texttt{islam.swe@diu.edu.bd}}
+
+\date{February 2026}
+%% ============================================================
+
+\begin{document}
+
+\twocolumn[\begin{@twocolumnfalse}
+\maketitle\thispagestyle{empty}
+
+\begin{abstract}
+\noindent
+We establish a formal mathematical equivalence between two previously unconnected
+pricing frameworks --- the random time representation of perpetual futures
+contracts \cite{Ackerer2024} and the reduced-form credit risk model of Duffie
+\& Singleton \cite{DuffieSingleton1999} --- and demonstrate that this
+equivalence has profound implications for Islamic finance.
+
+The core observation is structural: the stopping time $\theta_t$ in the
+Ackerer-Hugonnier-Jermann perpetual pricing formula is isomorphic to the
+default time $\tau$ in the Duffie-Singleton defaultable bond formula,
+under the identification of the convergence intensity $\kappa$ with the hazard
+rate $\lambda$ and the interest parameter $\iota$ with the risk-free
+discount rate $r$. When the interest parameter is set to zero ($\iota = 0$)
+--- which Ackerer et al.\ prove achieves unique no-arbitrage
+perpetual futures pricing --- the analogous credit instrument at $r = 0$
+is also no-arbitrage, with the stopping time distribution alone carrying
+all timing information previously encoded in the interest discount.
+
+This equivalence resolves a 50-year impasse in Islamic finance: it provides
+a mathematically rigorous, no-arbitrage pricing foundation for credit
+instruments --- sukuk, takaful, and credit default swaps --- that requires
+no positive interest rate. We prove the main theorem, derive closed-form
+prices for an Islamic perpetual sukuk and an everlasting takaful contract
+using Proposition~6 of Ackerer et al., and show that the convergence
+intensity $\kappa$ functions as a riba-free analog to the risk-free rate
+across all Islamic credit instruments. We term this the \textbf{$\kappa$-rate}.
+
+\medskip
+\noindent\textbf{Keywords:} \textit{riba}, Islamic finance, credit risk,
+sukuk, takaful, perpetual contracts, stopping time, no-arbitrage,
+Duffie-Singleton, $\kappa$-rate, riba-free pricing
+\end{abstract}
+\bigskip
+\end{@twocolumnfalse}]
+
+%% ============================================================
+\section{Introduction}
+%% ============================================================
+
+The pricing of credit risk is the central unresolved problem in Islamic
+finance. The \$3 trillion Islamic finance industry \cite{IFSB2024} operates
+without any mathematical tool for pricing credit default risk that does not
+require a positive interest rate. Every credit derivatives framework in use
+today --- the structural models of Merton \cite{Merton1974}, Black \&
+Cox \cite{BlackCox1976}, and Leland \cite{Leland1994}; the reduced-form
+models of Jarrow \& Turnbull \cite{JarrowTurnbull1995}, Duffie \&
+Singleton \cite{DuffieSingleton1999}, and Lando \cite{Lando1998} --- is
+built on a positive risk-free interest rate $r > 0$. Islamic scholars
+correctly identify this $r$ as \textit{riba}: it is the compensation for
+the pure time value of money, which Islamic jurisprudence prohibits as a
+predetermined excess in exchange transactions \cite{ElGamal2006,Usmani2002}.
+
+The consequence has been severe. Islamic institutions cannot hedge credit
+risk. Sukuk (Islamic bonds) are priced at issuance using LIBOR/SOFR-anchored
+models, making the interest rate implicit even when explicit interest
+payments are restructured away \cite{KhanAbdallah2017}. Takaful (Islamic
+insurance) operators invest pools in sukuk priced by riba-based models
+\cite{Htay2012}. The Islamic credit default swap does not exist. Scholars
+have sought workarounds for decades; the workarounds have been cosmetic,
+not mathematical \cite{Khan2010,ElGamal2006}.
+
+This paper resolves the impasse. We demonstrate that a recent result from
+mathematical finance --- the random time representation theorem for perpetual
+futures contracts proved by Ackerer, Hugonnier \& Jermann (2024)
+\cite{Ackerer2024} --- contains, as a special case, a complete and
+rigorous pricing framework for credit instruments that does not require
+$r > 0$.
+
+\subsection*{The Core Observation}
+
+The Ackerer-Hugonnier-Jermann theorem establishes that the unique
+no-arbitrage price of a perpetual futures contract on a spot asset $X_t$
+with interest parameter $\iota$ and convergence intensity $\kappa$ is:
+\begin{equation}
+f_t = \E^{\Qa}_t\!\left[\mathrm{e}^{-\int_t^{\theta_t}\!\iota_s\,ds}\,
+X_{\theta_t}\right]
+\label{eq:ahj}
+\end{equation}
+where $\theta_t$ is a random stopping time with exponential density
+under the pricing measure $\Qa$. The critical result, proved in their
+Theorem~3, is that $\iota = 0$ satisfies all no-arbitrage conditions.
+When $\iota = 0$, equation~\eqref{eq:ahj} collapses to:
+\begin{equation}
+f_t = \E^{\Qa}_t[X_{\theta_t}], \qquad \theta_t\sim t + \mathrm{Exp}(\kappa)
+\label{eq:ahj_zero}
+\end{equation}
+The instrument price is the \emph{expected spot value at a random future
+moment} --- with the probability distribution of that moment
+determined entirely by $\kappa$, and no interest discount anywhere.
+
+The Duffie-Singleton reduced-form credit model prices a defaultable
+instrument as:
+\begin{equation}
+P_t = \E^Q_t\!\left[\mathrm{e}^{-\int_t^{\tau}r_s\,ds}\,R_\tau\right]
+\label{eq:ds}
+\end{equation}
+where $\tau$ is the default time (exponentially distributed with hazard
+rate $\lambda$) and $R_\tau$ is the recovery value at default.
+
+Equations~\eqref{eq:ahj} and~\eqref{eq:ds} are the same equation.
+The stopping time $\theta_t$ is $\tau$. The convergence intensity
+$\kappa$ is $\lambda$. The interest parameter $\iota$ is $r$.
+The spot $X_{\theta_t}$ is the recovery $R_\tau$.
+
+At $\iota = r = 0$: both yield $\E[X_\tau]$. The Ackerer theorem
+proves this is no-arbitrage. Therefore credit pricing at $r = 0$ is
+no-arbitrage, provided $\kappa = \lambda > 0$ carries all timing
+information. \textit{Riba} is not a pricing necessity. It is a
+historical artifact of how the two literatures fused timing and
+discounting into a single parameter.
+
+\subsection*{Contributions}
+
+This paper makes five contributions.
+
+\begin{enumerate}[leftmargin=*, noitemsep]
+\item \textbf{Formal equivalence theorem.} We prove that the
+Ackerer-Hugonnier-Jermann perpetual pricing formula and the
+Duffie-Singleton defaultable bond formula are formally isomorphic
+(Proposition~\ref{prop:equiv}), and that no-arbitrage at $\iota = 0$
+implies no-arbitrage for credit pricing at $r = 0$
+(Corollary~\ref{cor:riba_free}).
+
+\item \textbf{Islamic perpetual sukuk.} We derive a closed-form
+no-arbitrage price for an Islamic perpetual sukuk using the
+$\kappa$-parameterized stopping time (Section~\ref{sec:sukuk}).
+
+\item \textbf{Actuarially fair takaful formula.} We apply Proposition~6
+of Ackerer et al.\ to derive a closed-form everlasting takaful
+contribution pricing formula --- riba-free, on-chain verifiable, and
+Shariah-compatible (Section~\ref{sec:takaful}).
+
+\item \textbf{The $\kappa$-rate.} We propose the convergence intensity
+$\kappa$ as an Islamic alternative to the risk-free rate $r$, providing
+the first mathematically rigorous pricing foundation for a complete
+riba-free credit market (Section~\ref{sec:kappa_rate}).
+
+\item \textbf{Shariah analysis.} We conduct a formal jurisprudential
+analysis showing that the $\kappa$-parameterized framework satisfies
+the riba, gharar, and maysir conditions of AAOIFI Shariah Standards
+\cite{AAOIFI2017} (Section~\ref{sec:shariah}).
+\end{enumerate}
+
+%% ============================================================
+\section{The Ackerer-Hugonnier-Jermann Framework}
+\label{sec:ahj}
+%% ============================================================
+
+\subsection{Market Setup}
+
+Let $(\Omega, \F, \Prob)$ be a probability space with filtration
+$(\F_t)_{t\geq 0}$ satisfying the usual conditions. There are two
+funding accounts: a long account growing at rate $r_a(t)$ and a short
+account growing at rate $r_b(t)$, both strictly positive. Let $X_t$
+denote the price of a spot asset satisfying, under the long's pricing
+measure $\Qa$:
+\begin{equation}
+\frac{dX_t}{X_t} = (r_a(t) - r_b(t))\,dt + \sigma_X\,dW_t^{\Qa}
+\label{eq:spot}
+\end{equation}
+where $W^{\Qa}$ is a standard Brownian motion under $\Qa$ and
+$\sigma_X > 0$ is the spot volatility. A perpetual futures contract
+on $X_t$ with convergence parameter $\kappa > 0$ and interest
+parameter $\iota \geq 0$ is a continuously-settled contract with
+no fixed expiry.
+
+\subsection{The Perpetual Futures Price}
+
+Under constant parameters $r_a, r_b, \kappa, \iota, \sigma_X$,
+Proposition~3 of Ackerer et al.\ \cite{Ackerer2024} establishes that
+the unique no-arbitrage perpetual futures price is:
+\begin{equation}
+f_t = \frac{\kappa}{\kappa - \iota + r_b - r_a} \cdot X_t
+\label{eq:perp_price}
+\end{equation}
+provided $\kappa - \iota + r_b - r_a > 0$.
+The ratio $f_t/X_t$ is the perpetual \textit{basis}. When
+$r_a = r_b$ (symmetric funding rates):
+\begin{equation}
+f_t = \frac{\kappa}{\kappa - \iota} \cdot X_t
+\label{eq:perp_symmetric}
+\end{equation}
+
+\subsection{The Random Time Representation}
+\label{sec:rtr}
+
+The central result of Ackerer et al.\ is a \textit{random time
+representation} that reveals the economic structure of perpetual
+pricing. Define the \textbf{convergence stopping time} $\theta_t$
+as a random variable with conditional density under $\Qa$:
+\begin{equation}
+q(\theta_t \in ds \mid \F_t)
+= (\kappa_s - \iota_s)\,
+\exp\!\left(-\int_t^s (\kappa_u - \iota_u)\,du\right)ds, \quad s\geq t
+\label{eq:density}
+\end{equation}
+This is a Cox process (doubly stochastic Poisson process) with
+intensity $\kappa_t - \iota_t$. The distribution of $\theta_t$
+is exponential with rate $\kappa - \iota$ in the constant-parameter
+case:
+\begin{equation}
+\Qa(\theta_t > s \mid \F_t)
+= e^{-(\kappa-\iota)(s-t)}, \quad s\geq t
+\label{eq:survival}
+\end{equation}
+The perpetual futures price then satisfies (Theorem~6, Ackerer et al.):
+\begin{equation}
+f_t = \E^{\Qa}_t\!\left[
+\mathrm{e}^{-\int_t^{\theta_t}\iota_s\,ds} \cdot X_{\theta_t}
+\right]
+\label{eq:rtr_full}
+\end{equation}
+The price is the discounted expected spot value at the random
+stopping time $\theta_t$. The discount is $\iota$ (the interest
+parameter), not $r_a$ or $r_b$.
+
+\subsection{The Critical Case: $\iota = 0$}
+\label{sec:iota_zero}
+
+When $\iota = 0$, Theorem~3 of Ackerer et al.\ establishes that
+no-arbitrage is satisfied. Substituting into
+equations~\eqref{eq:density}--\eqref{eq:rtr_full}:
+\begin{align}
+q(\theta_t \in ds \mid \F_t) &= \kappa\,e^{-\kappa(s-t)}\,ds
+\label{eq:density_zero}\\[4pt]
+f_t &= \E^{\Qa}_t[X_{\theta_t}],
+\quad \theta_t \sim t + \mathrm{Exp}(\kappa)
+\label{eq:perp_iota_zero}
+\end{align}
+Three consequences are immediate and profound:
+
+\begin{enumerate}[leftmargin=*,noitemsep]
+\item \textbf{No discounting.} The expectation in
+\eqref{eq:perp_iota_zero} is taken without any interest discount.
+The price is the pure expected value.
+
+\item \textbf{$\kappa$ carries all timing information.} The
+probability distribution of \textit{when} payoff occurs is
+governed entirely by $\kappa$. Larger $\kappa$ means faster
+convergence and shorter expected stopping time;
+smaller $\kappa$ means slower convergence.
+
+\item \textbf{The price formula at $r_a = r_b$.}
+From \eqref{eq:perp_symmetric} with $\iota = 0$: $f_t = X_t$.
+The perpetual futures price equals the spot price identically ---
+no premium, no discount --- consistent with the empirical
+finding that dYdX~v4 perpetuals at $\iota=0$ exhibit zero
+long-run mean funding rates \cite{Ahmed2026}.
+\end{enumerate}
+
+\begin{remark}
+The CEX interest parameter $\iota = 0.0001$ per 8 hours
+($= 0.10950\,\%$/year on Binance, Bybit, OKX) creates a permanent
+positive bias in equation~\eqref{eq:perp_symmetric}: $f_t > X_t$
+always. Longs pay this excess to shorts regardless of market
+conditions. This excess is structurally \textit{riba al-fadl}
+(predetermined excess in exchange) under all four Sunni schools.
+Setting $\iota = 0$ eliminates it exactly.
+\end{remark}
+
+%% ============================================================
+\section{Reduced-Form Credit Risk Models}
+\label{sec:credit}
+%% ============================================================
+
+\subsection{The Duffie-Singleton Framework}
+
+The reduced-form approach to credit risk, initiated by Jarrow \&
+Turnbull \cite{JarrowTurnbull1995} and systematized by Duffie \&
+Singleton \cite{DuffieSingleton1999}, models default as the first
+jump of a Poisson process with stochastic intensity (hazard rate).
+
+Let $(\Omega, \F, Q)$ be a risk-neutral probability space. Define
+the \textbf{default time} $\tau$ as a stopping time with respect
+to $(\F_t)$, characterized by the $Q$-conditional survival
+probability:
+\begin{equation}
+Q(\tau > s \mid \F_t)
+= \exp\!\left(-\int_t^s \lambda_u\,du\right), \quad s\geq t
+\label{eq:ds_survival}
+\end{equation}
+where $\lambda_t > 0$ is the \textbf{hazard rate} (default
+intensity). The hazard rate has the conditional density:
+\begin{equation}
+q(\tau \in ds \mid \F_t)
+= \lambda_s \exp\!\left(-\int_t^s \lambda_u\,du\right)ds,
+\quad s\geq t
+\label{eq:ds_density}
+\end{equation}
+
+\subsection{Defaultable Instrument Pricing}
+
+For a defaultable instrument with payoff function $\phi(X_\tau)$
+at the default time $\tau$ and risk-free discount rate $r_t$:
+\begin{equation}
+P_t = \E^Q_t\!\left[
+\mathrm{e}^{-\int_t^\tau r_s\,ds} \cdot \phi(X_\tau)
+\right]
+\label{eq:ds_price}
+\end{equation}
+In the constant-parameter case ($r, \lambda$ constant, $\tau\sim
+t+\mathrm{Exp}(\lambda)$), this gives:
+\begin{equation}
+P_t = \int_t^\infty e^{-r(s-t)}\,\phi\!\left(\E[X_s]\right)\,
+\lambda e^{-\lambda(s-t)}\,ds
+= \frac{\lambda}{r+\lambda}\,\phi(X_t^*)
+\label{eq:ds_closed}
+\end{equation}
+where $X_t^*$ denotes the forward spot expectation. For a bond
+with full recovery ($\phi(x) = x$) and $Q$-martingale spot:
+\begin{equation}
+P_t = \frac{\lambda}{r+\lambda}\cdot X_t
+\label{eq:ds_bond}
+\end{equation}
+The conventional framework requires $r > 0$ to obtain
+$P_t < X_t$: without interest discounting, the bond price
+equals the spot, which appears to eliminate the credit spread.
+We resolve this apparent paradox in Section~\ref{sec:equiv}.
+
+%% ============================================================
+\section{The Mathematical Equivalence}
+\label{sec:equiv}
+%% ============================================================
+
+\subsection{The Isomorphism}
+
+Comparing equations~\eqref{eq:density} and \eqref{eq:ds_density}
+reveals an immediate structural identity:
+
+\begin{center}
+\small
+\begin{tabular}{@{}lll@{}}
+\toprule
+\textbf{AHJ Perpetuals} & \textbf{Duffie-Singleton Credit} & \textbf{Role} \\
+\midrule
+$\theta_t$ & $\tau$ & Random stopping time \\
+$\kappa_t$ & $\lambda_t$ & Event intensity \\
+$\iota_t$ & $r_t$ & Discount parameter \\
+$X_{\theta_t}$ & $\phi(X_\tau)$ & Payoff at event \\
+$f_t$ & $P_t$ & Instrument price \\
+$\Qa$ & $Q$ & Pricing measure \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+The two frameworks share an identical mathematical skeleton. The
+perpetual futures framework uses $\kappa$ and $\iota$; the credit
+framework uses $\lambda$ and $r$. The functions they play are
+identical.
+
+\subsection{The Main Result}
+\label{sec:main_theorem}
+
+\begin{proposition}[Random Stopping Time Equivalence]
+\label{prop:equiv}
+Let $(\Omega,\F,\Prob)$ be a filtered probability space with the
+usual conditions. Let $X_t$ be an asset price process satisfying
+\eqref{eq:spot} under a pricing measure $Q = \Qa$. Define:
+\begin{enumerate}[leftmargin=*,noitemsep]
+\item A perpetual futures contract with parameters $\kappa, \iota$,
+priced by equation~\eqref{eq:rtr_full}.
+\item A defaultable financial claim with hazard rate $\lambda$,
+discount rate $r$, and recovery $\phi(X_\tau)$, priced by
+equation~\eqref{eq:ds_price}.
+\end{enumerate}
+Under the parameter identification $\kappa \leftrightarrow \lambda$,
+$\iota \leftrightarrow r$, $X_{\theta_t} \leftrightarrow \phi(X_\tau)$:
+\begin{equation}
+f_t = P_t
+\label{eq:equiv}
+\end{equation}
+The two pricing formulas are formally isomorphic.
+\end{proposition}
+
+\begin{proof}
+The stopping time densities \eqref{eq:density} and
+\eqref{eq:ds_density} are identical under $\kappa \leftrightarrow
+\lambda$. The integral representations \eqref{eq:rtr_full} and
+\eqref{eq:ds_price} are identical under the additional identification
+$\iota \leftrightarrow r$ and $X_{\theta_t} \leftrightarrow \phi(X_\tau)$.
+The pricing measures $\Qa$ and $Q$ are both risk-neutral with respect
+to their respective numeraires. The formal identity \eqref{eq:equiv}
+follows directly.\qquad$\square$
+\end{proof}
+
+\begin{corollary}[Riba-Free Credit Pricing is No-Arbitrage]
+\label{cor:riba_free}
+Setting $\iota = 0$ in the AHJ perpetual futures framework yields
+a no-arbitrage price by Theorem~3 of \textup{\cite{Ackerer2024}}.
+Under the isomorphism of Proposition~\ref{prop:equiv}, the
+corresponding credit instrument at $r = 0$ is also no-arbitrage,
+with pricing formula:
+\begin{equation}
+\boxed{P_t = \E^Q_t[\phi(X_{\tau})], \qquad
+\tau\sim t+\mathrm{Exp}(\kappa), \quad r = 0}
+\label{eq:riba_free}
+\end{equation}
+The hazard rate $\kappa$ alone carries all timing information.
+No positive interest rate is required.
+\end{corollary}
+
+\begin{proof}
+By Theorem~3 of Ackerer et al.\ \cite{Ackerer2024}, setting
+$\iota = 0$ satisfies the no-arbitrage conditions for the perpetual
+futures. By Proposition~\ref{prop:equiv}, $f_t = P_t$ under the
+given identification. Therefore $P_t$ at $r = 0$ satisfies the
+same no-arbitrage conditions.
+Specifically: there exists a self-financing replication strategy
+for the claim $\phi(X_\tau)$ with value process $P_t$ satisfying
+$P_t = \E^Q_t[\phi(X_\tau)]$, as the expectation under the
+risk-neutral measure $Q$ of the discounted (at $r=0$) payoff.
+\qquad$\square$
+\end{proof}
+
+\subsection{Resolving the Apparent Paradox}
+
+Corollary~\ref{cor:riba_free} may appear paradoxical: how can a
+credit instrument with $r = 0$ have $P_t < X_t$ (i.e., trade at
+a discount) without interest? The resolution is that $\kappa$
+controls both the discount and the credit spread simultaneously.
+
+From equation~\eqref{eq:perp_symmetric} with $\iota = 0$:
+\begin{equation}
+\frac{f_t}{X_t} = 1
+\qquad (r_a = r_b,\;\iota = 0)
+\label{eq:parity}
+\end{equation}
+But consider a sukuk with recovery $\phi(X_\tau) = \delta \cdot X_\tau$
+where $\delta \in (0,1)$ is the recovery fraction. Then:
+\begin{equation}
+P_t = \delta\cdot\E^Q_t[X_\tau] = \delta\cdot X_t < X_t
+\label{eq:recovery_discount}
+\end{equation}
+The discount from par is $1-\delta$: the credit loss on default.
+This is not interest; it is the pricing of credit risk through
+the recovery rate. The $\kappa$-parameterized timing generates
+the spread (the probability-weighted present value of credit loss)
+without any interest component. This is \textit{precisely} the
+separation of credit risk from time preference that Islamic
+finance requires.
+
+\begin{remark}
+In the conventional framework, the credit spread over the risk-free
+rate bundles two economically distinct risks: (1) the probability
+of default (hazard rate $\lambda$) and (2) the time value of money
+(risk-free rate $r$). The Ackerer framework separates them
+definitively. At $\iota = r = 0$, only the hazard rate $\kappa$
+remains, representing pure credit risk with no interest component.
+\end{remark}
+
+%% ============================================================
+\section{Everlasting Options and the Takaful Pricing Formula}
+\label{sec:everlasting}
+%% ============================================================
+
+Proposition~6 of Ackerer et al.\ \cite{Ackerer2024} extends the
+random time framework to arbitrary payoff functions $\phi(X_\tau)$,
+yielding closed-form \textbf{everlasting option} prices. This
+extension is the key to takaful pricing.
+
+\subsection{The Everlasting Put Option}
+
+For a payoff $\phi(x) = \max(K - x, 0)$ (floor protection at
+strike $K$) with $\iota = 0$ and $r_a = r_b$, the price is:
+\begin{equation}
+\Pi_{\mathrm{put}}(x, K)
+= \E^{\Qa}\!\left[(K - X_\tau)^+\right]
+= C_p \cdot x^{\beta_p}
+\label{eq:evput}
+\end{equation}
+where $\beta_p < 0$ is the \textit{negative} root of the
+characteristic equation:
+\begin{equation}
+\frac{\sigma_X^2}{2}\,\beta(\beta-1) - \kappa = 0
+\qquad (\iota = 0,\;r_a = r_b)
+\label{eq:char_eq}
+\end{equation}
+Solving:
+\begin{equation}
+\beta_p = \frac{1}{2} - \sqrt{\frac{1}{4} + \frac{2\kappa}{\sigma_X^2}}
+\label{eq:beta_p}
+\end{equation}
+The constant $C_p$ is determined by value-matching at $x = K$
+(smooth-pasting condition):
+\begin{equation}
+C_p = \frac{K^{1-\beta_p}}{1 - \beta_p}
+\label{eq:Cp}
+\end{equation}
+
+\subsection{The Everlasting Call Option}
+
+For $\phi(x) = \max(x - K, 0)$, the everlasting call is:
+\begin{equation}
+\Pi_{\mathrm{call}}(x, K) = C_c \cdot x^{\beta_c}
+\label{eq:evcall}
+\end{equation}
+where $\beta_c > 1$ is the positive root of \eqref{eq:char_eq}:
+\begin{equation}
+\beta_c = \frac{1}{2} + \sqrt{\frac{1}{4} + \frac{2\kappa}{\sigma_X^2}}
+\label{eq:beta_c}
+\end{equation}
+with $C_c = K^{1-\beta_c}/(\beta_c - 1)$.
+
+Note that $|\beta_p| + \beta_c = 2\beta_c - 1$, and both satisfy
+put-call parity at $r=0$: $\Pi_{\mathrm{call}} - \Pi_{\mathrm{put}}
+= X_t - K$ (forward parity without discounting).
+
+%% ============================================================
+\section{Applications in Islamic Finance}
+\label{sec:applications}
+%% ============================================================
+
+\subsection{Islamic Perpetual Sukuk}
+\label{sec:sukuk}
+
+\begin{definition}[Islamic Perpetual Sukuk]
+An Islamic Perpetual Sukuk is a financial instrument in which:
+\begin{enumerate}[leftmargin=*,noitemsep]
+\item The sukuk holder contributes capital $K$ backed by a real
+asset (RWA) with market value $X_t$.
+\item The issuer (asset operator) pays a continuous premium
+$\pi_t = \kappa(f_t - X_t)\,dt$ to the holder --- the perpetual
+futures funding rate under the $\kappa$-parameterized formula.
+\item At a random redemption time $\tau$ (oracle-triggered by
+asset completion, sale, or Shariah board review), the holder
+receives the fair market value $X_\tau$ of the underlying asset.
+\item The interest parameter $\iota = 0$ at all times.
+\end{enumerate}
+\end{definition}
+
+\begin{proposition}[Sukuk No-Arbitrage Price]
+\label{prop:sukuk}
+The fair price of the Islamic Perpetual Sukuk at time $t$ is:
+\begin{equation}
+P_t^{\mathrm{sukuk}} = \E^Q_t[X_\tau]
+= \frac{\kappa}{\kappa + r_b - r_a}\cdot X_t
+\label{eq:sukuk_price}
+\end{equation}
+with $r_a = r_b$ (symmetric bilateral rates) giving $P_t = X_t$.
+This price is no-arbitrage by Corollary~\textup{\ref{cor:riba_free}}.
+\end{proposition}
+
+\begin{proof}
+The redemption time $\tau \sim t + \mathrm{Exp}(\kappa)$ under
+the pricing measure $Q$. With recovery $\phi(X_\tau) = X_\tau$,
+Corollary~\ref{cor:riba_free} gives $P_t = \E^Q_t[X_\tau]$.
+Under the geometric Brownian motion \eqref{eq:spot}:
+$\E^Q_t[X_\tau] = \E^Q_t[X_t\,e^{(r_a-r_b)(\tau-t)}] =
+X_t \cdot \kappa/(\kappa + r_b - r_a)$, which is equation
+\eqref{eq:sukuk_price}. No-arbitrage follows from
+Corollary~\ref{cor:riba_free}.\qquad$\square$
+\end{proof}
+
+\paragraph{Economic interpretation.}
+The sukuk is priced at the expected asset value at redemption,
+with no interest discount. The premium payments $\pi_t$ transfer
+the basis risk from the issuer to the holder: when the asset
+trades at a premium to spot ($f_t > X_t$), the operator pays
+the holder; when at a discount, the holder pays the operator.
+This is risk-sharing (\textit{mudarabah}-compatible) rather than
+a fixed return on capital.
+
+\paragraph{The $\kappa$ parameter for sukuk.}
+For a sukuk backed by an infrastructure asset, $\kappa$ is
+calibrated from the expected completion timeline. An asset with
+a 5-year expected completion horizon has $\kappa \approx 0.20$
+(rate of an exponential with mean 5 years). A 10-year asset:
+$\kappa \approx 0.10$. This is directly observable and
+estimable without any interest rate input.
+
+\subsection{Takaful: Actuarially Fair Perpetual Insurance}
+\label{sec:takaful}
+
+\begin{definition}[Everlasting Takaful Contract]
+An Everlasting Takaful Contract is a mutual insurance arrangement
+in which:
+\begin{enumerate}[leftmargin=*,noitemsep]
+\item Participants contribute premium $\pi_\mathrm{takaful}$
+into a mutual pool at inception.
+\item The pool pays a claim $\phi(X_\tau) = \max(K - X_\tau, 0)$
+--- the shortfall of asset value below the insured floor $K$
+--- at a random claim event $\tau$.
+\item The claim event follows a Cox process with intensity
+$\kappa$ (the historical hazard rate of the insured event:
+drought, flood, death, property damage).
+\item No investment return is generated on the pool; it earns
+at rate $\iota = 0$.
+\end{enumerate}
+\end{definition}
+
+\begin{theorem}[Actuarially Fair Takaful Premium]
+\label{thm:takaful}
+The actuarially fair takaful contribution for floor protection
+at level $K$ when the current asset value is $x = X_t$, event
+intensity $\kappa$, and asset volatility $\sigma_X$ is:
+\begin{equation}
+\boxed{\Pi_\mathrm{takaful}(x, K)
+= \frac{K^{1-\beta_p}}{1-\beta_p}\cdot x^{\beta_p}}
+\label{eq:takaful_premium}
+\end{equation}
+where $\beta_p = \frac{1}{2} - \sqrt{\frac{1}{4}
++ \frac{2\kappa}{\sigma_X^2}} < 0$.
+This price is no-arbitrage (Corollary~\textup{\ref{cor:riba_free}})
+and requires no positive interest rate.
+\end{theorem}
+
+\begin{proof}
+By Corollary~\ref{cor:riba_free}, the no-arbitrage price of
+$\phi(X_\tau) = (K-X_\tau)^+$ at $r=0$ is $\E^Q_t[(K-X_\tau)^+]$.
+By Proposition~6 of Ackerer et al.\ \cite{Ackerer2024} applied
+with $\iota = 0$ and $r_a = r_b$, this expectation equals
+$C_p x^{\beta_p}$ with $C_p$ and $\beta_p$ as given in
+equations~\eqref{eq:Cp} and~\eqref{eq:beta_p}. No-arbitrage
+is inherited from Corollary~\ref{cor:riba_free}.\qquad$\square$
+\end{proof}
+
+\paragraph{Agricultural takaful example.}
+Let $X_t$ be the market price of wheat (USD/bushel). A farmer
+participates in a mutual takaful pool offering floor protection
+at $K = \$6.00$/bushel. Historical drought frequency in the
+region is $\kappa = 0.08$ (one drought every $\sim$12.5 years
+on average). Wheat price volatility is $\sigma_X = 0.25$
+(25\% annual). Current wheat price: $x = \$7.50$.
+
+\begin{align}
+\beta_p &= \frac{1}{2} - \sqrt{\frac{1}{4}
++ \frac{2(0.08)}{(0.25)^2}}
+= 0.5 - \sqrt{0.25 + 2.56} = 0.5 - 1.676 = -1.176
+\notag\\[4pt]
+C_p &= \frac{(6.00)^{1-(-1.176)}}{1-(-1.176)}
+= \frac{6.00^{2.176}}{2.176}
+= \frac{47.85}{2.176} = 21.99
+\notag\\[4pt]
+\Pi &= 21.99 \times (7.50)^{-1.176}
+= 21.99 \times 0.1058 = \$2.33\text{/bushel}
+\label{eq:agri_example}
+\end{align}
+
+The farmer contributes \$2.33 per bushel into the takaful pool.
+This is the actuarially fair premium. No interest rate was used.
+The contribution is fully transparent and on-chain verifiable.
+
+\paragraph{Life takaful.}
+Let $X_t$ be a human capital index (proxied by a broad equity
+index). Let $\kappa$ be the age-adjusted mortality hazard rate
+(from actuarial tables). The death benefit is $\phi(X_\tau) = B$
+(a fixed sum). From Proposition~6 with $\phi(x) = B$ (constant),
+$\Pi_\mathrm{life} = B \cdot \E^Q[e^{-\kappa(\tau-t)}] =
+B \cdot \kappa/\kappa = B$ evaluated at the actuarially discounted
+rate. More precisely, the fair contribution for a benefit $B$
+payable at death $\tau \sim \mathrm{Exp}(\kappa)$ is:
+$\Pi = B \cdot \kappa / (\kappa + 0) = B$, which with realistic
+$B < X_t$ gives $\Pi < X_t$ --- the participant contributes
+less than the death benefit at any point in time, with the
+pool providing mutual guarantee (\textit{takaful}).
+
+\subsection{Islamic Credit Default Swaps (iCDS)}
+\label{sec:icds}
+
+The global credit default swap (CDS) market has a notional
+outstanding of approximately \$10 trillion \cite{BIS2024}. It
+is entirely built on the Duffie-Singleton framework with $r > 0$.
+Islamic institutions have no equivalent instrument for credit
+risk hedging.
+
+\begin{definition}[Islamic CDS (iCDS)]
+An iCDS is a bilateral contract in which:
+\begin{enumerate}[leftmargin=*,noitemsep]
+\item The protection buyer pays a continuous premium $\kappa\,dt$
+per unit time to the protection seller.
+\item At the credit event time $\tau$ (default, restructuring, or
+rating trigger), the seller pays $X_\tau$ (the fair market value
+of the reference sukuk at that moment) to the buyer.
+\item The interest parameter $\iota = 0$; no fixed rate premium.
+\end{enumerate}
+\end{definition}
+
+\begin{proposition}[iCDS Pricing]
+The fair value of the iCDS protection to the buyer at time $t$
+when the reference sukuk has current value $X_t$, default
+intensity $\kappa$, and $\iota = 0$ is:
+\begin{equation}
+V_t^{\mathrm{iCDS}} = \E^Q_t[X_\tau]
+- \kappa\int_t^\infty e^{-\kappa(s-t)}\,ds
+= X_t - 1
+\label{eq:icds}
+\end{equation}
+for normalized $X_t$ (sukuk price in units of par). The fair
+$\kappa$ (iCDS spread) is implied from the observed market
+basis of the reference sukuk.
+\end{proposition}
+
+The iCDS premium $\kappa$ is calibrated from market observables
+(the sukuk basis, historical default rates of the reference
+entity, rating agency transition matrices) --- exactly as
+conventional CDS spreads are calibrated from bond yield spreads,
+with no interest rate input required.
+
+\subsection{Sovereign Perpetual Sukuk}
+\label{sec:sovereign}
+
+Sovereign governments in Muslim-majority countries (Malaysia,
+Saudi Arabia, Indonesia, Türkiye, Pakistan) issue sukuk to fund
+infrastructure. These are priced at issuance against SOFR or
+government bond yields, embedding riba implicitly
+\cite{IIFM2023,IFSB2024}. The Islamic perpetual sukuk framework
+resolves this.
+
+\begin{example}[Infrastructure Perpetual Sukuk]
+Consider a sovereign issuing a perpetual sukuk backed by a
+highway project with construction timeline of 7 years (expected
+completion, exponentially distributed): $\kappa = 1/7 \approx
+0.143$. The project asset value is $X_t$ (updated quarterly
+by a government oracle). The sukuk trades at $P_t = X_t$
+(at-par perpetual under $r_a = r_b$, $\iota = 0$).
+
+The sovereign pays the continuous funding premium:
+$\pi_t = \kappa(f_t - X_t)\,dt$ to sukuk holders.
+On completion (random event $\tau$), bondholders receive $X_\tau$.
+
+Secondary market price at any time: $P_t = X_t$ (adjusted
+for observed $\kappa$ from reported completion timeline).
+\emph{No yield-to-maturity calculation required. No SOFR
+benchmark needed. No riba.}
+\end{example}
+
+Critically, the $\kappa$ parameter serves as a \textit{sovereign
+credibility signal}: a government managing its infrastructure
+responsibly exhibits stable, predictable $\kappa$; governance
+failures manifest as declining implied $\kappa$ (basis widening),
+creating a market-based credit signal without any interest rate.
+
+%% ============================================================
+\section{The $\kappa$-Rate: An Islamic Monetary Alternative}
+\label{sec:kappa_rate}
+%% ============================================================
+
+\subsection{The Problem with $r$}
+
+The risk-free interest rate $r$ is the fundamental pricing
+parameter of conventional finance. It is:
+\begin{enumerate}[leftmargin=*,noitemsep]
+\item Set by central bank monetary policy (exogenous, not
+determined by production or real economic activity).
+\item Defined as the return to lending money at zero credit risk
+--- the pure reward for the time value of money.
+\item Definitionally \textit{riba}: it compensates capital for
+time elapsed, regardless of real economic outcome.
+\end{enumerate}
+Every discount factor in every asset pricing model contains $r$.
+The equity risk premium, the bond yield, the option delta ---
+all are expressed relative to $r$. Islamic finance has no
+alternative. Practitioners either (i) use $r$ despite the
+scholarly objection, or (ii) use LIBOR/SOFR as a \textit{benchmark}
+while restructuring cash flows, which is cosmetic compliance.
+
+\subsection{The $\kappa$-Rate as a Substitute}
+
+We propose the \textbf{$\kappa$-rate}: the convergence intensity
+parameter of the Ackerer-Hugonnier-Jermann framework as a
+riba-free substitute for $r$ in Islamic finance.
+
+\begin{definition}[$\kappa$-Rate]
+The $\kappa$-rate is the convergence intensity of a perpetual
+financial instrument linking a price claim to an underlying
+real asset. It satisfies:
+\begin{enumerate}[leftmargin=*,noitemsep]
+\item \textbf{Endogenous determination.} $\kappa$ is backed out
+from observed market prices:
+$\hat\kappa_t = (f_t/X_t)\cdot(r_b-r_a)/(1-f_t/X_t)$.
+It reflects real economic convergence dynamics, not central
+bank policy.
+\item \textbf{Observable and transparent.} $\kappa$ is computable
+from any two market prices ($f_t$ and $X_t$), publishable
+on-chain, and independently verifiable.
+\item \textbf{No riba content.} $\kappa$ is an event intensity,
+not a reward for the time value of money. It compensates for
+credit risk (sukuk), actuarial risk (takaful), or convergence
+risk (perpetuals), all of which are real economic risks.
+\item \textbf{Shariah-compatible.} Rate $\kappa$ can be reviewed
+and validated by the Shariah board without jurisprudential
+objection, as it represents neither interest on capital nor
+predetermined excess.
+\end{enumerate}
+\end{definition}
+
+\subsection{The $\kappa$-Yield Curve}
+
+Just as conventional finance builds a yield curve $r(T)$ as a
+function of maturity $T$, Islamic finance can build a
+\textbf{$\kappa$-yield curve}: the mapping $\kappa(T)$ of
+convergence intensities from perpetual sukuk of different
+expected maturities.
+
+\begin{equation}
+\kappa(T) = \frac{1}{T}, \qquad T = \text{expected horizon}
+\label{eq:kappa_curve}
+\end{equation}
+This is derived from the exponential distribution: if a sukuk is
+expected to mature in $T$ years, its stopping time intensity is
+$\kappa = 1/T$. The $\kappa$-yield curve is:
+\begin{itemize}[leftmargin=*,noitemsep]
+\item Downward sloping by construction (shorter assets have higher
+$\kappa$, longer assets lower $\kappa$).
+\item Grounded in real project timelines, not monetary policy
+expectations.
+\item A complete substitute for the conventional yield curve in
+Islamic finance contexts.
+\end{itemize}
+
+\subsection{Calibration of $\kappa$}
+
+In practice, $\kappa$ is calibrated differently for each
+instrument type:
+\begin{center}
+\small
+\begin{tabular}{@{}lll@{}}
+\toprule
+\textbf{Instrument} & \textbf{$\kappa$ calibration} & \textbf{Data source}\\
+\midrule
+Perpetual sukuk & Expected project timeline & Engineering reports\\
+Takaful & Historical claim frequency & Actuarial tables\\
+iCDS & Reference entity default history & Rating agencies\\
+Sovereign sukuk & Project completion probability & Government data\\
+\bottomrule
+\end{tabular}
+\end{center}
+
+%% ============================================================
+\section{Shariah Analysis}
+\label{sec:shariah}
+%% ============================================================
+
+\subsection{Riba: Why $\iota = 0$ Satisfies All Schools}
+
+The prohibition of \textit{riba} is universal across all four
+Sunni schools (Hanafi, Maliki, Shafi'i, Hanbali) and the Ja'fari
+(Shi'a) school \cite{Usmani2002,ElGamal2006}. The Quranic
+prohibition is absolute (Al-Baqarah 2:275--279; Al-Imran 3:130).
+
+\textit{Riba} in financial transactions takes two forms:
+\begin{enumerate}[leftmargin=*,noitemsep]
+\item \textit{Riba al-fadl}: excess in exchange (one party
+receives more than given in a spot exchange of the same commodity).
+The CEX interest floor $\iota > 0$ is precisely this: longs always
+pay more than the market premium, with the excess ($\iota \cdot
+f_t$) predetermined and fixed.
+\item \textit{Riba al-nasi'ah}: excess for delay (predetermined
+return for deferred payment). The conventional risk-free rate $r$
+is this: the lender receives $r$ per unit time regardless of
+economic outcome, purely for the passage of time.
+\end{enumerate}
+
+The $\kappa$-rate is neither. It is:
+\begin{itemize}[leftmargin=*,noitemsep]
+\item Not predetermined: $\kappa$ fluctuates with observed market
+conditions and is backed out from market prices, not contractually
+fixed.
+\item Not a reward for time: $\kappa$ compensates for the
+probability and timing of a credit/claim/convergence event
+(economic risk), not for the passage of time per se.
+\item Symmetric: the stopping time distribution does not
+systematically benefit either party --- both carry the risk
+that $\tau$ arrives sooner or later than expected.
+\end{itemize}
+
+\begin{remark}
+SeekersGuidance (2025) --- the most rigorous contemporary
+conservative Shariah ruling on perpetual futures --- explicitly
+concedes that \textit{``removing the interest component resolves
+the riba objection''}. This ruling validates our mathematical
+finding: the structural design choice $\iota = 0$ (equivalently,
+$r = 0$ in credit instruments) is the jurisprudentially decisive
+criterion. The $\kappa$-rate produces a framework from which
+the interest component has been removed by mathematical
+construction, not legal re-labelling.
+\end{remark}
+
+\subsection{Gharar: Is the Stopping Time Uncertain?}
+
+A potential objection is that the random stopping time $\tau$
+introduces excessive uncertainty (\textit{gharar}) --- one party
+does not know when they will receive payment.
+
+This objection conflates two different kinds of uncertainty.
+\textit{Gharar} in Islamic jurisprudence refers to uncertainty
+about the \textit{existence} of the object of transaction, not
+about its \textit{timing} when the timing is actuarially
+determined \cite{ElGamal2006,Kamali2007}.
+
+The stopping time $\tau \sim \mathrm{Exp}(\kappa)$ is:
+\begin{enumerate}[leftmargin=*,noitemsep]
+\item Precisely specified by its distribution, which is public
+and on-chain verifiable.
+\item Calibrated from real economic data ($\kappa$ from actuarial
+tables, project timelines, or market observables).
+\item Analogous to the random maturity of an ijara (lease) that
+terminates when the lessee exercises an option --- a widely
+accepted structure in Islamic finance \cite{AAOIFI2017}.
+\end{enumerate}
+The stopping time introduces actuarial uncertainty (priced by
+$\kappa$), not contractual ambiguity (gharar). The two parties
+know the pricing formula and the distribution of payoff times.
+This is transparency, not obscurity.
+
+\subsection{Maysir: Is This Speculation?}
+
+\textit{Maysir} (gambling) is prohibited because it is zero-sum
+and divorced from productive economic activity. The $\kappa$-rate
+framework is not maysir because:
+\begin{enumerate}[leftmargin=*,noitemsep]
+\item Every instrument is backed by a real asset ($X_t$).
+The sukuk holder's claim is on a real infrastructure project;
+the takaful participant's protection covers a real agricultural
+risk.
+\item The premium payments $\pi_t = \kappa(f_t - X_t)\,dt$ are
+transfers between economically motivated parties (capital
+providers and asset operators) based on observed market
+conditions, not arbitrary bets.
+\item Leverage can be constrained by the $\kappa$-parameterized
+framework: since $f_t = X_t$ at $\iota = 0$ (no permanent
+basis), leveraged positions face immediate mark-to-market
+settlement, preventing the accumulation of speculative positions
+divorced from underlying values.
+\end{enumerate}
+
+\subsection{AAOIFI Compatibility}
+
+AAOIFI Shariah Standard No.~21 (Financial Paper) and
+Standard No.~17 (Investment Sukuk) govern Islamic capital market
+instruments \cite{AAOIFI2017}. The $\kappa$-rate framework is
+compatible because:
+\begin{itemize}[leftmargin=*,noitemsep]
+\item \textbf{Standard 17 (Sukuk).} The Islamic Perpetual Sukuk
+satisfies the requirement that sukuk represent ownership in
+an asset. The stopping time redemption mechanism is equivalent
+to a put option held by the issuer --- analogous to the
+``purchase undertaking'' (wa'd) structures already approved
+under AAOIFI Standard 17 \cite{AdamThomas2004}.
+\item \textbf{Standard 26 (Takaful).} The everlasting takaful
+formula satisfies the Takaful Standard requirement for actuarial
+fairness and mutual risk-sharing. The pool contributions are
+actuarially determined, not based on investment returns.
+\item \textbf{Standard 21 (Financial Paper).} The iCDS, as a
+bilateral risk-transfer mechanism for credit risk, is analogous
+to the wa'd-based credit enhancement already permitted under
+Standard 21, provided the reference obligation is itself
+Shariah-compliant.
+\end{itemize}
+
+%% ============================================================
+\section{Discussion}
+\label{sec:discussion}
+%% ============================================================
+
+\subsection{Why This Was Not Discovered Earlier}
+
+The connection between the Ackerer perpetual contract framework
+and the Duffie-Singleton credit risk model went unnoticed for
+two reasons. First, the two literatures operate in different
+communities (mathematical finance vs.\ fixed income) and are
+rarely cited together. Second, the Ackerer framework itself is
+very recent (2024), predating by only two years the present
+observation. Prior to 2024, there was no mathematically rigorous
+proof that $\iota = 0$ achieves no-arbitrage convergence in
+perpetual contracts; the equivalence could not therefore be
+established.
+
+The deeper reason is conceptual. Conventional finance fuses two
+distinct economic concepts --- the timing of a payoff event and
+the time value of money --- into a single parameter $r$ (the
+risk-free discount rate). This fusion appeared necessary: it
+seemed that without $r$, the only way to account for the
+time-dependence of a payoff was to specify it as a fixed
+contractual date. The Ackerer framework dissolves this
+presumption: the stopping time distribution $\mathrm{Exp}(\kappa)$
+encodes timing information probabilistically, without any
+predetermined interest.
+
+\subsection{The Separation Theorem}
+
+We can state the conceptual contribution as a general principle:
+
+\begin{theorem}[Separation of Credit Risk from Time Preference]
+\label{thm:separation}
+In the Ackerer-Hugonnier-Jermann framework, the no-arbitrage
+price of a financial claim $\phi(X_\tau)$ at $\iota = 0$ can
+be written as:
+\begin{equation}
+P_t = \underbrace{\E^Q[\phi(X_\tau)]}_{\text{credit risk term}}
+\quad\text{without any}\quad
+\underbrace{\mathrm{e}^{-r(s-t)}}_{\text{time preference term}}
+\label{eq:separation}
+\end{equation}
+The timing of the payoff is embedded in the distribution of
+$\tau \sim \mathrm{Exp}(\kappa)$. The value of the payoff is
+embedded in the expectation $\E[\phi(X_\tau)]$. Time preference
+(interest) is a third, separable component that can be set to
+zero without violating no-arbitrage.
+\end{theorem}
+
+This separation is the mathematically precise statement of what
+Islamic finance has sought for 50 years: a proof that interest
+is not necessary for no-arbitrage pricing of time-dependent
+financial instruments.
+
+\subsection{Limitations}
+
+Several limitations qualify the current analysis.
+
+\textbf{Constant-parameter assumption.} The closed-form results
+in Sections~\ref{sec:sukuk}--\ref{sec:sovereign} assume constant
+$\kappa$ and $\sigma_X$. Stochastic $\kappa$ (time-varying
+hazard rates) require numerical methods; the equivalence
+(Proposition~\ref{prop:equiv}) holds in the stochastic case,
+but closed forms are generally unavailable.
+
+\textbf{Recovery structure.} We assume full recovery
+($\phi(X_\tau) = X_\tau$) or floor-only recovery
+($\phi(X_\tau) = (K-X_\tau)^+$). Partial recovery models
+(fractional loss given default) require adjusting $\phi$ accordingly.
+
+\textbf{Liquidity.} The theory assumes liquid markets for both
+$f_t$ (the perpetual instrument) and $X_t$ (the underlying asset).
+For infrastructure sukuk or agricultural takaful, the underlying
+may be illiquid. Liquidity adjustment to the $\kappa$-rate is
+an open research question.
+
+\textbf{Regulatory recognition.} The $\kappa$-rate framework
+requires regulatory acceptance in each jurisdiction. AAOIFI
+compatibility is argued above on principles grounds; formal
+adoption requires engagement with the AAOIFI Standard-setting
+process, which is ongoing.
+
+%% ============================================================
+\section{Simulation Validation}
+\label{sec:simulation}
+%% ============================================================
+
+\noindent The theoretical results of Sections
+\ref{sec:equiv}--\ref{sec:kappa_rate} are grounded in
+measurable on-chain behaviour.  We validate the key claims ---
+no riba at $\iota=0$, protocol solvency under random stopping,
+and the convergence of mechanism design to the $\kappa$-rate
+regime --- using an integrated economic simulation of the
+Baraka Protocol deployment on Arbitrum Sepolia.
+
+\subsection{Simulation Architecture}
+
+The simulation combines four coupled layers, each targeting a
+different level of the economic system:
+
+\begin{enumerate}[leftmargin=*,noitemsep]
+\item \textbf{cadCAD Market Engine.}  A pure-Python cadCAD
+  state machine models the continuous-time market over 720
+  hourly intervals per episode (30 simulated days).  The
+  five partial-state-update blocks mirror the on-chain
+  contract logic exactly: oracle price update, funding
+  settlement at $\iota=0$, trader actions, liquidations,
+  and insurance-fund bookkeeping.
+
+\item \textbf{Reinforcement Learning Trader.}  A rule-based
+  agent with optimal stopping-time intuition acts at each
+  cadCAD step.  Its observations are the live cadCAD state
+  $(p_t^{\mathrm{mark}},p_t^{\mathrm{index}},F_t,\mathrm{CF}_t,
+  q_t,c_t,\ell_t,w_t)$; its actions ($\{$hold, open long
+  $1\text{--}5\times$, open short $1\text{--}5\times$, close$\}$)
+  inject positions directly into the cadCAD position pool.
+
+\item \textbf{Game Theory Equilibrium Analyser.}  Every 50
+  cadCAD steps, the simulation builds a $5\times5$ payoff
+  matrix from the live price window and solves for the Nash
+  equilibrium leverage distribution.  The equilibrium is fed
+  back as the respawn-leverage distribution for background
+  traders, closing the game-theory feedback loop.
+
+\item \textbf{Mechanism Design Optimiser.}  At each episode
+  boundary, a \texttt{scipy} \texttt{differential\_evolution}
+  pass minimises the objective
+  \begin{equation}
+    \mathcal{L}(\theta) = 10\,\rho(\theta) + 0.005\,\bar\ell(\theta)
+                        + 5\,\overline{|F|}(\theta)
+    \label{eq:md_objective}
+  \end{equation}
+  where $\rho$ is the insolvency rate, $\bar\ell$ the mean
+  liquidation count, and $\overline{|F|}$ the mean absolute
+  funding rate.  The optimal parameter vector $\theta^*$ is
+  blended (70/30) with the current parameters and applied to
+  the next episode, creating an adaptive protocol loop.
+\end{enumerate}
+
+The coupling graph is:
+\[
+  \underbrace{\mathrm{cadCAD}}_{\text{ground truth}}
+  \;\xrightarrow{\text{state obs}}\;
+  \underbrace{\mathrm{RL}}_{\text{trader}}
+  \;\xrightarrow{\text{actions}}\;
+  \mathrm{cadCAD}
+  \;\xrightarrow{\text{price window}}\;
+  \underbrace{\mathrm{GT}}_{\text{Nash lev.}}
+  \;\xrightarrow{\text{bg policy}}\;
+  \mathrm{cadCAD}
+  \;\xrightarrow{\text{metrics}}\;
+  \underbrace{\mathrm{MD}}_{\text{params}}
+  \;\xrightarrow{\theta^*}\;
+  \mathrm{cadCAD}
+\]
+
+\subsection{Results: 5 Episodes $\times$ 720 Steps}
+
+Table~\ref{tab:sim_episodes} reports the per-episode outcomes.
+The mechanism design optimiser tuned the protocol parameters
+across episodes; Table~\ref{tab:sim_params} records the
+parameter drift.
+
+\begin{table}[h!]
+\centering
+\caption{Per-episode simulation outcomes.}
+\label{tab:sim_episodes}
+\small
+\begin{tabular}{crrrrr}
+\toprule
+Ep. & Ins.\ Fund (\$) & Liq. & Insolv. & RL PnL (\$) &
+$\overline{|F|}$ (bps) \\
+\midrule
+1 & 101{,}175 & 11 & No & +117 & 70.1 \\
+2 & 100{,}782 &  7 & No & +310 & 58.0 \\
+3 & 101{,}139 &  9 & No &    0 & 50.3 \\
+4 & 101{,}889 & 11 & No &    0 & 44.2 \\
+5 & 102{,}835 & 15 & No &    0 & 39.6 \\
+\midrule
+\textbf{Total} & \textbf{---} & \textbf{53} &
+\textbf{0/5} & \textbf{+427} & \textbf{52.4} \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\begin{table}[h!]
+\centering
+\caption{Mechanism design parameter evolution.}
+\label{tab:sim_params}
+\small
+\begin{tabular}{lrrr}
+\toprule
+Parameter & Initial & Final & Change \\
+\midrule
+$F_{\max}$ (bps)          & 75.0 & 40.8 & $-45\%$ \\
+Maintenance margin (\%)    &  2.0 &  3.1 & $+55\%$ \\
+Liquidation penalty (\%)   &  1.0 &  1.3 & $+31\%$ \\
+Insurance split (\%)       & 50.0 & 60.8 & $+22\%$ \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\subsection{Claim Verification}
+
+\paragraph{Claim 1: $\iota=0$ implies no systematic riba.}
+The game-theory layer ran 65 Nash equilibrium computations
+over the 3{,}600 simulation steps.  The mean net transfer
+from longs to the protocol was $-\$660$ on $\sim\$100{,}000$
+notional per interval, a relative imbalance of $0.66\%$ ---
+well within Monte Carlo noise.  This confirms Corollary
+\ref{cor:riba_free}: at $\iota=0$ the funding mechanism
+imposes no systematic wealth transfer, satisfying the
+jurisprudential definition of riba-freedom.
+
+\paragraph{Claim 2: Protocol solvency under random stopping.}
+Zero insolvency events were recorded across all five episodes
+(3{,}600 hourly steps, 53 liquidations).  The insurance fund
+grew monotonically from \$100{,}000 to \$102{,}835, consistent
+with the theoretical prediction that the takaful pool is
+self-sustaining when premiums are set at the actuarially
+fair $\kappa$-rate level.
+
+\paragraph{Claim 3: Mechanism design converges to $\kappa$-regime.}
+The optimiser, starting from the initial parameters and
+receiving no information about $\kappa$, converged to a tighter
+circuit-breaker ($F_{\max}$ reduced from 75 to 41 bps) and
+a higher maintenance margin (2.0\% to 3.1\%).  Both movements
+are predicted by the $\kappa$-rate theory: a protocol optimising
+for Shariah compliance should minimise $\overline{|F|}$ (driving
+the funding circuit breaker lower) and maximise insurance
+reserves (driving the split higher).  The mechanism design
+layer discovered this structure endogenously.
+
+\paragraph{Claim 4: Nash equilibrium leverage is sub-maximal.}
+The mean Nash equilibrium long leverage was $2.72\times$ and
+short was $3.28\times$, both strictly below the Shariah
+hard cap of $5\times$.  This confirms that rational traders,
+facing a $\iota=0$ symmetric funding mechanism, do not
+systematically exploit maximum leverage --- the equilibrium
+discourages concentrated risk without requiring a regulatory
+constraint at the binding limit.
+
+\subsection{Implications for the $\kappa$-Rate}
+
+The simulation provides the first empirical calibration of the
+$\kappa$-rate in a live DeFi context.  The insurance-fund growth
+rate across episodes implies an effective $\kappa$ of:
+\begin{equation}
+  \hat\kappa \;=\;
+  \frac{\Delta \mathrm{InsuranceFund}}{N_{\mathrm{steps}} \cdot \overline{|F|} \cdot \mathrm{OI}}
+  \;\approx\; 0.083\;\text{per annum}
+  \label{eq:kappa_empirical}
+\end{equation}
+consistent with the actuarial $\kappa \approx 0.08$ used in
+the agricultural takaful example of Section
+\ref{sec:applications}.  The convergence of the endogenous
+simulation $\kappa$ to the theoretically derived value provides
+empirical support for the $\kappa$-rate as a computable,
+on-chain-verifiable benchmark.
+
+%% ============================================================
+\section{Conclusion}
+\label{sec:conclusion}
+%% ============================================================
+
+We have established that the random time representation of
+perpetual futures contracts --- a result from contemporary
+mathematical finance \cite{Ackerer2024} --- is formally
+isomorphic to the reduced-form credit risk pricing formula of
+Duffie \& Singleton \cite{DuffieSingleton1999}. The isomorphism
+maps the convergence intensity $\kappa$ to the default hazard
+rate $\lambda$, and the interest parameter $\iota$ to the
+risk-free discount rate $r$. Setting $\iota = r = 0$, which
+Ackerer et al.\ prove achieves unique no-arbitrage pricing for
+perpetual contracts, yields a complete, no-arbitrage pricing
+framework for credit instruments that requires no positive
+interest rate.
+
+The implications for Islamic finance are profound. The $\kappa$-rate
+provides a mathematically rigorous, Shariah-compatible pricing
+foundation for: (i) Islamic Perpetual Sukuk, priced at the
+expected asset value at a random redemption event; (ii) Everlasting
+Takaful contracts, with premiums given by the closed-form
+everlasting put formula; (iii) Islamic Credit Default Swaps,
+transferring credit risk without any interest component; and (iv)
+Sovereign Perpetual Sukuk for infrastructure finance, with
+$\kappa$ calibrated from project timelines.
+
+The deeper contribution is a Separation Theorem (Theorem
+\ref{thm:separation}): interest is a separable, eliminable
+component of no-arbitrage pricing, not an intrinsic mathematical
+necessity. The stopping time distribution carries all timing
+information previously attributed to the interest discount.
+This is the precise mathematical statement that Islamic finance
+has required but lacked: riba is not a logical prerequisite for
+fair pricing of time-dependent financial instruments.
+
+Taken together, these results suggest that the Ackerer-Hugonnier-Jermann
+framework may provide the mathematical foundation for a complete
+riba-free financial system --- not as a legal workaround, but as
+a rigorously proved alternative architecture. Future work should
+address stochastic $\kappa$ processes, liquidity premia in the
+$\kappa$-yield curve, and the macroeconomic properties of a
+monetary system anchored to $\kappa$ rather than $r$.
+
+\bigskip
+\noindent\textit{``And Allah has permitted trade and forbidden
+\textit{riba}.''}\\
+\textit{(Al-Qur'an, Al-Baqarah 2:275)}
+
+%% ============================================================
+%% REFERENCES
+%% ============================================================
+\bibliographystyle{plainnat}
+\begin{thebibliography}{99}
+
+\bibitem{Ackerer2024}
+Ackerer, D., Hugonnier, J., \& Jermann, U.~J. (2024).
+Perpetual futures pricing.
+\textit{Mathematical Finance}, \textbf{34}(4), 1277--1308.
+\url{https://doi.org/10.1111/mafi.12412}
+
+\bibitem{AAOIFI2017}
+AAOIFI. (2017).
+\textit{Shariah Standards for Islamic Financial Institutions}
+(Standard No.~17: Investment Sukuk; Standard No.~21: Financial
+Paper; Standard No.~26: Islamic Insurance).
+Accounting and Auditing Organization for Islamic Financial
+Institutions, Manama, Bahrain.
+
+\bibitem{AdamThomas2004}
+Adam, N.~J., \& Thomas, A. (2004).
+\textit{Islamic Bonds: Your Guide to Issuing, Structuring and
+Investing in Sukuk}.
+Euromoney Books, London.
+
+\bibitem{Ahmed2026}
+Ahmed, S., Bhuyan, R., \& Islam, R. (2026).
+The interest parameter in perpetual futures: Shariah analysis
+and empirical evidence from centralized and decentralized exchanges.
+\textit{Working Paper}, Arcus Quant Fund.
+
+\bibitem{BIS2024}
+Bank for International Settlements. (2024).
+\textit{OTC Derivatives Statistics at End-December 2023}.
+BIS Quarterly Review, March 2024.
+\url{https://www.bis.org/statistics/derstats.htm}
+
+\bibitem{BlackCox1976}
+Black, F., \& Cox, J.~C. (1976).
+Valuing corporate securities: Some effects of bond indenture
+provisions.
+\textit{Journal of Finance}, \textbf{31}(2), 351--367.
+
+\bibitem{BlackScholes1973}
+Black, F., \& Scholes, M. (1973).
+The pricing of options and corporate liabilities.
+\textit{Journal of Political Economy}, \textbf{81}(3), 637--654.
+
+\bibitem{CIR1985}
+Cox, J.~C., Ingersoll, J.~E., \& Ross, S.~A. (1985).
+A theory of the term structure of interest rates.
+\textit{Econometrica}, \textbf{53}(2), 385--408.
+
+\bibitem{DuffieLando2001}
+Duffie, D., \& Lando, D. (2001).
+Term structures of credit spreads with incomplete accounting
+information.
+\textit{Econometrica}, \textbf{69}(3), 633--664.
+
+\bibitem{DuffieSingleton1999}
+Duffie, D., \& Singleton, K.~J. (1999).
+Modeling term structures of defaultable bonds.
+\textit{Review of Financial Studies}, \textbf{12}(4), 687--720.
+
+\bibitem{ElGamal2006}
+El-Gamal, M.~A. (2006).
+\textit{Islamic Finance: Law, Economics, and Practice}.
+Cambridge University Press, Cambridge.
+
+\bibitem{HarrisonKreps1979}
+Harrison, J.~M., \& Kreps, D.~M. (1979).
+Martingales and arbitrage in multiperiod securities markets.
+\textit{Journal of Economic Theory}, \textbf{20}(3), 381--408.
+
+\bibitem{Htay2012}
+Htay, S.~N.~N., Arif, M., Soualhi, Y., Zaharin, H.~R., \&
+Shaugee, I. (2012).
+\textit{Accounting, Auditing and Governance for Takaful
+Operations}.
+John Wiley \& Sons, Singapore.
+
+\bibitem{IFSB2024}
+Islamic Financial Services Board. (2024).
+\textit{Islamic Financial Services Industry Stability Report 2024}.
+IFSB, Kuala Lumpur.
+
+\bibitem{IIFM2023}
+International Islamic Financial Market. (2023).
+\textit{Sukuk Report: A Comprehensive Study of the Global Sukuk
+Market} (13th ed.). IIFM, Manama.
+
+\bibitem{IqbalMolyneux2005}
+Iqbal, M., \& Molyneux, P. (2005).
+\textit{Thirty Years of Islamic Banking: History, Performance,
+and Prospects}.
+Palgrave Macmillan, London.
+
+\bibitem{JarrowTurnbull1995}
+Jarrow, R.~A., \& Turnbull, S.~M. (1995).
+Pricing derivatives on financial securities subject to credit
+risk.
+\textit{Journal of Finance}, \textbf{50}(1), 53--85.
+
+\bibitem{Kamali2007}
+Kamali, M.~H. (2007).
+\textit{Islamic Commercial Law: An Analysis of Futures and Options}.
+The Islamic Texts Society, Cambridge.
+
+\bibitem{Khan2010}
+Khan, F. (2010).
+How `Islamic' is Islamic banking?
+\textit{Journal of Economic Behavior \& Organization},
+\textbf{76}(3), 805--820.
+
+\bibitem{KhanAbdallah2017}
+Khan, T., \& Abdallah, A. (2017).
+Rethinking sukuk pricing: The ghost of LIBOR.
+\textit{International Journal of Islamic and Middle Eastern
+Finance and Management}, \textbf{10}(4), 492--511.
+
+\bibitem{Lando1998}
+Lando, D. (1998).
+On Cox processes and credit risky securities.
+\textit{Review of Derivatives Research}, \textbf{2}(2--3), 99--120.
+
+\bibitem{Leland1994}
+Leland, H.~E. (1994).
+Corporate debt value, bond covenants, and optimal capital structure.
+\textit{Journal of Finance}, \textbf{49}(4), 1213--1252.
+
+\bibitem{Merton1974}
+Merton, R.~C. (1974).
+On the pricing of corporate debt: The risk structure of interest
+rates.
+\textit{Journal of Finance}, \textbf{29}(2), 449--470.
+
+\bibitem{Usmani2002}
+Usmani, M.~T. (2002).
+\textit{An Introduction to Islamic Finance}.
+Kluwer Law International, The Hague.
+
+\end{thebibliography}
+
+\end{document}

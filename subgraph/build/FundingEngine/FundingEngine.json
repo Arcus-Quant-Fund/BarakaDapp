@@ -1,0 +1,34 @@
+[
+  {
+    "type": "event",
+    "name": "FundingRateUpdated",
+    "inputs": [
+      {
+        "name": "market",
+        "type": "address",
+        "indexed": true
+      },
+      {
+        "name": "fundingRate",
+        "type": "int256",
+        "indexed": false
+      },
+      {
+        "name": "markPrice",
+        "type": "uint256",
+        "indexed": false
+      },
+      {
+        "name": "indexPrice",
+        "type": "uint256",
+        "indexed": false
+      },
+      {
+        "name": "timestamp",
+        "type": "uint256",
+        "indexed": false
+      }
+    ],
+    "anonymous": false
+  }
+]

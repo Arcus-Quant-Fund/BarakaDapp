@@ -1,0 +1,44 @@
+[
+  {
+    "type": "event",
+    "name": "Liquidated",
+    "inputs": [
+      {
+        "name": "positionId",
+        "type": "bytes32",
+        "indexed": true
+      },
+      {
+        "name": "liquidator",
+        "type": "address",
+        "indexed": true
+      },
+      {
+        "name": "trader",
+        "type": "address",
+        "indexed": true
+      },
+      {
+        "name": "penalty",
+        "type": "uint256",
+        "indexed": false
+      },
+      {
+        "name": "liquidatorShare",
+        "type": "uint256",
+        "indexed": false
+      },
+      {
+        "name": "insuranceShare",
+        "type": "uint256",
+        "indexed": false
+      },
+      {
+        "name": "timestamp",
+        "type": "uint256",
+        "indexed": false
+      }
+    ],
+    "anonymous": false
+  }
+]

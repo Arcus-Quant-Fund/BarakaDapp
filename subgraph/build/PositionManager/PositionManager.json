@@ -1,0 +1,98 @@
+[
+  {
+    "type": "event",
+    "name": "PositionOpened",
+    "inputs": [
+      {
+        "name": "positionId",
+        "type": "bytes32",
+        "indexed": true
+      },
+      {
+        "name": "trader",
+        "type": "address",
+        "indexed": true
+      },
+      {
+        "name": "asset",
+        "type": "address",
+        "indexed": true
+      },
+      {
+        "name": "collateralToken",
+        "type": "address",
+        "indexed": false
+      },
+      {
+        "name": "size",
+        "type": "uint256",
+        "indexed": false
+      },
+      {
+        "name": "collateral",
+        "type": "uint256",
+        "indexed": false
+      },
+      {
+        "name": "entryPrice",
+        "type": "uint256",
+        "indexed": false
+      },
+      {
+        "name": "isLong",
+        "type": "bool",
+        "indexed": false
+      }
+    ],
+    "anonymous": false
+  },
+  {
+    "type": "event",
+    "name": "PositionClosed",
+    "inputs": [
+      {
+        "name": "positionId",
+        "type": "bytes32",
+        "indexed": true
+      },
+      {
+        "name": "trader",
+        "type": "address",
+        "indexed": true
+      },
+      {
+        "name": "realizedPnl",
+        "type": "int256",
+        "indexed": false
+      },
+      {
+        "name": "exitPrice",
+        "type": "uint256",
+        "indexed": false
+      }
+    ],
+    "anonymous": false
+  },
+  {
+    "type": "event",
+    "name": "FundingSettled",
+    "inputs": [
+      {
+        "name": "positionId",
+        "type": "bytes32",
+        "indexed": true
+      },
+      {
+        "name": "fundingPayment",
+        "type": "int256",
+        "indexed": false
+      },
+      {
+        "name": "newCollateral",
+        "type": "uint256",
+        "indexed": false
+      }
+    ],
+    "anonymous": false
+  }
+]

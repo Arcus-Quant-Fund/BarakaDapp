@@ -1,0 +1,46 @@
+[
+  {
+    "episode": 0,
+    "source": "initial",
+    "max_funding_rate": 0.0075,
+    "maintenance_margin": 0.02,
+    "liquidation_penalty": 0.01,
+    "insurance_split": 0.5
+  },
+  {
+    "episode": 1,
+    "source": "mechanism_design",
+    "optimizer_score": 0.013832868138214952,
+    "max_funding_rate": 0.006150411451210409,
+    "maintenance_margin": 0.024301277255355146,
+    "liquidation_penalty": 0.011052444423521667,
+    "insurance_split": 0.5504648822545164
+  },
+  {
+    "episode": 2,
+    "source": "mechanism_design",
+    "optimizer_score": 0.013536488324032009,
+    "max_funding_rate": 0.005205699467057696,
+    "maintenance_margin": 0.027312171334103748,
+    "liquidation_penalty": 0.011789155519986834,
+    "insurance_split": 0.5857902998326778
+  },
+  {
+    "episode": 3,
+    "source": "mechanism_design",
+    "optimizer_score": 0.013591498459162382,
+    "max_funding_rate": 0.004544401078150796,
+    "maintenance_margin": 0.02941979718922777,
+    "liquidation_penalty": 0.012963899107653151,
+    "insurance_split": 0.582752270669517
+  },
+  {
+    "episode": 4,
+    "source": "mechanism_design",
+    "optimizer_score": 0.013809657499293373,
+    "max_funding_rate": 0.0040814922059159665,
+    "maintenance_margin": 0.030895135287814585,
+    "liquidation_penalty": 0.013127173798878873,
+    "insurance_split": 0.6083914717231782
+  }
+]

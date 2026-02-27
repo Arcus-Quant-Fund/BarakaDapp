@@ -1,0 +1,54 @@
+@import "tailwindcss";
+
+:root {
+  --bg-deep:    #0a0f0d;
+  --bg-panel:   #111a15;
+  --bg-card:    #162019;
+  --border:     #1e3327;
+  --green-deep: #1B4332;
+  --green-mid:  #2d6a4f;
+  --green-lite: #52b788;
+  --gold:       #D4AF37;
+  --gold-lite:  #f0d060;
+  --text-main:  #e8f4e8;
+  --text-muted: #7a9e7a;
+  --red:        #e55353;
+  --red-lite:   #ff6b6b;
+}
+
+@theme inline {
+  --color-background: var(--bg-deep);
+  --color-foreground: var(--text-main);
+  --font-sans: var(--font-geist-sans);
+  --font-mono: var(--font-geist-mono);
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  background: var(--bg-deep);
+  color: var(--text-main);
+  font-family: 'Inter', Arial, Helvetica, sans-serif;
+  margin: 0;
+}
+
+/* Scrollbar */
+::-webkit-scrollbar { width: 6px; height: 6px; }
+::-webkit-scrollbar-track { background: var(--bg-deep); }
+::-webkit-scrollbar-thumb { background: var(--green-deep); border-radius: 3px; }
+::-webkit-scrollbar-thumb:hover { background: var(--green-mid); }
+
+/* Responsive: trade grid stacks on mobile */
+@media (max-width: 768px) {
+  .trade-grid {
+    grid-template-columns: 1fr !important;
+  }
+}
+
+/* RainbowKit override — dark theme */
+[data-rk] {
+  --rk-colors-accentColor: #1B4332 !important;
+  --rk-colors-accentColorForeground: #e8f4e8 !important;
+}

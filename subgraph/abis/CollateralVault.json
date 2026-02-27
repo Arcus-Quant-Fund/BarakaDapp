@@ -1,0 +1,22 @@
+[
+  {
+    "type": "event",
+    "name": "Deposited",
+    "inputs": [
+      { "name": "user",   "type": "address", "indexed": true  },
+      { "name": "token",  "type": "address", "indexed": true  },
+      { "name": "amount", "type": "uint256", "indexed": false }
+    ],
+    "anonymous": false
+  },
+  {
+    "type": "event",
+    "name": "Withdrawn",
+    "inputs": [
+      { "name": "user",   "type": "address", "indexed": true  },
+      { "name": "token",  "type": "address", "indexed": true  },
+      { "name": "amount", "type": "uint256", "indexed": false }
+    ],
+    "anonymous": false
+  }
+]

@@ -1,0 +1,1608 @@
+%% ============================================================
+%%  latest.tex
+%%  "The Interest Parameter in Perpetual Futures:
+%%   Shariah Analysis and Empirical Evidence from
+%%   Centralized and Decentralized Exchanges"
+%%  Ahmed, Bhuyan & Islam — February 2026
+%% ============================================================
+\documentclass[10pt,twocolumn]{article}
+\usepackage[utf8]{inputenc}
+\usepackage[margin=0.75in]{geometry}
+\usepackage{amsmath,amssymb}
+\usepackage{graphicx}
+\usepackage{hyperref}
+\usepackage[numbers]{natbib}
+\usepackage{booktabs}
+\usepackage{abstract}
+\usepackage{xurl}
+\usepackage{titlesec}
+\usepackage{authblk}
+\usepackage{xcolor}
+\usepackage{array}
+\usepackage[protrusion=true,expansion=false]{microtype}
+\usepackage{enumitem}
+\usepackage{caption}
+\usepackage{fancyvrb}
+\usepackage{multirow}
+
+%% Section spacing
+\titlespacing*{\section}{0pt}{13pt}{6pt}
+\titlespacing*{\subsection}{0pt}{10pt}{4pt}
+\titlespacing*{\subsubsection}{0pt}{8pt}{3pt}
+
+%% Abstract style
+\renewcommand{\abstractnamefont}{\normalfont\bfseries\large}
+\renewcommand{\abstracttextfont}{\normalfont\small}
+
+%% Math operators
+\DeclareMathOperator{\clamp}{clamp}
+
+\definecolor{ribared}{RGB}{180,30,30}
+\definecolor{halalgreen}{RGB}{30,120,60}
+\definecolor{warnambr}{RGB}{160,100,0}
+
+\hypersetup{colorlinks=true,linkcolor=blue,citecolor=blue,urlcolor=blue}
+
+%% ============================================================
+\title{\LARGE\textbf{The Interest Parameter in Perpetual Futures:
+Shariah Analysis and Empirical Evidence from
+Centralized and Decentralized Exchanges}}
+
+\author[1]{Shehzad Ahmed}
+\author[2]{Rafiqul Bhuyan}
+\author[3]{Rubaiyat Islam}
+
+\affil[1]{Department of Finance, Independent University, Bangladesh\\
+\small\texttt{2120922@iub.edu.bd}}
+\affil[2]{Department of Finance, Alabama A\&M University, USA; Independent University, Bangladesh\\
+\small\texttt{rafiqul.bhuyan@aamu.edu}}
+\affil[3]{Department of Software Engineering, Daffodil International University,
+Bangladesh\\ \small\texttt{islam.swe@diu.edu.bd}}
+
+\date{February 2026}
+%% ============================================================
+
+\begin{document}
+
+\twocolumn[\begin{@twocolumnfalse}
+\maketitle\thispagestyle{empty}
+
+\begin{abstract}
+\noindent
+We document a previously unrecognised structural bifurcation in the \$100
+billion perpetual futures market that has decisive implications for Islamic
+finance: the interest (\textit{riba}) component embedded in every
+centralized-exchange (CEX) funding formula is neither mathematically necessary
+nor universal. A recent formal proof demonstrates that spot-price convergence
+is achievable with zero interest \cite{Ackerer2024}. Consistent with this
+result, decentralized exchange (DEX) protocols dYdX~v4 and D8X set the
+interest parameter to exactly zero --- a fact documented in their official
+APIs and confirmed by 365 days of observed funding rates.
+
+We establish a \textbf{four-category taxonomy}: \emph{CEX perpetuals} (Binance,
+Bybit, OKX) embed $I = 0.01\%$ per 8 hours (= 10.95\%/year structural
+\textit{riba}); \emph{Premium-only DEX perpetuals} (dYdX~v4, D8X) set $I = 0$
+and are structurally \textit{riba}-free; \emph{Hybrid DEX perpetuals}
+(Hyperliquid) use the identical CEX formula despite decentralised architecture
+and are therefore \textit{riba}-bearing; and \emph{DEX expiring futures}
+(MCDEX, Serum-based) carry no funding mechanism at all and combine a fixed
+settlement date with smart-contract self-custody, representing the theoretically
+strongest Shariah candidate. This taxonomy resolves the persistent error in the
+Islamic finance literature, which has treated all leveraged crypto derivatives
+as a monolithic instrument.
+
+Empirical analysis of 40,218 funding intervals (February 2025 -- February 2026)
+across five platforms produces a clean natural experiment: three CEX platforms
+(Binance, Bybit, OKX) with $I > 0$ versus dYdX~v4 with $I = 0$ exhibit
+statistically distinct distributions ($t = 59.95$, $p < 10^{-300}$, Cohen's
+$d = 0.725$, KS $= 0.487$), while Hyperliquid --- a DEX with $I > 0$ ---
+clusters with CEX rather than dYdX, confirming that \emph{formula structure},
+not exchange architecture, determines the Shariah classification. A pivotal signal: SeekersGuidance (2025),
+the most rigorous contemporary conservative ruling, explicitly concedes that
+removing the interest component resolves the \textit{riba} objection --- thereby
+validating our core empirical finding as jurisprudentially decisive.
+
+Principles-based Shariah analysis confirms that premium-only DEX perpetuals,
+when used on economically productive underlying assets with disciplined risk
+management, satisfy El-Gamal's riba conditions, Kamali's standardisation
+criterion, and Salamon's maysir test. This paper demonstrates that Shariah
+compliance in perpetual futures is achievable through proactive structural
+design --- specifically, the elimination of the fixed interest parameter from
+the funding formula --- and provides a principled framework for evaluating,
+structuring, and implementing compliant perpetual contracts.
+
+\medskip
+\noindent\textbf{Keywords:} \textit{riba}, \textit{gharar}, \textit{maysir},
+perpetual futures, Islamic finance, DeFi, DEX, Shariah compliance, funding rate,
+decentralized exchange, halal trading
+\end{abstract}
+\bigskip
+\end{@twocolumnfalse}]
+
+%% ============================================================
+\section{Introduction}
+%% ============================================================
+
+Perpetual futures are the defining financial instrument of the cryptocurrency
+era. Daily trading volumes exceed \$100 billion, dwarfing spot markets and
+providing the principal mechanism for price discovery and leveraged exposure
+\cite{Chainalysis2025,CoinGecko2025}. Yet for 1.8 billion Muslims worldwide
+--- including a rapidly expanding cohort of quantitatively sophisticated
+finance professionals --- this market has been categorically off-limits. The
+prohibition is not rooted in speculation alone; it is rooted in a specific
+technical feature: every major centralized perpetual exchange has embedded a
+fixed, predetermined interest charge into the structural core of its funding
+mechanism. That interest charge is \textit{riba}. Under every school of Islamic
+jurisprudence, it is prohibited.
+
+Islamic scholars reached this conclusion correctly. Binance labels the charge
+\texttt{interestRate} in its public API. The value is always
+\texttt{0.00010000} --- $0.01\%$ per 8 hours, $0.03\%$ per day, $10.95\%$ per
+year --- regardless of market conditions. It is predetermined, fixed,
+labeled as interest, and structurally unavoidable. The conservative consensus
+\cite{Musaffa2024,IslamQA2023,PracticalIF2023,Indonesian2024,Alias2021} is
+not a misreading of the instrument: it is a correct reading of the instrument
+as it exists on CEX platforms.
+
+This paper demonstrates that the interest component can be structurally
+eliminated from the perpetual futures funding formula through deliberate
+platform design. Premium-only DEX protocols --- most notably dYdX~v4 and D8X
+--- set the interest parameter to exactly zero, producing a funding mechanism
+that is market-driven, bilateral, and free of any fixed predetermined charge.
+The rate is pure market premium: it can be positive, zero, or negative,
+depending entirely on the relative price of the perpetual versus the spot index.
+Formal mathematics confirms this is not a functional compromise: Ackerer,
+Hugonnier \& Jermann \cite{Ackerer2024} proved in 2024 that spot convergence is
+achievable with $I = 0$, establishing that the CEX interest floor was a
+commercial design choice, not a technical requirement. The implication for
+Islamic finance is direct: Shariah compliance is not a constraint that perpetual
+futures cannot satisfy --- it is a design criterion that has already been
+satisfied, and can be replicated by any platform that adopts the premium-only
+formula.
+
+\subsection*{The Central Error in Existing Scholarship}
+
+A review of 38 sources --- encompassing \textit{fatwas}, academic papers,
+textbooks, and institutional standards --- reveals a consistent pattern: no
+prior Islamic finance work distinguishes between CEX and DEX funding mechanisms.
+Every existing prohibition treats perpetual futures as a single instrument.
+The instrument being analysed is, without exception, the CEX instrument. The
+DEX alternative is invisible in the literature, despite being commercially live
+since 2023. The error is one of \emph{extrapolation}: correct diagnosis of CEX
+\textit{riba} followed by incorrect generalisation to all perpetuals.
+
+This paper corrects that error. We do not challenge the consensus on CEX
+perpetuals --- it is right. We demonstrate that the consensus does not extend
+to the premium-only DEX implementations that now operate at scale.
+
+\subsection*{Contributions}
+
+This paper makes four primary contributions.
+
+\begin{enumerate}[leftmargin=*, noitemsep]
+\item \textbf{Four-category taxonomy.} We develop a principled taxonomy
+classifying leveraged crypto derivatives along two independent Shariah-relevant
+dimensions: the interest parameter $I$ in the funding formula, and the presence
+or absence of a settlement date. The resulting four categories --- CEX perpetual,
+Premium-only DEX perpetual, Hybrid DEX perpetual, and DEX expiring futures ---
+provide a replicable framework for evaluating any current or future platform.
+
+\item \textbf{Natural experiment.} We exploit the existence of two structurally
+similar DEX platforms with different interest parameters (dYdX $I=0$;
+Hyperliquid $I=0.01\%$/8h) as a natural experiment, allowing us to isolate the
+effect of the interest parameter on distributional outcomes independently of
+market conditions --- empirically validating that formula design, not exchange
+architecture, determines the Shariah-relevant properties of the funding mechanism.
+
+\item \textbf{365-day empirical validation.} We collect and analyse 40,218
+funding rate intervals across five platforms over a complete annual cycle,
+confirming that the structural difference between premium-only and
+interest-bearing formulas is persistent across both bull and bear market regimes,
+not an artefact of short-term conditions.
+
+\item \textbf{Reform-oriented implementation framework.} We develop a structured
+platform-selection, asset-selection, and risk-management framework that
+translates the empirical findings into actionable guidance for Muslim traders,
+institutions, and Shariah boards evaluating perpetual futures instruments.
+\end{enumerate}
+
+%% ============================================================
+\section{How Perpetual Futures Work and Where Riba Enters}
+\label{sec:mechanics}
+%% ============================================================
+
+\subsection{The Funding Mechanism}
+
+A perpetual futures contract has no expiry date. Without scheduled settlement,
+the contract price would drift arbitrarily from the underlying spot price. The
+funding mechanism is the engineering solution: every 8 hours (on CEX) or every
+hour (on most DEX), the party whose position is ``on the expensive side'' pays
+the counterparty an amount proportional to the price gap. This continuous
+payment keeps the perpetual price tethered to spot.
+
+The decisive question for Shariah compliance is not whether a payment occurs ---
+it is \emph{how the payment is calculated}.
+
+\subsection{The CEX Formula and Its Riba}
+
+Binance \cite{Binance2019}, Bybit, and OKX all implement the same formula,
+originating from BitMEX's 2016 launch \cite{Hayes2016}:
+\begin{equation}
+F = P + \clamp(I - P,\;-0.05\%,\;+0.05\%)
+\label{eq:cex}
+\end{equation}
+where $F$ is the funding rate, $P$ is the premium index (perpetual price minus
+spot, divided by spot), and $I = 0.01\%$ per 8 hours is the \textbf{fixed
+interest rate}. Binance's public API returns:
+
+\begin{Verbatim}[fontsize=\small]
+{
+  "interestRate": "0.00010000",
+  "lastFundingRate": "0.00005102"
+}
+\end{Verbatim}
+
+The field is named \texttt{interestRate}. The value is always
+\texttt{0.00010000}. This is not interpretation; it is documentation. Three
+Shariah characteristics of $I$ make it unambiguous \textit{riba}
+\cite{ElGamal2006,Uddin2015}:
+
+\begin{itemize}[noitemsep, leftmargin=*]
+\item \textbf{Predetermined}: $I$ is fixed at $0.01\%$/8h regardless of market
+conditions, counterparty creditworthiness, or economic outcome.
+\item \textbf{Independent}: $I$ operates identically whether the market rises,
+falls, or is flat. No market outcome can eliminate it.
+\item \textbf{Labeled}: Binance itself calls it \texttt{interestRate} in its
+API. No scholarly inference is required.
+\end{itemize}
+
+Figure~\ref{fig:interest} illustrates the API evidence. The structural riba
+burden is $I \times 3 \times 365 = 10.95\%$/year --- an unavoidable floor that
+no trading strategy can escape within CEX architectures.
+
+\begin{figure}[htbp]
+\centering
+\includegraphics[width=\columnwidth]{fig_interest_evidence.png}
+\caption{Binance \texttt{/fapi/v1/premiumIndex} API response. The
+\texttt{interestRate} field --- always \texttt{0.00010000} ($0.01\%$/8h) ---
+is the documentary source of \textit{riba}. This is Binance's own designation,
+not a Shariah inference. The structural annual burden is $0.01\%\times3\times365
+= 10.95\%$/year.}
+\label{fig:interest}
+\end{figure}
+
+\subsection{The Mathematical Proof That Riba Is Unnecessary}
+
+A critical 2024 result from financial mathematics directly addresses whether $I
+> 0$ is technically required. Ackerer, Hugonnier \& Jermann
+\cite{Ackerer2024} prove rigorously --- in both discrete and continuous time ---
+that a perpetual futures contract converges to the spot price when $I = 0$.
+The premium-only formula $F = P$ is provably sufficient for market function.
+This transforms the Shariah analysis: the CEX interest floor is not an
+engineering necessity. It is a \emph{design choice} --- a commercial decision
+made by Arthur Hayes at BitMEX in 2016 \cite{Hayes2016} to attract market
+makers, not a technical constraint. Riba was built in; it did not have to be.
+
+\begin{quote}
+\textbf{Theorem (Ackerer, Hugonnier \& Jermann 2024).} In both discrete and
+continuous time, with premium intensity $\kappa_t > 0$ and zero interest
+parameter $\iota = 0$, the no-arbitrage perpetual futures price converges to
+the spot price $x_t$ whenever $r_a = r_b$. Specifically, in the
+constant-parameter continuous case:
+\[
+f_t = \frac{\kappa}{\kappa + r_b - r_a}\,x_t,
+\]
+which equals $x_t$ when $r_a = r_b$. The premium-only funding rule is
+therefore a mathematically sufficient condition for spot-price convergence;
+the fixed interest parameter $I > 0$ used by CEX platforms is a commercial
+design choice with no analytical necessity \cite{Ackerer2024}.
+\end{quote}
+
+Table~\ref{tab:ackerer} summarises the convergence conditions across all
+three contract types covered by Ackerer et al.\ With $\iota = 0$, each
+formula reduces to a ratio involving only $\kappa$ and the rate differential
+$(r_b - r_a)$; when rates are aligned the ratio collapses to unity and
+$f_t = x_t$ exactly. Our empirical finding that dYdX~v4 mean funding is
+$0.00077\%$/h is consistent with Proposition~3 for linear contracts:
+stablecoin-margined perpetuals imply $r_a \approx r_b$, pushing the ratio
+toward one.
+
+\begin{table}[htbp]
+\centering
+\caption{Ackerer et al.\ (2024) $\iota = 0$ convergence conditions by
+contract type (continuous-time, constant parameters). Premium intensity
+$\kappa$ alone anchors the futures price to spot when interest rates align.}
+\label{tab:ackerer}
+\small
+\setlength{\tabcolsep}{4pt}
+\renewcommand{\arraystretch}{1.6}
+\begin{tabular}{@{}p{1.2cm}p{3.3cm}p{2.2cm}@{}}
+\toprule
+\textbf{Type} & \textbf{Price ($\iota=0$, constants)} & \textbf{Convergence} \\
+\midrule
+Linear &
+  $\dfrac{\kappa}{\kappa + r_b - r_a}\,x_t$ &
+  $r_a = r_b$ \\[4pt]
+Inverse &
+  $\dfrac{\kappa_I + r_a - r_b}{\kappa_I}\,x_t$ &
+  $r_a = r_b$ \\[4pt]
+Quanto &
+  $\dfrac{\kappa}{\kappa + r_c - \sigma_x\sigma_z - r_a}\,z_t$ &
+  $r_c = r_a {+} \sigma_x\sigma_z$ \\
+\bottomrule
+\multicolumn{3}{@{}l@{}}{\scriptsize In all cases $f_t = x_t$ (or $z_t$) when the convergence condition holds.}\\
+\end{tabular}
+\renewcommand{\arraystretch}{1}
+\end{table}
+
+\subsection{The DEX Formula: Premium Only}
+
+dYdX~v4 and D8X implement the degenerate case of Equation~\eqref{eq:cex} with
+$I = 0$:
+\begin{equation}
+F = P = \frac{P_{\mathrm{perp}} - P_{\mathrm{spot}}}{P_{\mathrm{spot}}}
+\label{eq:dex}
+\end{equation}
+The funding rate is purely the signed market premium. When the perpetual trades
+above spot (bullish sentiment), longs pay shorts; when it trades below spot
+(bearish), shorts pay longs. The payment is bilateral, conditional on market
+conditions, and can be zero or negative --- none of the three \textit{riba}
+characteristics are present. The dYdX API returns no \texttt{interestRate}
+field; there is none to return \cite{dYdX2024}.
+
+\subsection{Platform Taxonomy}
+
+Not all perpetual futures platforms are structurally equivalent, and not all
+derivatives on decentralised protocols are perpetuals. Our survey yields a
+four-category taxonomy (Table~\ref{tab:taxonomy}) that classifies instruments
+by two independent dimensions: the presence of a fixed interest parameter $I$
+in the funding formula, and whether a settlement date exists.
+
+\begin{table}[htbp]
+\centering
+\caption{Four-category platform taxonomy. Shariah classification is determined
+by the interest parameter $I$ and the presence of a settlement date, not by
+CEX/DEX architecture alone.}
+\label{tab:taxonomy}
+\footnotesize
+\setlength{\tabcolsep}{2pt}
+\begin{tabular}{@{}p{1.45cm}p{1.6cm}p{1.4cm}p{1.05cm}p{1.35cm}@{}}
+\toprule
+\textbf{Category} & \textbf{Platforms} & \textbf{Riba source} & \textbf{Expiry} & \textbf{Shariah Status} \\
+\midrule
+CEX perpetual & Binance, Bybit, OKX & \mbox{\textcolor{ribared}{$0.01\%$/8h}} & No
+  & \textcolor{ribared}{\textit{Riba}-bearing} \\[3pt]
+Prem-only DEX & dYdX~v4, D8X & \mbox{\textcolor{halalgreen}{None}} & No
+  & \textcolor{halalgreen}{Halal candidate} \\[3pt]
+Hybrid DEX & Hyperliquid & \mbox{\textcolor{ribared}{$0.01\%$/8h}} & No
+  & \textcolor{ribared}{\textit{Riba}-bearing} \\[3pt]
+DEX expiring & MCDEX, Serum & \mbox{\textcolor{halalgreen}{None}} & Yes
+  & \textcolor{halalgreen}{Strongest} \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+Two entries deserve particular comment.
+\textbf{Hyperliquid} is structurally a DEX --- non-custodial, on-chain
+settlement --- yet its funding formula is identical to Binance's
+\cite{Hyperliquid2025}. Its Shariah status is therefore identical to Binance's.
+This exposes the literature's architectural error: calling something a DEX does
+not eliminate \textit{riba}. Reading the formula does.
+
+\textbf{DEX expiring futures} represent the theoretically strongest Shariah
+case within the perpetual/futures universe, combining three favourable
+properties simultaneously: (i)~no interest parameter ($I$ is structurally
+inapplicable --- there is no periodic funding mechanism); (ii)~a fixed
+settlement date, which directly addresses the \textit{gharar} objection about
+perpetual indefiniteness that conservative scholars raise; and (iii)~smart
+contract self-custody with no exchange counterparty risk. Where premium-only
+DEX perpetuals satisfy the \textit{riba} criterion but require a rebuttal of
+the perpetual \textit{gharar} objection, DEX expiring futures satisfy both
+simultaneously. Protocols implementing or having implemented on-chain expiring
+futures include MCDEX and Serum-based order books on Solana; liquidity
+fragmentation across expiry dates remains the principal practical obstacle to
+wider adoption. This paper focuses on the empirically active perpetuals market,
+but Section~\ref{sec:limitations} situates DEX expiring futures as an important
+direction for both market development and future Shariah research.
+
+\subsection{Everlasting Options: A Forward-Looking Extension}
+\label{sec:everlasting}
+
+Ackerer, Hugonnier \& Jermann \cite{Ackerer2024} extend their perpetual futures
+framework to derive pricing for \textbf{everlasting options} --- perpetual
+payoff instruments that carry the right (but not the obligation) to exercise a
+defined payoff at any point, with no fixed expiry date. Like perpetual futures,
+everlasting options are sustained by a periodic premium paid by one party to the
+other, eliminating the need for a settlement date while preserving a well-defined
+payoff structure.
+
+The premium-only pricing rule ($\iota = 0$) applies directly. Under the
+Ackerer et al.\ framework, the no-arbitrage price of an everlasting option is:
+\[
+f_{o,t} = \mathrm{E}\!\left[\phi(x_{\theta_t})\right],
+\]
+where $\phi(\cdot)$ is the payoff function, $x_{\theta_t}$ is the underlying
+asset price at the random stopping time $\theta_t$, and the expectation is taken
+under the risk-neutral measure. When $\iota = 0$, no interest enters the pricing
+equation: the premium paid between counterparties is purely market-driven,
+determined by the option's time value and the underlying's dynamics rather than
+any fixed financing charge.
+
+From a Shariah perspective, everlasting options on RWA-backed asset tokens
+possess several potentially favourable properties. First, the payoff is
+\emph{defined} --- the option buyer's maximum loss is the premium paid, and the
+payoff function $\phi$ is contractually specified. This bounded, asymmetric
+risk profile addresses \textit{gharar} concerns more directly than perpetual
+futures, where both gain and loss are unbounded. Second, when priced with
+$\iota = 0$, no fixed predetermined charge exists, satisfying El-Gamal's
+\textit{riba} conditions. Third, everlasting options on commodity tokens
+(gold, silver, Shariah-compliant commodity indices) could enable halal hedging
+with more defined risk profiles than perpetual futures --- the buyer knows at
+entry the maximum loss, while the seller is compensated by market premium, not
+interest.
+
+This is explicitly a \textbf{forward-looking extension}. No \textit{fatwa} or
+formal Shariah ruling currently addresses everlasting options. The standard
+prohibitions on conventional options --- rooted in the uncertainty of the
+premium and the sale of a non-existent asset --- may require re-examination when
+applied to the everlasting structure, where the premium is market-determined and
+no principal is transferred without delivery of the contractual payoff. Dedicated
+jurisprudential research is warranted before any institutional implementation.
+We flag this as the most theoretically significant near-term extension of the
+halal perpetuals research agenda, alongside DEX expiring futures
+(Section~\ref{sec:limitations}).
+
+%% ============================================================
+\section{Literature Review}
+\label{sec:lit}
+%% ============================================================
+
+The 38 sources reviewed span five domains: (1) perpetual futures mechanics and
+origin \cite{Hayes2016,Shiller1993,Ackerer2024}; (2) \textit{riba} in
+derivatives \cite{ElGamal2006,Kamali2000,Ayub2007,Jobst2007,SoleJobst2012,
+Malkawi2014,Tashfeen2022,Uluyol2024}; (3) \textit{gharar} in derivatives
+\cite{ElGamal2001,Alias2015,Elhessi2018,Kasri2016,AliasOthman2024}; (4)
+\textit{maysir} in derivatives \cite{Salamon2015,Alias2021,Alias2023,
+Obaidullah2005}; and (5) contemporary \textit{fatwas} and institutional
+standards \cite{Musaffa2024,IslamQA2023,SeekersGuidance2025,PracticalIF2023,
+AAOIFI2015,DSNMUI2021,Amin2024,Indonesian2024}.
+Across all 38 sources, zero papers identify, name, or compare dYdX~v4's
+premium-only formula to the CEX interest-bearing formula.
+This uniformity of the gap is itself the central finding of this review.
+
+\subsection{The Progressive-Theoretical Tradition}
+
+The progressive tradition in Islamic derivatives scholarship assembled, over
+two decades, a set of analytical frameworks that collectively imply the
+permissibility of premium-only DEX perpetuals --- without any author knowing
+it, because the technology did not yet exist.
+
+\textbf{Foundations of the riba analysis.}
+El-Gamal \cite{ElGamal2006} provides the most rigorous economic definition of
+\textit{riba}: a \emph{predetermined excess return that is independent of the
+underlying economic outcome}.
+Applied to the CEX funding formula, the interest floor $I = 0.01\%$ per 8 hours
+is predetermined, fixed, and independent of whether the position profits ---
+satisfying all three of El-Gamal's riba conditions.
+Applied to dYdX~v4's premium-only formula ($I = 0$), none of the three
+conditions is satisfied: the premium is market-determined, variable, and
+can be negative.
+El-Gamal's 2006 framework, rigorously applied, already yields our 2025 verdict ---
+it simply had no instrument to apply it to at the time of writing.
+Uddin \cite{Uddin2015} and Obaidullah \cite{Obaidullah2005} provide complementary
+foundational definitions: \textit{riba} is any predetermined excess over principal,
+regardless of label. The Binance API's own label of \texttt{interestRate} removes
+any interpretive ambiguity.
+
+\textbf{Frameworks for Shariah-compliant derivatives.}
+Sole \& Jobst \cite{SoleJobst2012} develop a four-criteria framework for
+Shariah-compliant derivatives, the first of which is an explicit zero-interest
+parameter ($\iota = 0$).
+Their 2012 paper articulates exactly the condition that dYdX~v4 satisfies in 2023
+--- twelve years before the platform launched.
+Jobst \cite{Jobst2007} independently proposed riba-free derivative structures based
+on risk-sharing rather than fixed interest; our paper is the empirical
+realisation of his theoretical blueprint.
+Ayub \cite{Ayub2007} contributes a utility-based three-part permissibility test ---
+no riba, no excessive gharar, legitimate economic function --- that DEX perpetuals
+satisfy on all three counts: $I = 0\%$, on-chain transparency, and demonstrated
+price-discovery function.
+
+\textbf{The \textit{gharar} tradition.}
+El-Gamal \cite{ElGamal2001} reframes \textit{gharar} not as all uncertainty but as
+\emph{exploitative uncertainty rooted in information asymmetry}.
+Under this definition, DEX protocols exhibit zero prohibited gharar: every
+participant observes the same on-chain price feed, the same immutable funding
+formula, and the same publicly auditable smart contract simultaneously.
+Kamali \cite{Kamali2000} argues that standardisation and contractual transparency
+are the decisive \textit{gharar} reducers in exchange-traded derivatives.
+DEX smart contracts are more standardised --- and more certainly standardised ---
+than any regulated exchange, because the rules are immutable code, not regulatory
+policy subject to management discretion.
+Elhessi \cite{Elhessi2018} demonstrates empirically that institutional transparency
+reduces \textit{gharar} to permissible levels in Malaysian commodity futures;
+blockchain immutability provides an analytically superior form of the same
+transparency without reliance on institutional compliance.
+Alias \& Othman \cite{AliasOthman2024}, in the most recent systematic gharar
+review (2024), develop a five-dimension \textit{gharar} framework applicable to
+crypto derivatives --- but apply it only to CEX platforms, reaching prohibition.
+Applied to DEX perpetuals, every dimension of their framework yields a materially
+different verdict: on-chain pricing eliminates information asymmetry,
+automated liquidation removes counterparty uncertainty, and the public funding
+formula removes settlement ambiguity.
+
+\textbf{The \textit{maysir} tradition.}
+Salamon \cite{Salamon2015} develops the most rigorous five-element maysir test:
+(1) zero productive function, (2) pure chance, (3) one-sided gain, (4)
+social harm, (5) wealth transfer without value creation.
+DEX perpetuals used for hedging satisfy none of these criteria: they serve a
+productive economic function, require knowledge and analysis, can benefit both
+parties through risk transfer, improve market efficiency, and facilitate risk
+redistribution rather than wealth destruction.
+Alias \cite{Alias2021} applies a six-criteria maysir framework and reaches a
+prohibitive conclusion --- but his criteria, applied to hedging contexts on
+premium-only DEX platforms, do not support prohibition.
+
+\textbf{The call for halal hedging instruments.}
+Tashfeen \cite{Tashfeen2022} surveys the literature and explicitly calls for the
+development of Shariah-compliant hedging instruments, citing riba elimination as
+the key structural requirement.
+This call was answered by technology within one year of publication: dYdX~v4
+launched in 2023 with $I = 0\%$.
+Amin \cite{Amin2024} and Uluyol \cite{Uluyol2024} take the final theoretical
+step, explicitly arguing that derivatives without predetermined charges can be
+halal --- without knowing that such instruments already existed.
+Our paper is the empirical instantiation of every framework in this tradition:
+we convert conditional theoretical possibilities into documented empirical facts.
+
+\subsection{The Conservative-Prohibitive Tradition}
+
+The conservative tradition is internally consistent and, within its domain of
+application, correct.
+Its error is categorical, not analytical: it treats the CEX perpetual as the
+perpetual, and applies platform-specific findings to the instrument class.
+
+\textbf{The foundational consensus.}
+Obaidullah \cite{Obaidullah2005} provides the foundational conservative textbook
+position: all interest-bearing components in derivatives are \textit{riba}; all
+excessive uncertainty constitutes \textit{gharar}; instruments serving no productive
+function are \textit{maysir}.
+This framework is correct as applied to CEX perpetuals and our paper reaffirms it
+for that platform type.
+Our extension is narrow: the consensus was formed on instruments that universally
+contained interest. We document a 2023 instrument that does not.
+
+\textbf{The gharar analysis.}
+Alias \cite{Alias2015} identifies information asymmetry and price uncertainty as the
+operative \textit{gharar} in futures contracts and concludes they are prohibited.
+On-chain smart contracts --- where pricing formulas are publicly auditable and
+non-manipulable --- directly address Alias's operative concern.
+Kasri \cite{Kasri2016} demonstrates that regulatory compliance frameworks
+systematically fail to eliminate \textit{gharar} in practice, as structural gaming
+persists.
+His conclusion supports our argument: only structural design changes ($I = 0$ in
+the funding formula) provide genuine Shariah compliance --- not trading rules or
+usage policies imposed on top of riba-bearing CEX infrastructure.
+
+\textbf{The contemporaneous failure.}
+The most instructive cases are papers published in 2023 and 2024 --- after
+dYdX~v4 launched --- that reach universal prohibitive conclusions with no
+awareness of the new instrument.
+Alias \cite{Alias2023} updates his prohibitive verdict in the same year dYdX~v4
+launched, without mentioning it.
+Musaffa \cite{Musaffa2024} writes in 2024 --- one year after dYdX~v4 --- and
+correctly identifies the Binance interest floor as riba, then concludes all
+perpetuals are prohibited.
+IslamQA \cite{IslamQA2023} and Practical IF \cite{PracticalIF2023} commit the
+same contemporaneous error.
+Zulkarnain \& Syibly \cite{Indonesian2024} provide the most technically rigorous
+conservative analysis, independently confirming that CEX funding ($F = P + \clamp(I-P)$,
+$I = 0.01\%$) constitutes riba.
+Their analysis is correct for its target --- Binance --- but is titled as analysis
+of ``futures trading'' generally, the clearest instantiation of the categorical
+extrapolation error.
+These papers validate our CEX diagnosis and, in so doing, make the gap
+explicit: every conservative analysis published through early 2025 treats the
+Binance perpetual as the only perpetual, leaving the question of alternative
+formula structures entirely unexamined.
+
+\subsection{The Pivotal Concession: SeekersGuidance (2025)}
+
+The most significant development in the conservative literature is
+SeekersGuidance's 2025 ruling \cite{SeekersGuidance2025}. The ruling is
+structured as a response to the specific question: \emph{``Are crypto perpetual
+contracts still haram if there's no interest, and the asset price tracks?''}
+The answer maintains prohibition --- but on narrowed grounds that are decisive
+for our argument.
+The ruling explicitly concedes that removing the interest component
+\emph{resolves the riba objection}, then identifies the remaining prohibition
+as principally \textit{qabdh} --- the classical possession requirement under
+traditional fiqh.
+This concession is jurisprudentially significant for two reasons.
+First, the most rigorous contemporary conservative authority now agrees that
+\textit{riba}-free perpetuals are not prohibited by \textit{riba} --- validating
+our central structural claim.
+Second, the remaining objection (\textit{qabdh}) is narrower and more tractable
+than riba: it is addressed by real-world asset (RWA)-backed tokens where physical
+custody is established, by the \textit{istisna}/\textit{salam} precedent of
+deferred delivery, and by DSN-MUI Fatwa 144 \cite{DSNMUI2021} classifying
+crypto assets as Shariah-legitimate commodities.
+The conservative literature has, in its most recent development, converged on
+precisely the question our paper answers.
+
+\subsection{The Gap: Uniform and Structural}
+
+The gap in the 38-source literature is structurally uniform: no paper ---
+progressive or conservative, pre-2020 or published in 2024 --- identifies,
+names, or compares the CEX interest-bearing formula to any alternative.
+The progressive tradition built frameworks that logically imply DEX permissibility;
+the conservative tradition reached verdicts that correctly apply to CEX and are
+now explicitly validated by SeekersGuidance for that platform.
+Both traditions analysed the same instrument --- the Binance-style perpetual ---
+and reached opposite conclusions about its permissibility.
+Neither noticed that a structurally different instrument, with $I = 0$
+documented in its official protocol specification, had emerged and was operating
+at scale.
+
+The most recent DEX-focused Islamic finance scholarship \cite{ResearchGate2026}
+analyses spot trading on decentralised exchanges and concludes that DEX spot
+transactions can satisfy Islamic sale-and-purchase principles --- but does not
+extend the analysis to perpetual derivatives.
+Our paper makes the necessary extension: the same on-chain transparency and
+non-custodial structure that makes DEX spot trading potentially halal is equally
+operative in DEX perpetuals, with the additional decisive feature that premium-only
+perpetuals eliminate the interest parameter that makes spot-equivalent CEX
+derivatives haram.
+
+A wave of proactive-framing scholarship published between 2024 and 2026 validates
+the methodological approach of this paper. Ghazali et al.\ \cite{Ghazali2025}
+explicitly advocate for ``structured alternatives replicating functions while
+adhering to Shariah'' --- precisely the design logic of premium-only DEX
+perpetuals. Alsmadi et al.\ \cite{Alsmadi2025} call for ``a proactive
+multi-faceted approach to align digital innovation with Shariah,'' documenting
+how Islamic Fintech firms that design compliance into their architecture
+outperform those that apply compliance as a post-hoc filter. Farhat
+\cite{Farhat2025} demonstrates that ``Shariah compliance through deliberate
+screening and structuring'' --- as opposed to avoidance --- systematically
+improves firm performance and risk profiles, suggesting that structured
+participation in perpetual markets could benefit Muslim investors. Modjo et al.\
+\cite{Modjo2025} show that ``digital innovation amplifies the benefits of
+Shariah-compliant practices,'' providing empirical evidence that technology-native
+Shariah compliance (exactly what premium-only DEX protocols represent) generates
+superior outcomes compared to non-digital compliant structures.
+S\&P Global \cite{SP2025} documents a \$190--200 billion sukuk market built
+entirely on premium and profit-sharing structures without interest --- the
+largest empirical proof-of-concept that market-scale Islamic finance is achievable
+without predetermined interest charges. Together, these five sources confirm that
+the field has moved decisively toward proactive design framing: the question is
+no longer whether interest can be structurally eliminated, but how to apply that
+elimination to new instrument classes. This paper applies it to perpetual futures
+for the first time.
+
+The contribution of this paper is to make the connection that 38 prior sources,
+including the most recent and most technically sophisticated, did not make:
+the CEX/DEX formula distinction is a Shariah distinction, the progressive
+frameworks already imply DEX permissibility, and the conservative prohibitions
+remain valid --- but only for CEX perpetuals.
+
+%% ============================================================
+\section{Empirical Evidence: A Natural Experiment}
+\label{sec:empirical}
+%% ============================================================
+
+\subsection{Design and Data}
+
+We collected 365-day funding rate data (February 2025 -- February 2026) from
+five platforms, yielding 40,218 intervals (Table~\ref{tab:stats}). The dataset
+constitutes a \textbf{natural experiment}: within the DEX category, two
+platforms implement different values of $I$ --- dYdX~v4 with $I=0$ and
+Hyperliquid with $I=0.01\%$/8h. Both are DEXs, operating in the same market,
+over the same period. The only controlled variable is the interest parameter.
+If the interest parameter matters, the two DEXs should produce different
+distributional outcomes. If architecture matters instead, they should produce
+similar outcomes.
+
+All data were collected via public APIs at each platform's native interval:
+8-hourly for CEX; hourly for dYdX~v4 and Hyperliquid (Hyperliquid's 8-hour
+equivalent intervals are compared by summing three consecutive hourly payments).
+Figure~\ref{fig:timeseries} shows the complete 365-day time series.
+
+\begin{table*}[htbp]
+\centering
+\caption{Funding rate descriptive statistics, 365-day dataset (February 2025 --
+February 2026). CEX and Hyperliquid figures are per 8-hour interval. dYdX~v4
+figures are per native 1-hour interval. Shariah classification is determined by
+the interest parameter $I$, not by CEX/DEX architecture.}
+\label{tab:stats}
+\small
+\setlength{\tabcolsep}{5pt}
+\begin{tabular}{@{}llcrrrrcc@{}}
+\toprule
+\textbf{Platform} & \textbf{Asset} & \textbf{Category} & \textbf{$N$} &
+\textbf{Mean} & \textbf{Std} & \textbf{Min} & \textbf{Max} & \textbf{Neg.\%} \\
+\midrule
+Binance & BTC & CEX & 1{,}095 & 0.0041\%/8h & 0.0043\% & $-$0.015\% & $+$0.010\% & 15.6\% \\
+Binance & ETH & CEX & 1{,}095 & 0.0037\%/8h & 0.0050\% & $-$0.037\% & $+$0.010\% & 19.7\% \\
+Bybit   & BTC & CEX & 1{,}094 & 0.0040\%/8h & 0.0050\% & $-$0.029\% & $+$0.011\% & 21.7\% \\
+Bybit   & ETH & CEX & 1{,}094 & 0.0037\%/8h & 0.0067\% & $-$0.118\%$^{a}$ & $+$0.010\% & 25.9\% \\
+OKX     & BTC & CEX &   318   & 0.0032\%/8h & 0.0040\% & $-$0.009\% & $+$0.010\% & 20.1\% \\
+OKX     & ETH & CEX &   318   & 0.0007\%/8h & 0.0050\% & $-$0.022\% & $+$0.010\% & 40.9\% \\
+\addlinespace
+\textit{CEX pooled} & & & \textit{5{,}014} & \textit{0.0037\%/8h} & & & & \textit{22.0\%} \\
+\midrule
+dYdX~v4 & BTC & Prem-DEX ($I=0$) & 8{,}842 & 0.0006\%/1h & 0.0019\% & $-$0.013\% & $+$0.054\% & 30.8\% \\
+dYdX~v4 & ETH & Prem-DEX ($I=0$) & 8{,}842 & 0.0010\%/1h & 0.0019\% & $-$0.014\% & $+$0.022\% & 20.6\% \\
+\addlinespace
+\textit{dYdX pooled} & & & \textit{17{,}684} & \textit{0.0008\%/1h} & & & & \textit{25.7\%} \\
+\midrule
+Hyperliquid & BTC & Hybrid-DEX ($I>0$) & 8{,}760 & 0.0011\%/1h & 0.0013\% & $-$0.009\% & $+$0.023\% & 11.8\% \\
+Hyperliquid & ETH & Hybrid-DEX ($I>0$) & 8{,}760 & 0.0009\%/1h & 0.0015\% & $-$0.039\% & $+$0.015\% & 18.2\% \\
+\addlinespace
+\textit{Hyp. pooled} & & & \textit{17{,}520} & \textit{0.0010\%/1h} & & & & \textit{15.0\%} \\
+\bottomrule
+\multicolumn{9}{l}{\footnotesize $^{a}$Single-event extreme; acute market backwardation episode. $N$ (total) $= 40{,}218$.}
+\end{tabular}
+\end{table*}
+
+\begin{figure*}[htbp]
+\centering
+\includegraphics[width=\textwidth]{fig_funding_timeseries.png}
+\caption{365-day funding rate time series across all five platforms (February
+2025 -- February 2026), BTC (top) and ETH (bottom). The dashed line at
+$+0.01\%$ marks the CEX interest floor. CEX rates (Binance, Bybit, OKX) cluster
+persistently above zero, anchored by $I$. dYdX~v4 oscillates symmetrically
+around zero, consistent with $I=0$. Hyperliquid --- plotted here at its native
+hourly rate, $8\times$ smaller than the 8h CEX intervals shown --- exhibits a
+positive bias consistent with its $I=0.01\%$/8h formula, mirroring CEX
+behaviour rather than dYdX.}
+\label{fig:timeseries}
+\end{figure*}
+
+\subsection{The Natural Experiment: Results}
+
+\subsubsection{The Primary Test: CEX vs.\ Premium-only DEX}
+
+Table~\ref{tab:tests} presents statistical tests comparing CEX (Binance + Bybit
++ OKX) against dYdX~v4. The null hypothesis is that the two distributions are
+drawn from the same population. All three tests reject decisively.
+
+\begin{table}[htbp]
+\centering
+\caption{Statistical tests: CEX ($n = 5{,}014$, per 8h) vs.\ dYdX~v4
+($n = 17{,}684$, per hour). Hyperliquid is excluded from this comparison as it
+uses $I = 0.01\%$/8h.}
+\label{tab:tests}
+\small
+\begin{tabular}{lrc}
+\toprule
+\textbf{Test} & \textbf{Statistic} & \textbf{$p$-value} \\
+\midrule
+Two-sample $t$-test     & $t = 59.95$     & $< 10^{-300}$ \\
+Mann-Whitney $U$        & $U = 64{,}005{,}833$ & $< 10^{-300}$ \\
+Kolmogorov-Smirnov      & $D = 0.487$     & $< 10^{-300}$ \\
+\midrule
+Cohen's $d$ (effect size) & $d = 0.725$ & Large \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+The KS statistic of 0.487 means that nearly half the mass of the two
+distributions does not overlap --- a structural divergence, not a mean shift.
+Cohen's $d = 0.725$ is a large effect size by any standard, and it persists
+across the full 365-day window covering both bull and bear regimes.
+
+\subsubsection{The Control: Hyperliquid vs.\ dYdX}
+
+The natural experiment's control condition answers the architectural question
+directly. If DEX structure were the operative variable, Hyperliquid and dYdX~v4
+--- both DEXs, same market, same period --- should produce similar distributions.
+They do not.
+
+\begin{itemize}[noitemsep, leftmargin=*]
+\item \textbf{Negative-rate frequency:} dYdX~v4 25.7\% vs.\ Hyperliquid 15.0\%.
+The platform with $I=0$ shows \emph{higher} negative frequency, consistent with
+a symmetric mechanism unanchored from zero. Hyperliquid, with $I > 0$, shows
+lower negative frequency --- the interest floor creates an upward bias identical
+in character to CEX.
+\item \textbf{Distribution shape:} Hyperliquid's distribution clusters with CEX
+(both positively biased), not with dYdX~v4 (symmetric). Architecture does not
+determine shape; the interest parameter does.
+\end{itemize}
+
+This is the most powerful result in the paper. Two DEXs. Same market. Same
+year. Different formulas. Different distributions. The difference is the
+interest parameter.
+
+\subsubsection{Distributional Evidence}
+
+Figure~\ref{fig:dist} shows the distribution comparison across the three
+empirically observed perpetuals categories (DEX expiring futures are excluded
+as no 365-day dataset was available for this study).
+Figure~\ref{fig:boxplot} shows per-platform distributions. Figure~\ref{fig:neg}
+shows negative-rate frequencies, which provide the clearest visual signature of
+the interest floor: platforms with $I > 0$ are suppressed in the negative tail
+precisely because the interest component offsets downward premiums.
+
+\begin{figure}[htbp]
+\centering
+\includegraphics[width=\columnwidth]{fig_funding_distribution.png}
+\caption{Funding rate distributions by category. CEX (red, $n=5{,}014$, per 8h
+interval) is skewed positive by the interest floor. dYdX~v4 (green,
+$n=17{,}684$, per hour) is centred near zero, consistent with $I=0$. Hyperliquid
+(amber, $n=17{,}520$) clusters with CEX despite its DEX architecture. Cohen's
+$d = 0.725$, KS $= 0.487$ (CEX vs.\ dYdX).}
+\label{fig:dist}
+\end{figure}
+
+\begin{figure}[htbp]
+\centering
+\includegraphics[width=\columnwidth]{fig_platform_boxplot.png}
+\caption{Platform-level funding rate distributions. CEX platforms (Binance,
+Bybit, OKX) and Hyperliquid share a positive-biased structure consistent with
+$I > 0$. dYdX~v4 is more symmetric, consistent with $I = 0$.}
+\label{fig:boxplot}
+\end{figure}
+
+\begin{figure}[htbp]
+\centering
+\includegraphics[width=\columnwidth]{fig_negative_funding.png}
+\caption{Negative funding rate frequency by platform (BTC, 365 days).
+dYdX~v4 ($\approx$25.7\%, $I=0$) shows the highest negative-rate frequency
+--- the signature of an unconstrained symmetric mechanism. Hyperliquid
+(11.8\%, $I>0$) shows the lowest --- the interest floor suppresses negative
+rates below the CEX average (22.0\% pooled), confirming the formula dominates
+over architecture.}
+\label{fig:neg}
+\end{figure}
+
+\subsection{The Structural vs.\ Observed Cost Distinction}
+
+A crucial Shariah distinction operates at the cost level: the \emph{structural
+riba} component versus the \emph{observed market premium} component.
+
+\begin{itemize}[noitemsep, leftmargin=*]
+\item \textbf{CEX structural riba} (unavoidable, regardless of market):
+$0.01\% \times 3 \times 365 = \mathbf{10.95\%}$/year. Even in a falling market
+with negative premiums, this floor continues.
+
+\item \textbf{CEX observed total} (interest + market premium, our 365-day data):
+$0.0037\% \times 3 \times 365 \approx \mathbf{4.0\%}$/year. Below 10.95\%
+because negative premiums partially offset interest during bear phases --- but
+the \textit{riba} component is present in every interval.
+
+\item \textbf{dYdX structural riba}: $\mathbf{0\%}$/year. No interest
+component in the formula.
+
+\item \textbf{dYdX observed total} (market premium only, our 365-day data):
+$0.0008\% \times 24 \times 365 \approx \mathbf{6.8\%}$/year during the 2025
+bull period. This number exceeded CEX's observed total because positive premiums
+were large --- but every dollar of this premium is bilateral market transfer
+between traders, not interest. The Shariah position of a Muslim paying 6.8\%
+in halal premium is categorically different from one paying 4.0\% in which an
+inextricable riba component is embedded.
+\end{itemize}
+
+Figure~\ref{fig:cost} illustrates both components. The Shariah verdict does not
+depend on which number is larger: it depends on whether a fixed predetermined
+charge is present at all. It is; and it is not.
+
+\begin{figure}[htbp]
+\centering
+\includegraphics[width=\columnwidth]{fig_cost_comparison.png}
+\caption{Left: structural interest burden (riba component only). CEX and
+Hyperliquid impose 10.95\%/year regardless of market; dYdX~v4 imposes 0\%.
+Right: observed total funding cost over the 365-day period. dYdX~v4 exceeded
+CEX in this bull period, but the dYdX cost is halal market premium, not riba.
+Shariah compliance is determined by the left panel, not the right.}
+\label{fig:cost}
+\end{figure}
+
+%% ============================================================
+\section{Shariah Analysis}
+\label{sec:shariah}
+%% ============================================================
+
+We apply the three canonical Islamic finance prohibitions across all four
+platform categories. Table~\ref{tab:verdicts} summarises the verdicts.
+Primary analysis focuses on Premium-only DEX perpetuals (dYdX~v4 type, $I=0$)
+as the empirically validated category; DEX expiring futures are discussed
+as a theoretically superior alternative pending liquidity development.
+
+\begin{table}[htbp]
+\centering
+\caption{Shariah verdicts by category and prohibition.}
+\label{tab:verdicts}
+\footnotesize
+\setlength{\tabcolsep}{3pt}
+\begin{tabular}{@{}p{1.55cm}cccc@{}}
+\toprule
+\textbf{Category} & \textbf{Riba} & \textbf{Gharar} & \textbf{Maysir} & \textbf{Overall} \\
+\midrule
+CEX perpetual & \textcolor{ribared}{Haram} & Concern & Cond. & \textcolor{ribared}{Haram} \\
+Hybrid DEX & \textcolor{ribared}{Haram} & Reduced & Cond. & \textcolor{ribared}{Haram} \\
+Prem-only DEX & \textcolor{halalgreen}{Clear} & Reduced & Cond. & \textcolor{halalgreen}{Candidate} \\
+DEX expiring & \textcolor{halalgreen}{N/A} & \textcolor{halalgreen}{Minimal} & Cond. & \textcolor{halalgreen}{Strongest} \\
+\bottomrule
+\multicolumn{5}{@{}l@{}}{\scriptsize Cond.\ = context-dependent on trader intent and leverage.}\\
+\multicolumn{5}{@{}l@{}}{\scriptsize DEX expiring futures: no funding mechanism; fixed settlement date.}\\
+\end{tabular}
+\end{table}
+
+\subsection{Riba: The Decisive Prohibition}
+
+\textit{Riba} is the decisive prohibition because it operates structurally,
+not conditionally. El-Gamal \cite{ElGamal2006} operationalises \textit{riba}
+through three conditions: (i)~the excess is predetermined; (ii)~it is
+independent of the underlying economic outcome; (iii)~it is fixed in advance.
+CEX interest ($I = 0.01\%$/8h) satisfies all three. dYdX~v4 premium satisfies
+none:
+
+\begin{itemize}[noitemsep, leftmargin=*]
+\item The premium is determined by the market at the time of payment --- not
+predetermined.
+\item It depends entirely on the relative price of perpetual versus spot --- not
+independent of economic outcome.
+\item It can be zero, positive, or negative --- not fixed in advance.
+\end{itemize}
+
+Sole \& Jobst \cite{SoleJobst2012} specify the $\iota=0$ interest criterion as
+the primary condition for Shariah-compliant derivatives. dYdX~v4 satisfies it.
+SeekersGuidance (2025) \cite{SeekersGuidance2025} concedes that satisfying this
+criterion resolves the \textit{riba} objection. The \textit{riba} verdict for
+premium-only DEX perpetuals is clear.
+
+\subsection{Gharar: Substantially Reduced}
+
+The textual foundation of the \textit{gharar} prohibition is the well-known
+hadith recorded in \textit{Sahih Muslim}: ``The Prophet (peace be upon him) forbade
+the sale of \textit{gharar}'' (\textit{Sahih Muslim}, Book~10, No.~3614).
+Classical jurists operationalised this prohibition as covering contracts with
+major ambiguity in terms, price, or delivery that creates the potential for
+exploitation or dispute. \textit{Gharar} --- prohibited uncertainty arising
+from informational asymmetry or ambiguous contract terms --- is therefore a
+legitimate concern in derivatives \cite{ElGamal2001,Alias2015,AliasOthman2024}.
+The question is not whether any uncertainty exists (all commerce involves
+uncertainty) but whether the uncertainty is of the prohibited exploitative type
+\cite{ElGamal2001}.
+
+A specific subcategory relevant to perpetuals is \textit{bay' ma'dum} --- the
+sale of a non-existent or undeliverable asset (Hadith, \textit{Sunan
+al-Tirmidhi}, No.~1232: ``Do not sell what you do not have'').
+Cash-settled CEX perpetuals raise this concern acutely: the trader never
+possesses the underlying asset, and settlement is in a numeraire disconnected
+from physical delivery.
+DEX perpetuals written on RWA-backed tokens, where the token represents a
+verified legal claim on a physical asset held in custody, directly address the
+\textit{bay' ma'dum} concern by tying the position to a genuinely existent,
+deliverable underlying.
+
+DEX smart contracts address the broader \textit{gharar} concerns more
+completely than any regulated exchange:
+
+\begin{itemize}[noitemsep, leftmargin=*]
+\item \textbf{Contractual terms} are published in immutable on-chain code,
+publicly auditable by any party. No information asymmetry exists between
+participants and protocol.
+\item \textbf{Price discovery} occurs through public order books or AMM
+formulas with no privileged access.
+\item \textbf{Loss limitation} is automatic: positions are liquidated at a
+specified margin threshold. A trader cannot lose more than deposited collateral.
+This directly addresses Obaidullah's \cite{Obaidullah2005} concern about
+unlimited potential loss and eliminates the unbounded-loss \textit{gharar}
+that characterises uncollateralised OTC contracts.
+\end{itemize}
+
+El-Gamal \cite{ElGamal2001} defines prohibited \textit{gharar} as exploitative
+uncertainty: one party exploiting superior information against another. DEX
+protocols achieve zero information asymmetry by design --- every participant
+observes the same on-chain price feed, the same funding formula, and the same
+contract terms simultaneously. Kamali \cite{Kamali2000} holds that
+standardisation resolves \textit{gharar}; DEX smart contract rules are more
+standardised and more immutable than any regulatory standard, because they are
+mathematically enforced rather than institutionally promised.
+
+We conclude that \textit{gharar} is substantially reduced in DEX perpetuals
+relative to conventional futures, falling below the threshold of prohibition
+under the El-Gamal and Kamali frameworks. The residual \textit{gharar} concern
+--- oracle risk in price feed computation --- is noted in Section~\ref{sec:limitations}
+and warrants separate Shariah analysis as the oracle ecosystem matures.
+
+\subsection{Maysir: Conditional on Use}
+
+The \textit{maysir} prohibition is grounded in an explicit Quranic injunction:
+``O believers! Intoxicants, gambling (\textit{maysir}), idols, and drawing lots
+are all evil of Satan's handiwork --- so shun them so you may be successful''
+(Qur'an 5:90). Classical jurists interpreted \textit{maysir} as any
+transaction in which wealth transfers through pure chance without productive
+economic function --- the paradigm case being gambling where one party gains
+only at another's direct loss, with no underlying value created.
+
+\textit{Maysir} in a derivatives context requires zero productive economic
+function, pure chance determination, and one-sided wealth transfer
+\cite{Salamon2015,Alias2021}. This prohibition is use-contingent rather than
+structural: the same instrument can constitute \textit{maysir} in a speculative
+context and legitimate commerce in a hedging context.
+
+DEX perpetuals used for hedging fail the \textit{maysir} criteria on all
+counts: (1)~price discovery and risk transfer serve productive economic
+functions \cite{Shiller1993}; (2)~outcomes depend substantially on skill,
+analysis, and information --- not pure chance; (3)~the transfer is bilateral
+--- shorts benefit when longs pay and longs benefit when shorts pay, depending
+on market direction. The zero-sum critique raised by Practical IF
+\cite{PracticalIF2023} applies equally to insurance contracts and secondary
+market equity trading, neither of which classical scholars prohibit as
+\textit{maysir}.
+
+Critically, intent (\textit{niyyah}) matters. Pure speculation on short-term
+price movements without economic basis more closely approximates \textit{maysir}
+than disciplined hedging with documented rationale. The instrument does not
+compel either use; the trader's intent and discipline determine the verdict.
+
+%% ============================================================
+\section{Conservative Objections and Rebuttals}
+\label{sec:objections}
+%% ============================================================
+
+We address five objections systematically. Where possible, we cite the
+objection's own scholarship to demonstrate that the concern is addressed rather
+than dismissed.
+
+\subsection{Objection 1: Riba Persists Through Leverage and Implicit Credit}
+
+\emph{``Even without the explicit interest parameter, leverage implies a loan
+that bears implicit interest.''} --- SeekersGuidance \cite{SeekersGuidance2025};
+IslamQA \cite{IslamQA2023}.
+
+\textbf{Response.} In DEX perpetuals, no loan is extended. The trader deposits
+collateral (margin) and establishes a synthetic position. The protocol does not
+advance credit; the collateral remains the trader's own funds posted against
+a position. This is structurally equivalent to the classical \textit{hamish
+jiddiyyah} (security deposit), not a loan. The premium payment, when it occurs,
+is a bilateral market transfer between counterparties --- not a financing charge
+from a lender \cite{SoleJobst2012,Malkawi2014}. SeekersGuidance (2025) itself
+concedes this point in acknowledging that the riba objection is resolved when
+no interest component is present.
+
+\subsection{Objection 2: Gharar From Perpetual Nature and Price Uncertainty}
+
+\emph{``The absence of a settlement date creates excessive gharar.''} ---
+Musaffa \cite{Musaffa2024}; Alias \cite{Alias2015}.
+
+\textbf{Response.} Perpetual nature does not constitute prohibited
+\textit{gharar}. The contract terms at any given moment are fully specified: the
+funding formula is hardcoded, the margin requirements are known, the liquidation
+threshold is public. The absence of a settlement date is a feature, not an
+ambiguity --- and indeed, the absence of an expiry removes the source of
+\textit{gharar} that classical scholars identified in \textit{bai al-kali bil
+kali} (deferred payment for deferred delivery). Automated liquidation bounds
+loss to deposited margin; the trader cannot lose more than is risked
+\cite{Kamali2000,Elhessi2018}.
+
+\subsection{Objection 3: Maysir Through Zero-Sum Structure}
+
+\emph{``One party wins only because another loses --- this is gambling.''}
+--- Practical IF \cite{PracticalIF2023}; Alias \cite{Alias2021}.
+
+\textbf{Response.} Every secondary market transaction has a buyer and a seller
+holding opposing views; every insurance contract has a premium payer and a
+beneficiary. If zero-sum payoff structure constitutes \textit{maysir}, then
+all secondary market activity is prohibited --- a conclusion no classical scholar
+has reached. The operative test is \emph{economic utility}, not aggregate payoff
+symmetry \cite{Ayub2007,ElGamal2006}. Derivatives markets enable hedgers to
+transfer unwanted risk to willing risk-takers, improving allocative efficiency.
+Kamali \cite{Kamali2000} and Ayub \cite{Ayub2007} both permit instruments
+serving this function.
+
+\subsection{Objection 4: Non-Ownership and Qabdh (Possession) Requirement}
+
+\emph{``Do not sell what you do not possess.''} --- IslamQA \cite{IslamQA2023};
+SeekersGuidance \cite{SeekersGuidance2025}.
+
+\textbf{Response.} This is the objection that SeekersGuidance (2025) identifies
+as the \emph{remaining} concern after conceding the \textit{riba} point. Three
+responses:
+
+(a)~\textbf{RWA-backed tokens}: DEX perpetuals written on tokenised real-world
+assets --- gold tokens, commodity-backed tokens --- where the token represents a
+genuine legal claim on a physical asset held in custody satisfy the ownership
+requirement directly. The DSN-MUI \cite{DSNMUI2021} recognition of
+cryptocurrency as a commodity provides the institutional foundation.
+
+(b)~\textbf{Historical precedent}: Classical scholars permitted \textit{salam}
+and \textit{istisna}, both of which involve payment before delivery (deferred
+\textit{qabdh}). The \textit{qabdh} requirement is not absolute; it yields to
+established commercial necessity and contractual specificity.
+
+(c)~\textbf{Evolving scholarly consensus}: The AAOIFI recognition of digital
+assets \cite{AAOIFI2015} and the growing fiqh literature on electronic
+\textit{qabdh} (constructive possession through exclusive, transferable digital
+property rights) increasingly supports treating DEX token positions as
+satisfying ownership requirements.
+
+\subsection{Objection 5: Societal Harm Through Excessive Speculation}
+
+\emph{``High-leverage derivatives cause financial instability and individual
+ruin.''} --- DSN-MUI \cite{DSNMUI2021}; Kasri \cite{Kasri2016}.
+
+\textbf{Response.} This objection applies to \emph{irresponsible use}, not to
+the instrument itself. The same critique applies to margin lending in equities,
+foreign exchange trading, and leveraged property investment --- none of which
+scholars have categorically prohibited. Islamic scholars have long permitted
+long-distance trade carrying risk of total loss when the risk serves productive
+purposes. DEX perpetuals used with disciplined position sizing ($\leq 3\times$
+leverage), algorithmic stop-losses, and asset selection focused on productive
+underlying assets are no more harmful than established leveraged instruments.
+The \textit{maqasid al-Shariah} objective of protecting wealth (\textit{hifz
+al-mal}) is served by appropriate risk management, not by categorical exclusion.
+
+Table~\ref{tab:objections} consolidates the objection-rebuttal structure.
+
+\begin{table*}[htbp]
+\centering
+\caption{Conservative objections and DEX rebuttals.}
+\label{tab:objections}
+\small
+\begin{tabular}{p{3.0cm}p{3.2cm}p{6.0cm}}
+\toprule
+\textbf{Objection} & \textbf{Source} & \textbf{Rebuttal} \\
+\midrule
+Riba from leverage / implicit credit &
+SeekersGuidance (2025); IslamQA (2023) &
+No credit extended; collateral $\neq$ loan; \textit{hamish jiddiyyah}
+analogy; SeekersGuidance itself concedes riba is absent when $I=0$ \\[4pt]
+\textit{Gharar} from no expiry and loss uncertainty &
+Musaffa (2024); Alias (2015) &
+Terms fully specified at all times; auto-liquidation caps loss to posted
+margin; no deferred-delivery ambiguity \\[4pt]
+\textit{Maysir} through zero-sum character &
+Practical IF (2023); Alias (2021) &
+Insurance and secondary equity markets are also zero-sum; operative test is
+economic utility; hedging is not gambling \\[4pt]
+Non-ownership and \textit{qabdh} &
+SeekersGuidance (2025); IslamQA (2023) &
+RWA-backed tokens satisfy \textit{qabdh}; \textit{salam}/\textit{istisna}
+precedent; DSN-MUI commodity recognition \\[4pt]
+Societal harm from leverage &
+DSN-MUI (2021); Kasri (2016) &
+Applies to irresponsible use; same critique fails for margin equity;
+\textit{maqasid} served by prudent risk tools \\
+\bottomrule
+\end{tabular}
+\end{table*}
+
+%% ============================================================
+\section{Implementation Framework for Muslim Traders}
+\label{sec:implementation}
+%% ============================================================
+
+\subsection{Platform Selection: The Formula Test}
+
+The single most important selection criterion is the interest parameter $I$ in
+the funding formula, documented in each platform's official API and technical
+documentation. Do not rely on marketing descriptions such as ``decentralised''
+or ``non-custodial.''
+
+\textbf{Currently compliant:} dYdX~v4 (\texttt{I=0}, documented \cite{dYdX2024})
+and D8X (\texttt{I=0}, documented \cite{D8X2024}).
+
+\textbf{Currently non-compliant despite DEX architecture:} Hyperliquid
+(\texttt{I=0.01\%/8h}, documented \cite{Hyperliquid2025}). Using Hyperliquid
+subjects a Muslim trader to the identical \textit{riba} burden as using Binance.
+
+As new DEX platforms emerge, verify the funding formula documentation before
+participation. Smart contract governance may alter parameters over time;
+continuous monitoring is required.
+
+\subsection{Asset Selection: Productive Underlying}
+
+Prioritise perpetuals on assets with demonstrated economic utility:
+\begin{itemize}[noitemsep, leftmargin=*]
+\item \textbf{Commodity-backed tokens} (gold, silver, oil tokens) --- directly
+relevant to \textit{qabdh} and \textit{maqasid} arguments.
+\item \textbf{Infrastructure tokens} with significant productive usage (network
+fee revenue, validator staking).
+\item \textbf{Tokenised real-world assets} (RWA tokens representing verified
+physical assets).
+\end{itemize}
+Avoid perpetuals on purely speculative or utility-less tokens. Asset selection
+strengthens the maysir analysis by establishing genuine economic purpose
+\cite{Kalimullina2020}.
+
+\noindent\textit{Note on everlasting options:} For certain hedging applications
+--- particularly those requiring a defined maximum loss rather than an uncapped
+directional position --- everlasting options on RWA-backed commodity tokens
+(Section~\ref{sec:everlasting}) may offer superior Shariah defensibility compared
+to perpetual futures. The bounded payoff structure addresses \textit{gharar}
+concerns more directly, and pricing without interest ($\iota = 0$) preserves
+the structural \textit{riba}-free character. Pending dedicated scholarly review
+and formal \textit{fatwa}, institutions with more conservative Shariah
+requirements should note this instrument class as a potentially stronger
+candidate for board approval than outright perpetual futures positions.
+
+\subsection{Risk Management: Parameters}
+
+Implement disciplined position management consistent with \textit{hifz al-mal}:
+\begin{itemize}[noitemsep, leftmargin=*]
+\item Maximum leverage: $2\text{--}3\times$ (not the $50\text{--}100\times$
+offered by most platforms).
+\item Mandatory stop-loss: maximum 10--15\% drawdown from entry before
+automatic exit.
+\item Position sizing: maximum 5\% of portfolio in any single perpetual position.
+\item Regular rebalancing: review position rationale monthly.
+\end{itemize}
+
+\subsection{Intent Documentation (\textit{Niyyah})}
+
+Document trading intent before opening positions: the economic rationale
+(hedging, market-making, investment), the target asset, the risk parameters,
+and the exit criteria. This serves both Shariah discipline and practical risk
+management. A position opened without articulated rationale is more difficult
+to distinguish from speculative gambling (\textit{maysir}) in retrospect.
+
+\subsection{Scholarly Consultation}
+
+This paper provides the structural analysis; it does not constitute a
+\textit{fatwa}. Muslim traders and institutions should engage qualified Shariah
+scholars in their jurisdiction with this technical analysis as input. We
+particularly encourage engagement with AAOIFI and OIC Fiqh Academy on formal
+standard-setting for DEX derivative instruments.
+
+%% ============================================================
+\section{Limitations and Future Research}
+\label{sec:limitations}
+%% ============================================================
+
+\textbf{Single-year window.} Our 365-day dataset spans a full market cycle and
+shows structural persistence, but multi-year data across multiple cycles would
+further strengthen the empirical foundation. Future work should extend to
+additional DEX platforms (D8X, Vertex) as their data matures.
+
+\textbf{Platform governance risk.} DEX smart contracts are governed by token
+holder votes. A governance proposal could introduce a non-zero $I$ parameter on
+currently compliant platforms. This represents a monitoring requirement, not a
+permanent compliance guarantee. We recommend institutional participants track
+governance forums actively.
+
+\textbf{Oracle risk.} The price feeds that compute the premium index on DEX
+perpetuals introduce a residual \textit{gharar} concern: oracle manipulation
+or failure could distort the funding rate. This risk is distinct from the
+funding formula and warrants separate Shariah analysis as the oracle ecosystem
+matures.
+
+\textbf{Fatwa gap.} No recognised Shariah authority has issued a formal
+\textit{fatwa} specifically addressing DEX perpetuals. The SeekersGuidance
+(2025) ruling is the closest, and its concession on \textit{riba} is
+significant, but formal institutional guidance would substantially advance
+the field. This paper provides the technical foundation; the jurisprudential
+formalisation must follow.
+
+\textbf{DEX expiring futures.}
+This paper's empirical analysis focuses on perpetual contracts because they
+constitute the dominant liquid market. However, our taxonomy (Table~\ref{tab:taxonomy})
+identifies DEX expiring futures as the theoretically superior Shariah category:
+they combine zero interest (no funding mechanism exists at all), a fixed
+settlement date (directly resolving the perpetual \textit{gharar} objection),
+and smart-contract self-custody (no exchange counterparty risk). On-chain
+expiring futures have been implemented on protocols including MCDEX and
+Serum-based order books; their primary limitation is liquidity fragmentation
+across expiry dates rather than any structural Shariah concern.
+As on-chain liquidity infrastructure matures --- particularly through unified
+expiry-date pools and cross-margining mechanisms --- DEX expiring futures may
+offer the cleanest path to Shariah-compliant leveraged derivatives that also
+satisfies the most conservative scholarly positions on \textit{gharar}.
+Dedicated empirical and jurisprudential analysis of these instruments is
+the most important near-term extension of this research agenda.
+
+%% ============================================================
+\section{Conclusion}
+\label{sec:conclusion}
+%% ============================================================
+
+The Islamic finance consensus that perpetual futures are prohibited is correct
+--- for CEX perpetuals. The error committed by 38 reviewed sources is an error
+of extrapolation: correct diagnosis of \textit{riba} in one implementation
+was incorrectly generalised to all implementations. That generalisation was
+defensible as long as all implementations shared the same formula. It is no
+longer defensible.
+
+This paper establishes four findings that together constitute a new paradigm.
+
+\textbf{First}, the interest parameter $I$ in CEX funding formulas is
+demonstrable \textit{riba} by any classical definition --- predetermined, fixed,
+labeled as interest, and unavoidable. Conservative scholars reached this verdict
+correctly, including SeekersGuidance (2025), which provides the most rigorous
+contemporary ruling. That verdict stands for all platforms with $I > 0$,
+whether CEX (Binance, Bybit, OKX) or DEX (Hyperliquid).
+
+\textbf{Second}, the interest parameter is mathematically unnecessary. Ackerer,
+Hugonnier \& Jermann (2024) proved this formally. DEX protocols dYdX~v4 and
+D8X proved it practically --- they have operated successfully with $I = 0$ at
+scale. Riba was chosen in 2016; it was never required.
+
+\textbf{Third}, 365 days and 40,218 funding intervals across a natural
+experiment confirm that the interest parameter --- not exchange architecture ---
+determines distributional structure. Hyperliquid (DEX, $I > 0$) behaves like
+CEX. dYdX~v4 (DEX, $I = 0$) behaves differently. The Shariah significance of
+this result is not statistical: it is the empirical proof that removing the
+interest parameter changes the observable character of the instrument in exactly
+the way Shariah analysis predicts.
+
+\textbf{Fourth}, principles-based Shariah analysis --- applying El-Gamal's riba
+conditions, Kamali's standardisation criterion, Sole \& Jobst's four-part
+framework, and Salamon's maysir test --- yields a coherent verdict: premium-only
+DEX perpetuals used on productive underlying assets with disciplined risk
+management do not violate the three canonical Islamic prohibitions. The
+\textit{riba} is absent by design. The \textit{gharar} is substantially reduced
+by on-chain transparency. The \textit{maysir} determination is use-contingent,
+as it is for all derivatives.
+
+The practical implication is significant. 1.8 billion Muslims face structural
+barriers to participation in the dominant leveraged instrument of modern crypto
+markets. This paper demonstrates that those barriers are not inherent to the
+instrument class --- they are a consequence of specific funding formula design
+choices. Where the interest parameter is set to zero, as in dYdX~v4 and D8X,
+the structural basis for prohibition is removed. This is a replicable design
+criterion, not a platform-specific accident: any perpetual futures exchange that
+adopts a premium-only funding formula satisfies the same structural condition.
+
+The reform implication is therefore broader than a verdict on existing platforms.
+It is a specification: perpetual futures can be structured for Shariah compliance
+by design, and the empirical evidence presented here demonstrates that such
+structures function at institutional scale across a full market cycle. We call on
+Islamic scholars, Shariah boards, and standard-setting bodies --- particularly
+AAOIFI and OIC Fiqh Academy --- to engage with the technical specifics of DEX
+funding formulas and to develop formal guidance that enables institutional
+participants to evaluate perpetual futures instruments on a principled,
+formula-specific basis. The analytical framework is established; the empirical
+validation is documented; the formal \textit{fatwa} must follow.
+
+\textit{And Allah knows best.}
+
+%% ============================================================
+\sloppy
+\begin{thebibliography}{99}
+
+\bibitem{Ackerer2024}
+Ackerer, D., Hugonnier, J., \& Jermann, U. (2024).
+\textit{Perpetual Futures Pricing}.
+NBER Working Paper 32936.
+\url{https://www.nber.org/papers/w32936}
+
+\bibitem{Alias2015}
+Alias, M. (2015).
+Gharar in forward and futures contracts.
+\textit{ResearchGate}.
+\url{https://www.researchgate.net/publication/273904700}
+
+\bibitem{Alias2021}
+Alias, M. (2021).
+Derivative instruments: Criteria for speculation in Islamic finance.
+\textit{Academy of Accounting and Financial Studies Journal}, 25(S3).
+\url{https://www.abacademies.org/articles/derivative-instruments-criteria-for-speculation-in-islamic-finance-11080.html}
+
+\bibitem{Alias2023}
+Alias, M. (2023).
+Derivative instruments: Criteria for speculation in Islamic finance (updated).
+\textit{ResearchGate}.
+\url{https://www.researchgate.net/publication/369559261}
+
+\bibitem{AliasOthman2024}
+Alias, M., \& Othman, A. (2024).
+A review on \textit{gharar} dimension in modern Islamic finance transactions.
+\textit{Journal of Islamic Accounting and Business Research}, 16(5), 976--994.
+\url{https://www.emerald.com/insight/content/doi/10.1108/JIABR-02-2023-0060}
+
+\bibitem{Amin2024}
+Amin, M. (2024).
+Are perpetual futures contracts Shariah compliant?
+\url{https://www.mohammedamin.com/Islamic_finance/Perpetual-futures.html}
+
+\bibitem{Ayub2007}
+Ayub, M. (2007).
+\textit{Understanding Islamic Finance}.
+John Wiley \& Sons.
+
+\bibitem{Binance2019}
+Binance. (2019).
+Introduction to Binance Futures funding rates.
+\textit{Binance Support}.
+\url{https://www.binance.com/en/support/faq/detail/360033525031}
+
+\bibitem{AAOIFI2015}
+AAOIFI. (2015).
+\textit{Shari'ah Standards for Islamic Financial Institutions}.
+Accounting and Auditing Organisation for Islamic Financial Institutions.
+\url{https://www.iefpedia.com/english/wp-content/uploads/2017/12/Shariaa-Standards-ENG.pdf}
+
+\bibitem{Chainalysis2025}
+Chainalysis. (2025).
+\textit{An Introduction to Perpetual Futures}.
+\url{https://www.chainalysis.com/blog/perpetual-futures-intro-2025/}
+
+\bibitem{CoinGecko2025}
+CoinGecko. (2025).
+\textit{State of Crypto Perpetuals Market 2025}.
+\url{https://assets.coingecko.com/reports/2025/CoinGecko-State-of-Crypto-Perpetuals-Market.pdf}
+
+\bibitem{D8X2024}
+D8X Exchange. (2024).
+The silent difference between DeFi perpetual futures contracts.
+\textit{Medium}.
+\url{https://medium.com/@d8x.exchange/the-silent-difference-between-defi-perpetual-futures-contracts-283e47a84b94}
+
+\bibitem{DSNMUI2021}
+DSN-MUI. (2021).
+Fatwa No.\ 144/DSN-MUI/XI/2021 on crypto assets.
+\textit{Indonesian Ulema Council}.
+
+\bibitem{dYdX2024}
+dYdX. (2024).
+Perpetual funding rate.
+\textit{dYdX Help Center}.
+\url{https://help.dydx.exchange/en/articles/4797443-perpetual-funding-rate}
+
+\bibitem{ElGamal2001}
+El-Gamal, M. A. (2001).
+An economic explication of the prohibition of \textit{gharar}.
+\textit{Islamic Economic Studies}, 8(2), 29--58.
+
+\bibitem{ElGamal2006}
+El-Gamal, M. A. (2006).
+\textit{Islamic Finance: Law, Economics, and Practice}.
+Cambridge University Press.
+
+\bibitem{Elhessi2018}
+Elhessi, A. (2018).
+\textit{Gharar} in futures contracts from an Islamic perspective.
+\textit{Risk Governance and Control: Financial Markets and Institutions}.
+\url{https://virtusinterpress.org/Gharar-in-futures-contracts-from-Islamic-perspective-A-case-study-of-USA-Malaysia.html}
+
+\bibitem{Hayes2016}
+Hayes, A. (2016).
+Announcing the launch of the perpetual XBTUSD leveraged swap.
+\textit{BitMEX Blog}.
+\url{https://www.bitmex.com/blog/announcing-the-launch-of-the-perpetual-xbtusd-leveraged-swap}
+
+\bibitem{Hyperliquid2025}
+Hyperliquid. (2025).
+Funding rate mechanics.
+\textit{Hyperliquid Documentation}.
+\url{https://hyperliquid.gitbook.io/hyperliquid-docs/trading/funding}
+
+\bibitem{Indonesian2024}
+Zulkarnain, R., \& Syibly, M. R. (2024).
+Analysis of futures trading on the Binance platform from the perspective of Fiqh Muamalah.
+\textit{Journal of Islamic Economics Lariba}.
+\url{https://journal.uii.ac.id/JIELariba/article/download/33018/17999/132830}
+
+\bibitem{IslamQA2023}
+IslamQA. (2023).
+Is it permissible to study futures contracts?
+\url{https://islamqa.info/en/answers/241297}
+
+\bibitem{Jobst2007}
+Jobst, A. A. (2007).
+Derivatives in Islamic finance.
+\textit{SSRN Working Paper}.
+\url{https://papers.ssrn.com/sol3/papers.cfm?abstract_id=1015615}
+
+\bibitem{Kalimullina2020}
+Kalimullina, M. (2020).
+Islamic finance and food security: A review of the literature.
+\textit{Heliyon}, 6(11).
+\url{https://pmc.ncbi.nlm.nih.gov/articles/PMC7644896}
+
+\bibitem{Kamali2000}
+Kamali, M. H. (2000).
+\textit{Islamic Commercial Law: An Analysis of Futures and Options}.
+Islamic Texts Society.
+
+\bibitem{Kasri2016}
+Kasri, N. S. (2016).
+\textit{Critical Analysis of Malaysian Securities Commission SAC Resolution on
+Crude Palm Oil Futures}.
+PhD Thesis, University of Gloucestershire.
+\url{https://eprints.glos.ac.uk/3444/}
+
+\bibitem{Malkawi2014}
+Malkawi, B. H. (2014).
+Financial derivatives between Western legal tradition and Islamic finance.
+\textit{Journal of Banking Regulation}, 15(1).
+
+\bibitem{Musaffa2024}
+Musaffa Academy. (2024).
+Things about perpetual futures you need to know.
+\url{https://academy.musaffa.com/things-about-perpetual-futures-you-need-to-know/}
+
+\bibitem{Obaidullah2005}
+Obaidullah, M. (2005).
+\textit{Islamic Financial Services}.
+King Abdulaziz University.
+\url{https://www.kau.edu.sa/Files/320/Researches/50893_21007.pdf}
+
+\bibitem{PracticalIF2023}
+Practical Islamic Finance. (2023).
+Perpetual futures: Halal or haram?
+\url{https://blog.practicalislamicfinance.com/perpetual-futures-halal-or-haram/}
+
+\bibitem{ResearchGate2026}
+Unpublished/Preprint. (2026).
+Islamic sale and purchase principles in decentralised exchanges.
+\textit{ResearchGate Preprint}.
+\url{https://www.researchgate.net/publication/399063294}
+
+\bibitem{Salamon2015}
+Salamon, H. (2015).
+Speculation: The Islamic perspective; A study on al-\textit{maisir}.
+\textit{Mediterranean Journal of Social Sciences}, 6(4).
+\url{https://www.academia.edu/25656159/}
+
+\bibitem{SeekersGuidance2025}
+SeekersGuidance. (2025, October 2).
+Are crypto perpetual contracts still haram if there's no interest, and the
+asset price tracks?
+Answered by Shaykh Muhammad Carr; approved by Shaykh Faraz Rabbani.
+\url{https://seekersguidance.org/answers/transactions/are-crypto-perpetual-contracts-still-haram-if-theres-no-interest-and-the-asset-price-tracks}
+
+\bibitem{Shiller1993}
+Shiller, R. J. (1993).
+\textit{Macro Markets: Creating Institutions for Managing Society's Largest
+Economic Risks}.
+Oxford University Press.
+
+\bibitem{SoleJobst2012}
+Sol\'{e}, J., \& Jobst, A. A. (2012).
+Operative principles of Islamic derivatives: Towards a coherent theory.
+\textit{IMF Working Paper} WP/12/63.
+\url{https://www.elibrary.imf.org/view/journals/001/2012/063/article-A001-en.xml}
+
+\bibitem{Tashfeen2022}
+Tashfeen, M. (2022).
+Financial derivatives hedging: A review of Islamic finance at crossroads.
+\textit{Global Economics Review}, 7(2).
+\url{https://www.gerjournal.com/article/financial-derivatives-hedging-a-review-of-islamic-finance-at-cross-roads}
+
+\bibitem{Uddin2015}
+Uddin, M. A. (2015).
+Principles of Islamic finance: Prohibition of \textit{riba}, \textit{gharar}
+and \textit{maysir}.
+\textit{MPRA Paper} No.~67711.
+\url{https://mpra.ub.uni-muenchen.de/67711/1/MPRA_paper_67711.pdf}
+
+\bibitem{Uluyol2024}
+Uluyol, B. (2024).
+Financial derivative instruments and their applications in Islamic banking
+and finance.
+\textit{Borsa Istanbul Review}, 24(2).
+\url{https://www.sciencedirect.com/science/article/pii/S2214845024000334}
+
+\bibitem{Ghazali2025}
+Ghazali, N.~M., et al.\ (2025).
+Exploring financial derivatives through Shariah principles.
+\textit{Al-Qanatir: International Journal of Islamic Studies}.
+
+\bibitem{Alsmadi2025}
+Alsmadi, A.~A., et al.\ (2025).
+Beyond compliance: Islamic Fintech and CSR.
+\textit{Future Business Journal}, 11(1).
+
+\bibitem{Farhat2025}
+Farhat, A. (2025).
+The impact of Shariah compliance on firm's performance and risk.
+\textit{Review of Financial Economics}.
+
+\bibitem{Modjo2025}
+Modjo, M.~I., et al.\ (2025).
+Weathering the storm: Shariah compliance, digital innovation, and stock
+performance.
+\textit{Journal of Islamic Monetary Economics and Finance}, 11(1).
+
+\bibitem{SP2025}
+S\&P Global. (2025).
+\textit{Islamic Finance 2025--2026: Resilient Growth Amid Upcoming Headwinds}.
+S\&P Global Ratings.
+\url{https://www.spglobal.com/ratings/en/research/articles/250417-islamic-finance-2025-2026}
+
+\end{thebibliography}
+
+\end{document}

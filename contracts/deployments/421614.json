@@ -1,0 +1,47 @@
+{
+  "network": "Arbitrum Sepolia",
+  "chainId": 421614,
+  "deployedAt": "2026-02-25",
+  "upgradedAt": "2026-02-27",
+  "deployer": "0x12A21D0D172265A520aF286F856B5aF628e66D46",
+  "treasury": "0x12A21D0D172265A520aF286F856B5aF628e66D46",
+  "contracts": {
+    "OracleAdapter":     "0xB8d9778288B96ee5a9d873F222923C0671fc38D4",
+    "ShariahGuard":      "0x26d4db76a95DBf945ac14127a23Cd4861DA42e69",
+    "FundingEngine":     "0x459BE882BC8736e92AA4589D1b143e775b114b38",
+    "InsuranceFund":     "0x7B440af63D5fa5592E53310ce914A21513C1a716",
+    "CollateralVault":   "0x5530e4670523cFd1A60dEFbB123f51ae6cae0c5E",
+    "LiquidationEngine": "0x456eBE7BbCb099E75986307E4105A652c108b608",
+    "PositionManager":   "0x787E15807f32f84aC3D929CB136216897b788070",
+    "GovernanceModule":  "0x8c987818dffcD00c000Fe161BFbbD414B0529341",
+    "BRKXToken":         "0xD3f7E29cAC5b618fAB44Dd8a64C4CC335C154A32"
+  },
+  "legacy": {
+    "PositionManager_v1": "0x53E3063FE2194c2DAe30C36420A01A8573B150bC"
+  },
+  "arbiscan": {
+    "OracleAdapter":     "https://sepolia.arbiscan.io/address/0xB8d9778288B96ee5a9d873F222923C0671fc38D4",
+    "ShariahGuard":      "https://sepolia.arbiscan.io/address/0x26d4db76a95DBf945ac14127a23Cd4861DA42e69",
+    "FundingEngine":     "https://sepolia.arbiscan.io/address/0x459BE882BC8736e92AA4589D1b143e775b114b38",
+    "InsuranceFund":     "https://sepolia.arbiscan.io/address/0x7B440af63D5fa5592E53310ce914A21513C1a716",
+    "CollateralVault":   "https://sepolia.arbiscan.io/address/0x5530e4670523cFd1A60dEFbB123f51ae6cae0c5E",
+    "LiquidationEngine": "https://sepolia.arbiscan.io/address/0x456eBE7BbCb099E75986307E4105A652c108b608",
+    "PositionManager":   "https://sepolia.arbiscan.io/address/0x787E15807f32f84aC3D929CB136216897b788070",
+    "GovernanceModule":  "https://sepolia.arbiscan.io/address/0x8c987818dffcD00c000Fe161BFbbD414B0529341",
+    "BRKXToken":         "https://sepolia.arbiscan.io/address/0xD3f7E29cAC5b618fAB44Dd8a64C4CC335C154A32"
+  },
+  "brkx": {
+    "name": "Baraka Token",
+    "symbol": "BRKX",
+    "decimals": 18,
+    "maxSupply": "100000000",
+    "feeTiers": {
+      "default":    { "bpsX10": 50, "bps": "5.0", "minBrkx": "0" },
+      "tier1":      { "bpsX10": 40, "bps": "4.0", "minBrkx": "1000" },
+      "tier2":      { "bpsX10": 35, "bps": "3.5", "minBrkx": "10000" },
+      "tier3":      { "bpsX10": 25, "bps": "2.5", "minBrkx": "50000" }
+    },
+    "revenueSplit": "50% InsuranceFund / 50% Treasury"
+  },
+  "gasUsed": "~0.000395 ETH (initial) + ~0.00055 ETH (BRKX upgrade)"
+}

@@ -1,0 +1,110 @@
+specVersion: 1.0.0
+indexerHints:
+  prune: auto
+schema:
+  file: ./schema.graphql
+dataSources:
+  # ── PositionManager ─────────────────────────────────────────────
+  - kind: ethereum
+    name: PositionManager
+    network: arbitrum-sepolia
+    source:
+      address: "0x53E3063FE2194c2DAe30C36420A01A8573B150bC"
+      abi: PositionManager
+      # Update startBlock to actual deployment block (check sepolia.arbiscan.io)
+      startBlock: 0
+    mapping:
+      kind: ethereum/events
+      apiVersion: 0.0.9
+      language: wasm/assemblyscript
+      entities:
+        - Position
+        - Trade
+        - FundingSettlement
+        - MarketStats
+        - Protocol
+      abis:
+        - name: PositionManager
+          file: ./abis/PositionManager.json
+      eventHandlers:
+        - event: PositionOpened(indexed bytes32,indexed address,indexed address,address,uint256,uint256,uint256,bool)
+          handler: handlePositionOpened
+        - event: PositionClosed(indexed bytes32,indexed address,int256,uint256)
+          handler: handlePositionClosed
+        - event: FundingSettled(indexed bytes32,int256,uint256)
+          handler: handleFundingSettled
+      file: ./src/position-manager.ts
+
+  # ── FundingEngine ────────────────────────────────────────────────
+  - kind: ethereum
+    name: FundingEngine
+    network: arbitrum-sepolia
+    source:
+      address: "0x459BE882BC8736e92AA4589D1b143e775b114b38"
+      abi: FundingEngine
+      startBlock: 0
+    mapping:
+      kind: ethereum/events
+      apiVersion: 0.0.9
+      language: wasm/assemblyscript
+      entities:
+        - FundingRateSnapshot
+        - MarketStats
+      abis:
+        - name: FundingEngine
+          file: ./abis/FundingEngine.json
+      eventHandlers:
+        - event: FundingRateUpdated(indexed address,int256,uint256,uint256,uint256)
+          handler: handleFundingRateUpdated
+      file: ./src/funding-engine.ts
+
+  # ── CollateralVault ──────────────────────────────────────────────
+  - kind: ethereum
+    name: CollateralVault
+    network: arbitrum-sepolia
+    source:
+      address: "0x5530e4670523cFd1A60dEFbB123f51ae6cae0c5E"
+      abi: CollateralVault
+      startBlock: 0
+    mapping:
+      kind: ethereum/events
+      apiVersion: 0.0.9
+      language: wasm/assemblyscript
+      entities:
+        - DepositEvent
+        - WithdrawEvent
+        - Protocol
+      abis:
+        - name: CollateralVault
+          file: ./abis/CollateralVault.json
+      eventHandlers:
+        - event: Deposited(indexed address,indexed address,uint256)
+          handler: handleDeposited
+        - event: Withdrawn(indexed address,indexed address,uint256)
+          handler: handleWithdrawn
+      file: ./src/collateral-vault.ts
+
+  # ── LiquidationEngine ───────────────────────────────────────────
+  - kind: ethereum
+    name: LiquidationEngine
+    network: arbitrum-sepolia
+    source:
+      address: "0x456eBE7BbCb099E75986307E4105A652c108b608"
+      abi: LiquidationEngine
+      startBlock: 0
+    mapping:
+      kind: ethereum/events
+      apiVersion: 0.0.9
+      language: wasm/assemblyscript
+      entities:
+        - LiquidationEvent
+        - Position
+        - MarketStats
+        - Protocol
+      abis:
+        - name: LiquidationEngine
+          file: ./abis/LiquidationEngine.json
+      eventHandlers:
+        - event: Liquidated(indexed bytes32,indexed address,indexed address,uint256,uint256,uint256,uint256)
+          handler: handleLiquidated
+      file: ./src/liquidation-engine.ts
