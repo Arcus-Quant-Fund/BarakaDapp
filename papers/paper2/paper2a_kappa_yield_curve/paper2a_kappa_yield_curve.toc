@@ -38,3 +38,5 @@
 \contentsline {section}{\numberline {A}Proof of Theorem~\ref {thm:main}}{25}{appendix.A}%
 \contentsline {section}{\numberline {B}GMM Moment Conditions}{26}{appendix.B}%
 \contentsline {section}{\numberline {C}Country Coverage and Sukuk Universe}{26}{appendix.C}%
+\contentsline {section}{\numberline {D}Monte Carlo CIR Robustness Check}{27}{appendix.D}%
+\contentsline {paragraph}{Interpretation.}{28}{section*.25}%
