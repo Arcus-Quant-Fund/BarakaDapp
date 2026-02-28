@@ -1,0 +1,8 @@
+step,gas_units,gas_gwei,eth_cost,usd_cost,description
+openProtection,128000,12800.0,1.2800000000000001e-05,0.035840000000000004,Seller deposits notional; storage write
+acceptProtection,85000,8500.0,8.5e-06,0.023799999999999998,Buyer accepts; first premium transfer
+payPremium,58000,5800.0,5.8e-06,0.01624,Quarterly premium payment
+triggerCreditEvent,48000,4800.0,4.800000000000001e-06,0.013440000000000002,Keeper + oracle price check
+settle,67000,6700.0,6.7e-06,0.01876,LGD payout to buyer; remainder to seller
+expire,52000,5200.0,5.2e-06,0.01456,Seller reclaims collateral at maturity
+"Full lifecycle (1yr, 3 premiums + settlement)",502000,50200.0,5.02e-05,0.14056,openProtection+accept+3×pay+trigger+settle

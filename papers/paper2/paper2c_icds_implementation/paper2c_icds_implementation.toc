@@ -1,0 +1,67 @@
+\contentsline {section}{\numberline {1}Introduction}{5}{section.1}%
+\contentsline {paragraph}{Contribution 1: Closed-form riba-free pricing.}{5}{section*.2}%
+\contentsline {paragraph}{Contribution 2: Smart-contract implementation.}{5}{section*.3}%
+\contentsline {paragraph}{Contribution 3: Regulatory pathway.}{6}{section*.4}%
+\contentsline {paragraph}{Organisation.}{6}{section*.5}%
+\contentsline {section}{\numberline {2}Theoretical Framework}{6}{section.2}%
+\contentsline {subsection}{\numberline {2.1}The $\kappa $-Rate and AHJ No-Arbitrage at $\iota = 0$}{6}{subsection.2.1}%
+\contentsline {subsection}{\numberline {2.2}iCDS Pricing Formula: $s^* = \kappa (1-\delta )$}{7}{subsection.2.2}%
+\contentsline {subsection}{\numberline {2.3}Comparison with Conventional CDS: The AHJ Formula at $\iota > 0$}{7}{subsection.2.3}%
+\contentsline {subsection}{\numberline {2.4}The Riba Premium}{8}{subsection.2.4}%
+\contentsline {section}{\numberline {3}Data}{8}{section.3}%
+\contentsline {subsection}{\numberline {3.1}$\hat {\kappa }$ Time Series from Paper 2A}{8}{subsection.3.1}%
+\contentsline {subsection}{\numberline {3.2}Damodaran Sovereign CDS Panel}{8}{subsection.3.2}%
+\contentsline {subsection}{\numberline {3.3}FRED SOFR}{9}{subsection.3.3}%
+\contentsline {section}{\numberline {4}Pricing Analysis}{9}{section.4}%
+\contentsline {subsection}{\numberline {4.1}Descriptive Statistics}{9}{subsection.4.1}%
+\contentsline {subsection}{\numberline {4.2}Annual Pricing Comparison}{9}{subsection.4.2}%
+\contentsline {subsection}{\numberline {4.3}Long-Run Pricing and the Mean-Reversion Premium}{10}{subsection.4.3}%
+\contentsline {subsection}{\numberline {4.4}Riba Premium Decomposition}{11}{subsection.4.4}%
+\contentsline {subsection}{\numberline {4.5}Scatter: AHJ Formula vs.\ Damodaran CDS}{11}{subsection.4.5}%
+\contentsline {subsection}{\numberline {4.6}Welfare Analysis}{12}{subsection.4.6}%
+\contentsline {section}{\numberline {5}Smart Contract Implementation}{15}{section.5}%
+\contentsline {subsection}{\numberline {5.1}Architecture}{15}{subsection.5.1}%
+\contentsline {subsection}{\numberline {5.2}Full Lifecycle}{15}{subsection.5.2}%
+\contentsline {paragraph}{Step 1 -- openProtection.}{15}{section*.14}%
+\contentsline {paragraph}{Step 2 -- acceptProtection.}{16}{section*.15}%
+\contentsline {paragraph}{Step 3 -- payPremium (quarterly, dynamic).}{16}{section*.16}%
+\contentsline {paragraph}{Step 4 -- triggerCreditEvent.}{16}{section*.17}%
+\contentsline {paragraph}{Step 5 -- settle.}{16}{section*.18}%
+\contentsline {paragraph}{Step 6 -- expire.}{16}{section*.19}%
+\contentsline {subsection}{\numberline {5.3}Dynamic Premium Mechanics and Shariah Compliance}{17}{subsection.5.3}%
+\contentsline {subsection}{\numberline {5.4}Credit Event Oracle: Design Options}{17}{subsection.5.4}%
+\contentsline {subsection}{\numberline {5.5}Gas Cost Benchmarks}{18}{subsection.5.5}%
+\contentsline {section}{\numberline {6}Legal Analysis}{18}{section.6}%
+\contentsline {subsection}{\numberline {6.1}AAOIFI Shariah Standard No.\ 1 Compliance}{18}{subsection.6.1}%
+\contentsline {paragraph}{(a) Wa'd structure.}{19}{section*.23}%
+\contentsline {paragraph}{(b) Premium as halal consideration.}{19}{section*.24}%
+\contentsline {paragraph}{(c) Real risk, not simulated gambling.}{19}{section*.25}%
+\contentsline {paragraph}{(d) Gharar minimisation.}{19}{section*.26}%
+\contentsline {paragraph}{Conclusion.}{20}{section*.27}%
+\contentsline {subsection}{\numberline {6.2}ISDA/IIFM Tahawwut Documentation}{20}{subsection.6.2}%
+\contentsline {subsection}{\numberline {6.3}Jurisdictional Analysis}{20}{subsection.6.3}%
+\contentsline {paragraph}{UAE / VARA.}{20}{section*.29}%
+\contentsline {paragraph}{Malaysia / BNM.}{21}{section*.30}%
+\contentsline {paragraph}{Singapore / MAS.}{21}{section*.31}%
+\contentsline {paragraph}{US / CFTC.}{21}{section*.32}%
+\contentsline {paragraph}{Bahrain / CBB.}{21}{section*.33}%
+\contentsline {subsection}{\numberline {6.4}Recommended Pilot: UAE / VARA}{22}{subsection.6.4}%
+\contentsline {section}{\numberline {7}Liquidity Bootstrapping}{22}{section.7}%
+\contentsline {subsection}{\numberline {7.1}Market Structure}{22}{subsection.7.1}%
+\contentsline {subsection}{\numberline {7.2}BRKX Token Incentive Mechanism}{23}{subsection.7.2}%
+\contentsline {subsection}{\numberline {7.3}Game-Theoretic Analysis: Nash Equilibrium}{23}{subsection.7.3}%
+\contentsline {subsection}{\numberline {7.4}Liquidity Milestones}{23}{subsection.7.4}%
+\contentsline {section}{\numberline {8}Systemic Risk}{24}{section.8}%
+\contentsline {subsection}{\numberline {8.1}Lessons from 2008}{24}{subsection.8.1}%
+\contentsline {subsection}{\numberline {8.2}iCDS Safeguards}{24}{subsection.8.2}%
+\contentsline {paragraph}{Full collateralisation.}{24}{section*.34}%
+\contentsline {paragraph}{Transparent exposure.}{24}{section*.35}%
+\contentsline {paragraph}{No synthetic leverage chains.}{24}{section*.36}%
+\contentsline {subsection}{\numberline {8.3}Circuit Breakers and Position Limits}{25}{subsection.8.3}%
+\contentsline {section}{\numberline {9}Conclusion}{25}{section.9}%
+\contentsline {section}{\numberline {A}iCDS.sol Key Functions (Solidity)}{27}{appendix.A}%
+\contentsline {section}{\numberline {B}CIR Parameters from Paper 2A}{28}{appendix.B}%
+\contentsline {section}{\numberline {C}Draft iCDS Term Sheet (ISDA/IIFM Tahawwut Format)}{28}{appendix.C}%
+\contentsline {paragraph}{CRediT Author Contribution Statement.}{29}{section*.39}%
+\contentsline {paragraph}{Conflict of Interest Statement.}{30}{section*.40}%
+\contentsline {paragraph}{Data Availability.}{30}{section*.41}%
