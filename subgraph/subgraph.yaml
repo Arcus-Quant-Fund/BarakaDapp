@@ -4,14 +4,13 @@ indexerHints:
 schema:
   file: ./schema.graphql
 dataSources:
-  # ── PositionManager ─────────────────────────────────────────────
+  # ── PositionManager (v3 — BRKX fee system, deployed 2026-02-27) ──────────
   - kind: ethereum
     name: PositionManager
     network: arbitrum-sepolia
     source:
-      address: "0x53E3063FE2194c2DAe30C36420A01A8573B150bC"
+      address: "0x035E38fd8b34486530A4Cd60cE9D840e1a0A124a"
       abi: PositionManager
-      # Update startBlock to actual deployment block (check sepolia.arbiscan.io)
       startBlock: 0
     mapping:
       kind: ethereum/events
@@ -58,12 +57,12 @@ dataSources:
           handler: handleFundingRateUpdated
       file: ./src/funding-engine.ts
 
-  # ── CollateralVault ──────────────────────────────────────────────
+  # ── CollateralVault (v2 — chargeFromFree, deployed 2026-02-27) ──────────
   - kind: ethereum
     name: CollateralVault
     network: arbitrum-sepolia
     source:
-      address: "0x5530e4670523cFd1A60dEFbB123f51ae6cae0c5E"
+      address: "0x0e9e32e4e061Db57eE5d3309A986423A5ad3227E"
       abi: CollateralVault
       startBlock: 0
     mapping:
@@ -84,12 +83,12 @@ dataSources:
           handler: handleWithdrawn
       file: ./src/collateral-vault.ts
 
-  # ── LiquidationEngine ───────────────────────────────────────────
+  # ── LiquidationEngine (v2 — deployed 2026-02-27) ────────────────────────
   - kind: ethereum
     name: LiquidationEngine
     network: arbitrum-sepolia
     source:
-      address: "0x456eBE7BbCb099E75986307E4105A652c108b608"
+      address: "0x17D9399C7e17690bE23544E379907eC1AB6b7E07"
       abi: LiquidationEngine
       startBlock: 0
     mapping:
@@ -108,3 +107,81 @@ dataSources:
         - event: Liquidated(indexed bytes32,indexed address,indexed address,uint256,uint256,uint256,uint256)
           handler: handleLiquidated
       file: ./src/liquidation-engine.ts
+
+  # ── TakafulPool (L3 — mutual Islamic insurance, deployed 2026-02-28) ──────
+  - kind: ethereum
+    name: TakafulPool
+    network: arbitrum-sepolia
+    source:
+      address: "0xD53d34cC599CfadB5D1f77516E7Eb326a08bb0E4"
+      abi: TakafulPool
+      startBlock: 245800000
+    mapping:
+      kind: ethereum/events
+      apiVersion: 0.0.9
+      language: wasm/assemblyscript
+      entities:
+        - ContributionEvent
+        - ClaimEvent
+      abis:
+        - name: TakafulPool
+          file: ./abis/TakafulPool.json
+      eventHandlers:
+        - event: ContributionMade(indexed bytes32,indexed address,uint256,uint256,uint256)
+          handler: handleContributionMade
+        - event: ClaimPaid(indexed bytes32,indexed address,uint256)
+          handler: handleClaimPaid
+      file: ./src/takaful-pool.ts
+
+  # ── PerpetualSukuk (L2 — Islamic capital markets, deployed 2026-02-28) ───
+  - kind: ethereum
+    name: PerpetualSukuk
+    network: arbitrum-sepolia
+    source:
+      address: "0xd209f7B587c8301D5E4eC1691264deC1a560e48D"
+      abi: PerpetualSukuk
+      startBlock: 245800000
+    mapping:
+      kind: ethereum/events
+      apiVersion: 0.0.9
+      language: wasm/assemblyscript
+      entities:
+        - SukukSubscription
+        - SukukProfit
+      abis:
+        - name: PerpetualSukuk
+          file: ./abis/PerpetualSukuk.json
+      eventHandlers:
+        - event: Subscribed(indexed uint256,indexed address,uint256)
+          handler: handleSubscribed
+        - event: ProfitClaimed(indexed uint256,indexed address,uint256)
+          handler: handleProfitClaimed
+        - event: Redeemed(indexed uint256,indexed address,uint256,uint256)
+          handler: handleRedeemed
+      file: ./src/perpetual-sukuk.ts
+
+  # ── iCDS (L4 — Islamic Credit Default Swap, deployed 2026-02-28) ─────────
+  - kind: ethereum
+    name: iCDS
+    network: arbitrum-sepolia
+    source:
+      address: "0xc4E8907619C8C02AF90D146B710306aB042c16c5"
+      abi: iCDS
+      startBlock: 245800000
+    mapping:
+      kind: ethereum/events
+      apiVersion: 0.0.9
+      language: wasm/assemblyscript
+      entities:
+        - ProtectionEvent
+      abis:
+        - name: iCDS
+          file: ./abis/iCDS.json
+      eventHandlers:
+        - event: ProtectionOpened(indexed uint256,indexed address,address,address,uint256,uint256)
+          handler: handleProtectionOpened
+        - event: ProtectionAccepted(indexed uint256,indexed address)
+          handler: handleProtectionAccepted
+        - event: Settled(indexed uint256,indexed address,uint256,uint256)
+          handler: handleSettled
+      file: ./src/icds.ts

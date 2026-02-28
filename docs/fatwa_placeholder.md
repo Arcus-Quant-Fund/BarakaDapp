@@ -73,16 +73,28 @@ funding transfers further confirm no systemic wealth extraction.
 
 ## 3. CONTRACT ADDRESSES (Arbitrum Sepolia Testnet — 421614)
 
+### Layer 1 — Core Protocol
+
 | Contract           | Address |
 |--------------------|---------|
-| OracleAdapter      | 0xB8d9778288B96ee5a9d873F222923C0671fc38D4 |
+| OracleAdapter      | 0x86C475d9943ABC61870C6F19A7e743B134e1b563 |
 | ShariahGuard       | 0x26d4db76a95DBf945ac14127a23Cd4861DA42e69 |
 | FundingEngine      | 0x459BE882BC8736e92AA4589D1b143e775b114b38 |
 | InsuranceFund      | 0x7B440af63D5fa5592E53310ce914A21513C1a716 |
-| CollateralVault    | 0x5530e4670523cFd1A60dEFbB123f51ae6cae0c5E |
-| LiquidationEngine  | 0x456eBE7BbCb099E75986307E4105A652c108b608 |
-| PositionManager    | 0x53E3063FE2194c2DAe30C36420A01A8573B150bC |
+| CollateralVault    | 0x0e9e32e4e061Db57eE5d3309A986423A5ad3227E |
+| LiquidationEngine  | 0x17D9399C7e17690bE23544E379907eC1AB6b7E07 |
+| PositionManager    | 0x035E38fd8b34486530A4Cd60cE9D840e1a0A124a |
 | GovernanceModule   | 0x8c987818dffcD00c000Fe161BFbbD414B0529341 |
+| BRKXToken          | 0xD3f7E29cAC5b618fAB44Dd8a64C4CC335C154A32 |
+
+### Layer 2–4 — Product Stack (deployed 2026-02-28)
+
+| Contract           | Address |
+|--------------------|---------|
+| EverlastingOption  | 0x977419b75182777c157E2192d4Ec2dC87413E006 |
+| TakafulPool        | 0xD53d34cC599CfadB5D1f77516E7Eb326a08bb0E4 |
+| PerpetualSukuk     | 0xd209f7B587c8301D5E4eC1691264deC1a560e48D |
+| iCDS               | 0xc4E8907619C8C02AF90D146B710306aB042c16c5 |
 
 All contracts are verified on Arbiscan:
 https://sepolia.arbiscan.io/address/0x26d4db76a95DBf945ac14127a23Cd4861DA42e69
@@ -107,7 +119,7 @@ and on the Baraka Protocol transparency page before mainnet launch.
 
 | Item                  | Status       | Detail |
 |-----------------------|--------------|--------|
-| Unit tests (Forge)    | 60/60 pass   | FundingEngine + ShariahGuard, 1000 fuzz runs |
+| Unit tests (Forge)    | 177/177 pass | All 12 contracts, 1000 fuzz runs each |
 | Integration tests     | 30/30 pass   | Full lifecycle, liquidation, Shariah gate |
 | E2E fork tests        | 6/6 pass     | Arbitrum Sepolia fork, 20s automated |
 | Slither static analysis | Clean      | HIGH 0, MEDIUM 0 (Feb 2026) |

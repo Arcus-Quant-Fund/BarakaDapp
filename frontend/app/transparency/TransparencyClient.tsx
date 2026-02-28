@@ -3,17 +3,22 @@
 import { useFundingRate } from '@/hooks/useFundingRate'
 import { useOraclePrices } from '@/hooks/useOraclePrices'
 import { useInsuranceFund } from '@/hooks/useInsuranceFund'
-import { CONTRACTS, ARBISCAN_BASE } from '@/lib/contracts'
+import { CONTRACTS, PRODUCT_CONTRACTS, ARBISCAN_BASE } from '@/lib/contracts'
 
 const CONTRACT_LIST = [
-  { name: 'FundingEngine',     addr: CONTRACTS.FundingEngine,     desc: 'F = (Mark − Index) / Index, ι hardcoded to 0' },
-  { name: 'ShariahGuard',      addr: CONTRACTS.ShariahGuard,      desc: 'Validates leverage ≤ 5×, asset approval, pause controls' },
-  { name: 'OracleAdapter',     addr: CONTRACTS.OracleAdapter,     desc: 'Dual Chainlink feeds (60/40), staleness + circuit breaker' },
-  { name: 'CollateralVault',   addr: CONTRACTS.CollateralVault,   desc: 'USDC/PAXG/XAUT custody, no rehypothecation, 24h cooldown' },
-  { name: 'PositionManager',   addr: CONTRACTS.PositionManager,   desc: 'Open/close positions, always calls ShariahGuard first' },
-  { name: 'LiquidationEngine', addr: CONTRACTS.LiquidationEngine, desc: '2% maintenance margin, 1% penalty (50/50 fund/liquidator)' },
-  { name: 'InsuranceFund',     addr: CONTRACTS.InsuranceFund,     desc: 'No yield on idle capital — seed for Takaful layer' },
-  { name: 'GovernanceModule',  addr: CONTRACTS.GovernanceModule,  desc: '48h timelock, Shariah board veto, dual-track governance' },
+  { name: 'FundingEngine',     addr: CONTRACTS.FundingEngine,     desc: '[L1] F = (Mark − Index) / Index, ι hardcoded to 0' },
+  { name: 'ShariahGuard',      addr: CONTRACTS.ShariahGuard,      desc: '[L1] Validates leverage ≤ 5×, asset approval, fatwa IPFS registry' },
+  { name: 'OracleAdapter',     addr: CONTRACTS.OracleAdapter,     desc: '[L1] Dual Chainlink feeds (60/40), κ-signal, staleness + circuit breaker' },
+  { name: 'CollateralVault',   addr: CONTRACTS.CollateralVault,   desc: '[L1] USDC/PAXG/XAUT custody, no rehypothecation, 24h cooldown' },
+  { name: 'PositionManager',   addr: CONTRACTS.PositionManager,   desc: '[L1] Open/close positions, BRKX fee tiers, ShariahGuard on every open' },
+  { name: 'LiquidationEngine', addr: CONTRACTS.LiquidationEngine, desc: '[L1] 2% maintenance margin, 1% penalty (50/50 fund/liquidator)' },
+  { name: 'InsuranceFund',     addr: CONTRACTS.InsuranceFund,     desc: '[L1] No yield on idle capital — seed for Takaful layer' },
+  { name: 'GovernanceModule',  addr: CONTRACTS.GovernanceModule,  desc: '[L1] 48h timelock, Shariah board veto, dual-track governance' },
+  { name: 'BRKXToken',         addr: CONTRACTS.BRKXToken,         desc: '[L1] 100 M fixed supply, hold-based fee tiers (5.0 → 2.5 bps)' },
+  { name: 'EverlastingOption', addr: PRODUCT_CONTRACTS.EverlastingOption, desc: '[L2] κ-rate pricing engine — everlasting put/call at ι=0 (Ackerer 2024 Prop. 6)' },
+  { name: 'TakafulPool',       addr: PRODUCT_CONTRACTS.TakafulPool,       desc: '[L3] Tabarru mutual insurance — BTC/USDC pool, wakala 10% operator fee' },
+  { name: 'PerpetualSukuk',    addr: PRODUCT_CONTRACTS.PerpetualSukuk,    desc: '[L3] Ijarah + embedded mudarabah call — fixed profit + upside sharing' },
+  { name: 'iCDS',              addr: PRODUCT_CONTRACTS.iCDS,              desc: '[L4] Islamic Credit Default Swap — ta\'awun protection, no speculation' },
 ] as const
 
 const PRINCIPLES = [
@@ -36,21 +41,28 @@ const PRINCIPLES = [
     title: 'No Gharar (Uncertainty / Hidden Risk)',
     status: 'ENFORCED',
     color: 'var(--green-lite)',
-    body: 'All 8 contracts are verified on Arbiscan — source code is public. No proxy contracts, no upgradeable contracts (OZ upgradeable deliberately NOT installed). No admin backdoors. The only governance is a 48-hour timelock with Shariah board veto. All fees, liquidation parameters, and funding mechanics are visible on-chain.',
+    body: 'All 9 contracts are verified on Arbiscan — source code is public. No proxy contracts, no upgradeable contracts (OZ upgradeable deliberately NOT installed). No admin backdoors. The only governance is a 48-hour timelock with Shariah board veto. All fees, liquidation parameters, and funding mechanics are visible on-chain.',
   },
   {
     id: '04',
     title: 'Takaful Insurance Fund',
     status: 'PARTIAL',
     color: 'var(--gold)',
-    body: 'An on-chain insurance fund holds collateral to cover bad debt from insolvent positions. 50% of all liquidation penalties flow to this fund. No yield is generated on idle capital (no staking or lending of insurance funds). This is the seed of a full Takaful structure planned for v2.',
+    body: 'An on-chain insurance fund holds collateral to cover bad debt from insolvent positions. 50% of all liquidation penalties flow to this fund. No yield is generated on idle capital (no staking or lending of insurance funds). This is the seed of a full Takaful structure planned for Layer 3.',
   },
   {
     id: '05',
     title: 'Halal Asset Approval',
-    status: 'IN PROGRESS',
-    color: 'var(--gold)',
-    body: 'ShariahGuard.sol requires each market asset to be approved by the Shariah board multisig. The approval stores an IPFS hash pointing to the fatwa document. Currently BTC is approved on testnet. ETH and gold markets pending formal board review.',
+    status: 'ENFORCED',
+    color: 'var(--green-lite)',
+    body: 'ShariahGuard.sol requires each collateral asset to be approved by the Shariah board multisig. The approval stores an IPFS hash pointing to the fatwa document on Pinata. Testnet USDC is approved — fatwa CID QmVztQvWd5QkD5euhiUb2ycwr2SHL928Y2AC9rnWCMn7c2 is recorded in ShariahGuard.fatwaIPFS[USDC]. PAXG and XAUT pending formal board review for mainnet.',
+  },
+  {
+    id: '06',
+    title: 'Everlasting Options — κ-Rate Pricing (Layer 2)',
+    status: 'DEPLOYED',
+    color: 'var(--green-lite)',
+    body: 'EverlastingOption.sol implements the actuarially fair takaful pricing formula from Ackerer, Hugonnier & Jermann (2024) Proposition 6 at ι = 0: Π(x, K) = [K^{1−β} / (β₊ − β₋)] · x^β, where β = ½ ± √(¼ + 2κ/σ²). The κ-rate (convergence intensity) replaces the interest rate r entirely — no riba in the formula. 177/177 tests pass including fuzz (1 000 runs). Deployed to Arbitrum Sepolia (2026-02-28). This is the pricing engine for Layer 2 Perpetual Sukuk and Layer 3 Takaful.',
   },
 ]
 
@@ -224,9 +236,14 @@ export default function TransparencyClient() {
 
         <p style={{ fontSize: '12px', color: 'var(--text-muted)', lineHeight: 1.6 }}>
           Reference: Ackerer, D., Hugonnier, J., & Jermann, U. (2024).{' '}
-          <em>Perpetual Futures Pricing</em>. Swiss Finance Institute Research Paper.
-          The full paper is available on SSRN. The BarakaDapp implementation follows
-          Theorem 3 and Proposition 3 precisely — see NatSpec comments in FundingEngine.sol.
+          <em>Perpetual Futures Pricing</em>. Mathematical Finance 34(4), 1277–1308.
+          The BarakaDapp implementation follows Theorem 3 / Proposition 3 precisely — see
+          NatSpec comments in FundingEngine.sol. The κ-rate monetary framework and
+          everlasting option pricing (Proposition 6) are developed in Ahmed, Bhuyan &amp; Islam
+          (2026), Papers 2 &amp; 3 — available at{' '}
+          <a href="https://github.com/Arcus-Quant-Fund/BarakaDapp" style={{ color: 'var(--green-lite)', textDecoration: 'none' }}>
+            github.com/Arcus-Quant-Fund/BarakaDapp
+          </a>.
         </p>
       </div>
 
@@ -241,7 +258,7 @@ export default function TransparencyClient() {
       >
         <div style={{ padding: '16px 20px', borderBottom: '1px solid var(--border)' }}>
           <h2 style={{ fontSize: '14px', fontWeight: 700, color: 'var(--text-main)', margin: 0 }}>
-            Verified Contracts — Arbitrum Sepolia
+            Verified Contracts — Arbitrum Sepolia (13 deployed)
           </h2>
         </div>
         {CONTRACT_LIST.map(({ name, addr, desc }, i) => (

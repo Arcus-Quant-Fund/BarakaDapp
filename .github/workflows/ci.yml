@@ -11,7 +11,7 @@ jobs:
   # Smart Contract Tests (Foundry)
   # ─────────────────────────────────────────────────────────────────────────────
   contracts:
-    name: Forge Tests (60/60)
+    name: Forge Tests (177/177)
     runs-on: ubuntu-latest
     defaults:
       run:
@@ -88,7 +88,7 @@ jobs:
   # Frontend Build (Next.js)
   # ─────────────────────────────────────────────────────────────────────────────
   frontend:
-    name: Frontend Build (5/5 routes)
+    name: Frontend Build (8/8 routes)
     runs-on: ubuntu-latest
     defaults:
       run:
