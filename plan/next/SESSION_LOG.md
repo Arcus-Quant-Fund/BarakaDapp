@@ -7,6 +7,38 @@
 
 ---
 
+### Session 14 — February 28, 2026
+
+**Focus:** Build the complete Baraka product stack (Layer 2/3/4) enabled by EverlastingOption — TakafulPool, PerpetualSukuk, iCDS — with interface and full unit tests.
+
+**Completed:**
+
+**New Contracts (4 files):**
+- `src/interfaces/IEverlastingOption.sol` — `quotePut/quoteCall/quoteAtSpot/getExponents`
+- `src/takaful/TakafulPool.sol` — Layer 3: tabarru = `quotePut × coverage / WAD`; 10% wakala to operator
+- `src/credit/PerpetualSukuk.sol` — Layer 2: principal + embedded call at maturity; periodic profit distribution
+- `src/credit/iCDS.sol` — Layer 4: quarterly put-priced premium; keeper-triggered credit event; LGD settlement
+
+**Tests (51 new):**
+- `TakafulPool.t.sol` — 16/16 (lifecycle, claim caps, surplus distribution, 1000-run wakala fuzz)
+- `PerpetualSukuk.t.sol` — 16/16 (issuance, subscription, profit accrual, redemption, embedded call)
+- `iCDS.t.sol` — 19/19 (open/accept/premium/trigger/settle/expire + 1001-run LGD fuzz)
+
+**Key fixes during test development:**
+- quotePut returns ABSOLUTE price (not rate) — TakafulPool: `COV_UNIT=1e12`, iCDS: `NOTIONAL=1e18` + large BUYER mint
+- PerpetualSukuk: `claimProfit` changed to silent return for zero subscription (better UX)
+- iCDS: struct buyer at index [1] — corrected from 2 leading commas to 1
+- iCDS: double-accept reverts "iCDS: not open" (not "already accepted") — status is Active
+
+**Full test result: 177/177 ✅**
+
+**Next session:**
+1. Pinata JWT → fatwa IPFS upload
+2. SSRN preprint all 3 papers
+3. Discord + Twitter launch
+
+---
+
 ### Session 13 — February 28, 2026
 
 **Focus:** Frontend BRKX tier + fee hooks deployed; Paper 3 stochastic κ appendix verified and compiled; all docs updated.

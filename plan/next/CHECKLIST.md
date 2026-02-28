@@ -8,8 +8,8 @@
 
 | Phase | Status | URL / Notes |
 |---|---|---|
-| Smart Contracts (9) | ✅ Complete | 8 core + BRKXToken, all deployed + verified Arbitrum Sepolia |
-| Tests | ✅ 93/93 | +15 KappaSignal unit tests (premium/regime/kappa/fuzz), 1000 runs each |
+| Smart Contracts (12) | ✅ Complete | 8 core + BRKXToken + EverlastingOption + TakafulPool + PerpetualSukuk + iCDS |
+| Tests | ✅ 177/177 | +84 new: EverlastingOption (33) + TakafulPool (16) + PerpetualSukuk (16) + iCDS (19) |
 | Slither | ✅ Clean | HIGH 0, MEDIUM 0 |
 | Testnet Deploy | ✅ Live | All 9 contracts on chain 421614 |
 | BRKX Token + Fee System | ✅ Live | PM v3 + CollateralVault v2 + OracleAdapter v2 + LiqEngine v2 redeployed |
@@ -29,6 +29,11 @@
 | On-chain Redeploy + Smoke | ✅ Complete | `script/RedeployAndSmoke.s.sol` — 4 contracts redeployed, smoke test broadcast verified |
 | Frontend BRKX tier + fee display | ✅ Live | `useBrkxTier` + `useKappaSignal` hooks; OrderPanel fee row + tier badge deployed Feb 28 |
 | Paper 3 stochastic κ appendix | ✅ Complete | CIR-κ SDE, Feller lemma, κ-bond theorem, κ-yield curve — 11pp clean PDF |
+| EverlastingOption.sol | ✅ Complete | Ackerer Prop 6 at ι=0; inline lnWad+expWad; 33/33 tests pass (unit+fuzz) |
+| TakafulPool.sol (Layer 3) | ✅ Complete | Mutual takaful insurance; wakala 10%; put-priced tabarru; 16/16 tests |
+| PerpetualSukuk.sol (Layer 2) | ✅ Complete | Islamic capital market instrument; par+embedded call at maturity; 16/16 tests |
+| iCDS.sol (Layer 4) | ✅ Complete | Islamic Credit Default Swap; quarterly put-priced premium; LGD settlement; 19/19 tests + 1k fuzz |
+| IEverlastingOption.sol interface | ✅ Complete | quotePut/quoteCall/quoteAtSpot/getExponents — used by all Layer 2/3/4 |
 | **Next session starts here →** | ⏳ | Pinata JWT + fatwa IPFS upload → GovernanceModule.setFatwaURI() |
 
 ---
@@ -229,6 +234,10 @@
 - [x] `test/unit/BRKXToken.t.sol` — 10/10 (supply, transfer, approve, burn, ERC20Votes, ERC20Permit, Ownable2Step, fuzz)
 - [x] `test/unit/PositionManagerFee.t.sol` — 8/8 (all 4 tiers, disabled mode, InsuranceFund split, treasury split, event)
 - [x] `test/unit/KappaSignal.t.sol` — 15/15 (premium sign, regime 0-3, fuzz 1000 runs)
+- [x] `test/unit/EverlastingOption.t.sol` — 33/33 (math harness 11 + pricing 22, with 4 fuzz props, 1000 runs each)
+- [x] `test/unit/TakafulPool.t.sol` — 16/16 (pool lifecycle + claim + surplus + wakala fuzz 1000 runs)
+- [x] `test/unit/PerpetualSukuk.t.sol` — 16/16 (issuance + subscription + profit + redemption + call sensitivity)
+- [x] `test/unit/iCDS.t.sol` — 19/19 (open + accept + premium + credit event + settlement + expiry + LGD fuzz 1000 runs)
 - [x] `test/integration/BarakaIntegration.t.sol` — 30/30 (updated for 7-arg PM constructor)
 
 ### Fee tier table (hold-based, no lock-up)
@@ -383,4 +392,4 @@ npx graph deploy arcus --version-label v0.0.2
 
 ---
 
-*Checklist Version 2.4 — February 28, 2026 — Updated after Session 13 (frontend BRKX/κ hooks + Paper 3 stochastic κ appendix)*
+*Checklist Version 2.5 — February 28, 2026 — Updated after Session 14 (Layer 2/3/4 contracts + IEverlastingOption interface + 177/177 tests)*

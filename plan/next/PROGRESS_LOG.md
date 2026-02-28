@@ -10,8 +10,8 @@
 | Research & Math | ✅ Complete | 3 papers: ι=0 proof · credit equivalence · κ-Rate monetary alternative (11pp + Appendix A) |
 | API Keys | ✅ Complete | All keys in `BarakaDapp/.env` |
 | Environment Setup | ✅ Complete | Foundry 1.5.1, Node.js, Slither, graph-cli |
-| Smart Contracts (9) | ✅ Complete | 8 core + BRKXToken · 4 contracts redeployed v2/v3 Feb 27 |
-| Unit Tests | ✅ 93/93 | FundingEngine (14) + ShariahGuard (16) + BRKXToken (10) + PMFee (8) + KappaSignal (15) + Integration (30) |
+| Smart Contracts (12) | ✅ Complete | 8 core + BRKXToken + EverlastingOption + TakafulPool + PerpetualSukuk + iCDS |
+| Unit Tests | ✅ 177/177 | +84 new: EverlastingOption (33) + TakafulPool (16) + PerpetualSukuk (16) + iCDS (19 + 1k fuzz) |
 | Slither Analysis | ✅ Clean | HIGH 0, MEDIUM 0 |
 | Simulations | ✅ Complete | cadCAD + RL + GT + MD + Integrated IES (5 ep × 720 steps) |
 | Testnet Deploy | ✅ Live | All 9 contracts on Arbitrum Sepolia (421614) · v2/v3 redeployed Feb 27 |
@@ -30,16 +30,77 @@
 | κ-signal Oracle | ✅ Complete + Live | getPremium + getKappaSignal + KappaAlert · 15 tests · on-chain verified |
 | Frontend BRKX hooks | ✅ Live | `useBrkxTier` + `useKappaSignal` deployed · OrderPanel fee row + tier badge + BRKX indicator |
 | Paper 3 Appendix A | ✅ Complete | CIR-κ SDE · Feller lemma · κ-bond theorem · stochastic κ-yield curve · 11pp clean PDF |
+| Layer 2/3/4 Contracts | ✅ Complete | TakafulPool + PerpetualSukuk + iCDS + IEverlastingOption interface |
 | Pinata JWT / IPFS | ⏳ Pending | **Next session starts here** |
 | Discord / Twitter | ⏳ Pending | Community launch |
 | SSRN Preprint | ⏳ Pending | Upload all 3 papers |
 | Shariah Outreach | ⏳ Pending | AAOIFI contacts |
 
-**Overall: Protocol complete + on-chain smoke verified. Next: IPFS fatwa + community launch.**
+**Overall: Full product stack built — Perps + EverlastingOption + Sukuk + Takaful + iCDS. 177/177 tests. Next: IPFS fatwa + community launch.**
 
 ---
 
 ## LOG ENTRIES
+
+---
+
+### February 28, 2026 — Session 14: Layer 2/3/4 Product Stack (TakafulPool + PerpetualSukuk + iCDS)
+
+**Focus:** Implement the complete Baraka product stack enabled by EverlastingOption (Layer 1.5) — mutual takaful insurance, Islamic sukuk, and Islamic CDS — with full unit test coverage.
+
+**Contracts Created:**
+- `src/interfaces/IEverlastingOption.sol` — NEW: `quotePut/quoteCall/quoteAtSpot/getExponents` — common interface used by all Layer 2/3/4 contracts
+- `src/takaful/TakafulPool.sol` — NEW: Layer 3 mutual insurance pool
+  - `contribute(poolId, coverage)` — computes `tabarruGross = quotePut × coverage / WAD`; splits 10% wakala to operator, 90% to pool
+  - `payClaim(poolId, to, amount)` — keeper-only; requires `spot ≤ floor`; caps at pool balance
+  - `distributeSurplus(poolId, charity)` — owner-only; requires `balance > 2 × totalClaimsPaid`
+  - AAOIFI Shariah Standard No. 26 (Takaful) compliant
+- `src/credit/PerpetualSukuk.sol` — NEW: Layer 2 Islamic capital market instrument
+  - `issue(asset, token, par, profitRate, maturity)` — issuer deposits par as collateral
+  - `subscribe(id, amount)` — investor subscribes at par
+  - `claimProfit(id)` — periodic profit = `amount × profitRate × elapsed / year`
+  - `redeem(id)` — at maturity: principal + `quoteCall(spot, par) × subscribed / WAD` embedded call upside
+  - AAOIFI Shariah Standard No. 17 (Investment Sukuk) compliant
+- `src/credit/iCDS.sol` — NEW: Layer 4 Islamic Credit Default Swap
+  - Lifecycle: `openProtection → acceptProtection → payPremium → triggerCreditEvent → settle/expire`
+  - Premium = `quotePut(spot, recoveryFloor) × notional / WAD` (dynamic, not fixed riba)
+  - Credit event = on-chain oracle: `spot ≤ recoveryFloor` (verifiable, eliminates gharar)
+  - Seller deposits full notional as collateral (no naked CDS)
+  - Settlement: LGD = `notional × (1 − recoveryRate)` to buyer; recovery portion returned to seller
+
+**Tests Created (51 new, all passing):**
+- `test/unit/TakafulPool.t.sol` — 16/16 including `testFuzz_wakala_isTenPercent` (1000 runs)
+- `test/unit/PerpetualSukuk.t.sol` — 16/16 including profit accrual math + embedded call sensitivity
+- `test/unit/iCDS.t.sol` — 19/19 including `testFuzz_settlement_lgdCorrect` (1001 runs, any recovery 1%→99%)
+
+**Key Engineering Notes:**
+- `quotePut(x, K)` returns **absolute WAD price** (not dimensionless ratio): ~27k tokens per WAD unit at BTC params. Tests use `COV_UNIT = 1e12` for TakafulPool and `NOTIONAL = 1e18` for iCDS to keep premiums affordable.
+- PerpetualSukuk `claimProfit` changed from `require(amount > 0)` → `if (amount == 0) return` — silent return on zero subscription is better UX (frontend can call without pre-checking)
+- iCDS double-accept: second `acceptProtection` reverts with "iCDS: not open" (status = Active), NOT "already accepted"
+- iCDS struct has 11 fields; `buyer` is at index [1] — one leading comma in destructuring
+
+**Full Test Suite: 177/177** (177 pass + 1 E2E fork test skipped without `--fork-url`)
+
+**Files Created/Changed:**
+| File | Change |
+|---|---|
+| `src/interfaces/IEverlastingOption.sol` | NEW |
+| `src/takaful/TakafulPool.sol` | NEW |
+| `src/credit/PerpetualSukuk.sol` | NEW (claimProfit guard updated) |
+| `src/credit/iCDS.sol` | NEW |
+| `test/unit/TakafulPool.t.sol` | NEW |
+| `test/unit/PerpetualSukuk.t.sol` | NEW |
+| `test/unit/iCDS.t.sol` | NEW (NOTIONAL=1e18, BUYER 100M tokens) |
+| `plan/next/CHECKLIST.md` | v2.5: 177/177, Layer 2/3/4 complete |
+| `plan/next/PROGRESS_LOG.md` | Session 14 entry |
+| `plan/next/SESSION_LOG.md` | Session 14 entry |
+
+**Tests Status:** 177/177 ✅ (E2E fork test: requires `--fork-url`, expected)
+
+**Next session:**
+1. Pinata JWT → upload `fatwa_placeholder.pdf` → `GovernanceModule.setFatwaURI(cid)` on Sepolia
+2. SSRN preprint upload (all 3 papers)
+3. Discord + Twitter community launch
 
 ---
 
@@ -455,4 +516,4 @@
 
 ---
 
-*Log started: February 2026 — Last updated: February 28, 2026 (Session 13)*
+*Log started: February 2026 — Last updated: February 28, 2026 (Session 14)*
