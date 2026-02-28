@@ -43,6 +43,9 @@
 | Transparency page | ✅ Updated | 13 contracts listed (9 L1 + 4 L2/L3/L4) |
 | Arbiscan verification | ✅ All verified | All 4 product stack contracts confirmed |
 | Paper 2A (κ-Yield Curve Empirical) | ✅ Complete | 26pp, real data (Damodaran+FRED+Yahoo), all tables filled, zero PLACEHOLDERs, PDF compiles clean |
+| Invariant tests (iota=0 + leverage) | ✅ Complete | `Invariant_IotaZero.t.sol` (5 invariants, 256x128 depth) + `Invariant_MaxLeverage.t.sol` (4 invariants) — 186/186 total |
+| GovernanceModule unit tests | ✅ Complete | `test/unit/GovernanceModule.t.sol` — 51/51 (propose/vote/queue/execute/veto/cancel/timelock/fuzz) |
+| InsuranceFund unit tests | ✅ Complete | `test/unit/InsuranceFund.t.sol` — 32/32 (receive/cover/surplus/weekly-tracker/fuzz) |
 | **Next session starts here →** | ⏳ | Discord/Twitter launch, SSRN preprint (all 4 papers), mainnet scholar fatwa PDF |
 
 ---
@@ -129,10 +132,12 @@
 - [x] Slither: **HIGH 0, MEDIUM 0** — Feb 26 2026
   - [x] HIGH fixed: `OracleAdapter.lastValidPrice` never written → added `snapshotPrice()` keeper
   - [x] MEDIUM fixed: divide-before-multiply, 2× incorrect-equality, reentrancy CEI restructure, 3× uninitialized-local, unused-return
-- [ ] Unit tests for OracleAdapter, CollateralVault, LiquidationEngine, InsuranceFund, GovernanceModule *(Phase 2 priority before mainnet)*
+- [x] Unit tests for InsuranceFund — `test/unit/InsuranceFund.t.sol` (32/32)
+- [x] Unit tests for GovernanceModule — `test/unit/GovernanceModule.t.sol` (51/51)
+- [ ] Unit tests for OracleAdapter (covered partially by KappaSignal.t.sol), CollateralVault, LiquidationEngine *(remaining gaps)*
 - [ ] `forge coverage` >= 90% *(Phase 2 priority)*
-- [ ] Invariant test: ι=0 never violated *(Phase 2)*
-- [ ] Invariant test: leverage > 5 never possible *(Phase 2)*
+- [x] Invariant test: iota=0 never violated — `test/invariant/Invariant_IotaZero.t.sol` (5 invariants, 256 runs x 128 depth = 32,768 calls each)
+- [x] Invariant test: leverage > 5 never possible — `test/invariant/Invariant_MaxLeverage.t.sol` (4 invariants, 256 runs x 128 depth = 32,768 calls each)
 - [ ] Integration test: oracle failover (Chainlink staleness, circuit breaker) *(Phase 2)*
 
 ### Simulations — 22/22 checks pass

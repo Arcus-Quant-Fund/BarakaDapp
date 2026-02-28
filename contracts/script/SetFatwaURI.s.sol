@@ -51,9 +51,7 @@ contract SetFatwaURI is Script {
         console.log("Gateway      :");
         console.log("  https://gateway.pinata.cloud/ipfs/", cid);
         console.log("Verify on-chain:");
-        console.log("  cast call", address(sg),
-            "\"fatwaIPFS(address)(string)\"", USDC_SEPOLIA,
-            "--rpc-url arbitrum_sepolia");
+        console.log("  cast call <ShariahGuard> \"fatwaIPFS(address)(string)\" <USDC> --rpc-url arbitrum_sepolia");
         console.log("======================================================");
     }
 }

@@ -16,6 +16,10 @@ remappings = [
 [profile.default.fuzz]
 runs = 1000
 
+[profile.default.invariant]
+runs   = 256   # sequences per invariant
+depth  = 128   # calls per sequence
+
 [rpc_endpoints]
 arbitrum_sepolia = "${ALCHEMY_ARBITRUM_SEPOLIA_RPC}"
 arbitrum_mainnet = "${ALCHEMY_ARBITRUM_MAINNET_RPC}"
