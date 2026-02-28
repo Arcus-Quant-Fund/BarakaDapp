@@ -7,6 +7,109 @@
 
 ---
 
+### Session 15 — February 28, 2026
+
+**Focus:** Deploy product stack (L1.5/L2/L3/L4) to Arbitrum Sepolia, build all 4 frontend product pages, obtain Pinata JWT, update all documentation.
+
+**Completed:**
+
+**Contracts Deployed:**
+- `contracts/script/DeployProductStack.s.sol` — NEW deployment script (follows DeployBRKX.s.sol pattern)
+- EverlastingOption: `0x977419b75182777c157E2192d4Ec2dC87413E006`
+- TakafulPool:       `0xD53d34cC599CfadB5D1f77516E7Eb326a08bb0E4`
+- PerpetualSukuk:    `0xd209f7B587c8301D5E4eC1691264deC1a560e48D`
+- iCDS:              `0xc4E8907619C8C02AF90D146B710306aB042c16c5`
+- BTC_POOL_ID:       `0xa62553efe090534f3bd23505218dd898105cb8863d630a8e01fae4e40ab72647`
+
+**Deployment Engineering Notes:**
+- `.env` is at BarakaDapp root (NOT in `contracts/`) — must use `export $(cat ../.env | grep -v '^#' | grep -v '^$' | xargs) &&` prefix in same shell command
+- `--verify` caused exit code 1 (Arbiscan 504) but all 4 contracts ARE on-chain (confirmed via forge logs)
+- Retry verification: `forge verify-contract <addr> <contract> --chain arbitrum-sepolia --etherscan-api-key $ARBISCAN_KEY`
+- EverlastingOption.quoteAtSpot returns 6 values: `(putPriceWad, callPriceWad, spotWad, kappaWad, betaNegWad, betaPosWad)`
+- TakafulPool.getRequiredTabarru returns 3 values: `(tabarruGross, spotWad, putRateWad)`
+- iCDS has NO public `nextId()` — enumerate IDs via getLogs on `ProtectionOpened` event
+
+**Frontend Product Pages (all new):**
+
+`/sukuk` — PerpetualSukuk UI:
+- Active sukuks table (ID, par, profit rate, maturity, total subscribed)
+- Subscribe panel (ERC20 approve → subscribe with useEffect chain)
+- My Portfolio (claimProfit + redeem buttons, maturity check)
+- Shariah note: AAOIFI SS-17
+
+`/takaful` — TakafulPool UI:
+- 4 stat cards: pool balance, BTC spot vs floor (red if breached), put rate, active/inactive badge
+- Contribute tabarru form (live tabarru preview: `getRequiredTabarru(poolId, coverage)`)
+- My Membership section
+- Shariah note: AAOIFI SS-26
+
+`/credit` — iCDS UI:
+- All protections table with status badges (Open=gold, Active=green, Triggered=red, Settled/Expired=muted)
+- Open Protection seller form (notional + recovery% + tenor → approve USDC → openProtection)
+- My Protections: contextual buttons by role+status (Accept/PayPremium/Settle/Expire)
+- Shariah note: Paper 2 framework
+
+`/dashboard` — Unified portfolio view:
+- 5 top stat cards: BRKX tier, open positions, sukuk subscriptions, takaful coverage, credit protections
+- Perpetual positions table (reuses usePositions + useBrkxTier)
+- Sukuk/takaful/credit summary sections with links to product pages
+- Wallet-not-connected state with prompt
+
+**New Hooks:**
+- `hooks/useSukukData.ts`: `useSukukCount()` / `useSukukList(count)` / `useUserSukukPositions(ids, addr)` / `useSukukWrite()`
+- `hooks/useTakafulData.ts`: `BTC_POOL_ID` (real keccak) / `useTakafulPoolData()` / `useMemberData()` / `useTabarruPreview()` / `useTakafulWrite()`
+- `hooks/useCreditData.ts`: `useProtectionList()` (getLogs) / `useProtections(ids)` / `useCreditWrite()` / `CDS_STATUS`
+
+**Navbar:** Updated with 7 links (Trade, Markets, Sukuk, Takaful, Credit, Dashboard, Transparency)
+
+**contracts.ts:** All 4 PRODUCT_CONTRACTS addresses filled with real deployed addresses; `BTC_TAKAFUL_POOL_ID` = real keccak256 hash
+
+**Build:** `npm run build` → 11 routes, 0 TypeScript errors ✅
+**Deploy:** `vercel deploy --prod` → aliased to baraka.arcusquantfund.com ✅
+
+**Pinata IPFS Credentials:**
+- API Key: `bb023190f5171bdf5884`
+- API Secret: `19be10482234e763746ece34a0862ef7adf616b96db24bfc1db0b9d8fb991f5a`
+- JWT: in `BarakaDapp/.env` as `PINATA_JWT`
+- Account: shehzadahmed@arcusquantfund.com | Regions: FRA1 + NYC1
+
+Upload command for next session:
+```bash
+source /Users/shehzad/Desktop/BarakaDapp/.env
+curl -X POST https://api.pinata.cloud/pinning/pinFileToIPFS \
+  -H "Authorization: Bearer $PINATA_JWT" \
+  -F file=@fatwa_placeholder.pdf
+# → returns { IpfsHash: "Qm...", PinSize: ..., Timestamp: ... }
+```
+
+**Files Created/Changed:**
+- `contracts/script/DeployProductStack.s.sol` — NEW
+- `contracts/deployments/421614.json` — productStack section added
+- `frontend/lib/contracts.ts` — real addresses + BTC_POOL_ID
+- `frontend/components/Navbar.tsx` — 4 new nav links
+- `frontend/hooks/useSukukData.ts` — NEW
+- `frontend/hooks/useTakafulData.ts` — NEW (BTC_POOL_ID = real keccak)
+- `frontend/hooks/useCreditData.ts` — NEW
+- `frontend/app/sukuk/page.tsx` + `SukukClient.tsx` — NEW
+- `frontend/app/takaful/page.tsx` + `TakafulClient.tsx` — NEW
+- `frontend/app/credit/page.tsx` + `CreditClient.tsx` — NEW
+- `frontend/app/dashboard/page.tsx` + `DashboardClient.tsx` — NEW
+- `BarakaDapp/.env` — Pinata credentials appended
+- `plan/next/CHECKLIST.md` — v2.6
+- `plan/next/PROGRESS_LOG.md` — Session 15 entry
+- `plan/next/SESSION_LOG.md` — this entry
+
+**Commit pushed:** `84cbedf` — Deploy product stack (L1.5/L2/L3/L4) + full frontend
+
+**Tests Status:** 177/177 ✅ (no new contract tests)
+
+**Next session:**
+1. Upload `fatwa_placeholder.pdf` to Pinata → call `GovernanceModule.setFatwaURI(cid)` on Sepolia
+2. SSRN preprint upload (all 3 papers)
+3. Discord + Twitter community launch
+
+---
+
 ### Session 14 — February 28, 2026
 
 **Focus:** Build the complete Baraka product stack (Layer 2/3/4) enabled by EverlastingOption — TakafulPool, PerpetualSukuk, iCDS — with interface and full unit tests.
@@ -817,4 +920,4 @@ forge test -vvv  # → 60/60
 
 ---
 
-*Log started: February 2026 — Last updated: February 28, 2026 (Session 13)*
+*Log started: February 2026 — Last updated: February 28, 2026 (Session 15)*

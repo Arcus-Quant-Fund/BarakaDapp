@@ -34,7 +34,10 @@
 | PerpetualSukuk.sol (Layer 2) | ✅ Complete | Islamic capital market instrument; par+embedded call at maturity; 16/16 tests |
 | iCDS.sol (Layer 4) | ✅ Complete | Islamic Credit Default Swap; quarterly put-priced premium; LGD settlement; 19/19 tests + 1k fuzz |
 | IEverlastingOption.sol interface | ✅ Complete | quotePut/quoteCall/quoteAtSpot/getExponents — used by all Layer 2/3/4 |
-| **Next session starts here →** | ⏳ | Pinata JWT + fatwa IPFS upload → GovernanceModule.setFatwaURI() |
+| Product Stack Deploy (L1.5/L2/L3/L4) | ✅ Live | EverlastingOption + TakafulPool + PerpetualSukuk + iCDS on Arbitrum Sepolia |
+| Frontend Product Pages | ✅ Live | /sukuk /takaful /credit /dashboard — baraka.arcusquantfund.com |
+| Pinata JWT | ✅ Obtained | `bb023190f5171bdf5884` — stored in BarakaDapp/.env |
+| **Next session starts here →** | ⏳ | Upload fatwa_placeholder.pdf to Pinata → GovernanceModule.setFatwaURI(cid) |
 
 ---
 
@@ -49,7 +52,7 @@
 - [x] The Graph API key — `83984585a228ad2b12fc7325458dd5e7` (query key)
 - [x] The Graph deploy key — `<GRAPH_DEPLOY_KEY>` (Studio slug: arcus)
 - [x] Deployer wallet — `0x12A21D0D172265A520aF286F856B5aF628e66D46` (testnet only)
-- [ ] Pinata JWT — needed for fatwa IPFS upload (get at pinata.cloud)
+- [x] Pinata JWT — `bb023190f5171bdf5884` (API Key) — stored in `BarakaDapp/.env` — Feb 28 2026
 - [ ] Testnet ETH top-up if needed (faucet: faucet.triangleplatform.com/arbitrum/sepolia)
 
 ### Tooling (all installed)
@@ -95,6 +98,10 @@
 | PositionManager | `0x035E38fd8b34486530A4Cd60cE9D840e1a0A124a` | **v3 — all deps updated, redeployed Feb 27** |
 | GovernanceModule | `0x8c987818dffcD00c000Fe161BFbbD414B0529341` | v1, unchanged |
 | BRKXToken | `0xD3f7E29cAC5b618fAB44Dd8a64C4CC335C154A32` | 100M BRKX, unchanged |
+| EverlastingOption | `0x977419b75182777c157E2192d4Ec2dC87413E006` | **NEW — Layer 1.5, deployed Feb 28** |
+| TakafulPool | `0xD53d34cC599CfadB5D1f77516E7Eb326a08bb0E4` | **NEW — Layer 3, deployed Feb 28** |
+| PerpetualSukuk | `0xd209f7B587c8301D5E4eC1691264deC1a560e48D` | **NEW — Layer 2, deployed Feb 28** |
+| iCDS | `0xc4E8907619C8C02AF90D146B710306aB042c16c5` | **NEW — Layer 4, deployed Feb 28** |
 | PositionManager v1 (legacy) | `0x53E3063FE2194c2DAe30C36420A01A8573B150bC` | deauthorized |
 | PositionManager v2 (legacy) | `0x787E15807f32f84aC3D929CB136216897b788070` | deauthorized (no chargeFromFree in vault) |
 | CollateralVault v1 (legacy) | `0x5530e4670523cFd1A60dEFbB123f51ae6cae0c5E` | deauthorized |
@@ -280,7 +287,8 @@ Revenue split: 50% → InsuranceFund / 50% → Treasury
   - `contracts/test/e2e/E2EForkTest.t.sol` — lifecycle, funding flow, liquidation, Shariah guard, cooldown
   - MockFeed swapped in for live Chainlink to control prices + timestamps
   - Auto-unpauses all contracts if left paused on testnet
-- [ ] **Pinata JWT** — get at pinata.cloud → upload `fatwa_placeholder.pdf` → store IPFS hash
+- [x] **Pinata JWT** — obtained Feb 28 2026 (Key: `bb023190f5171bdf5884`, stored in `.env`)
+- [ ] **Upload fatwa_placeholder.pdf** → get IPFS CID → call `GovernanceModule.setFatwaURI(cid)`
 - [ ] Discord server (#announcements #trading #shariah-questions #dev)
 - [ ] Twitter / X account @BarakaProtocol
 - [ ] Testnet public announcement (Discord + Twitter)
@@ -336,7 +344,8 @@ Revenue split: 50% → InsuranceFund / 50% → Treasury
 - [ ] Audit findings remediated + re-tested
 
 ### Shariah Compliance
-- [ ] Pinata JWT — get at pinata.cloud → upload fatwa document → store IPFS hash on-chain
+- [x] Pinata JWT obtained — Feb 28 2026 (Key `bb023190f5171bdf5884`, stored in `.env`)
+- [ ] Upload `fatwa_placeholder.pdf` to Pinata → call `GovernanceModule.setFatwaURI(cid)` on Sepolia
 - [ ] Fatwa obtained from AAOIFI-certified scholars
 - [ ] Fatwa IPFS hash stored in ShariahGuard.fatwaIPFS mapping
 
@@ -392,4 +401,4 @@ npx graph deploy arcus --version-label v0.0.2
 
 ---
 
-*Checklist Version 2.5 — February 28, 2026 — Updated after Session 14 (Layer 2/3/4 contracts + IEverlastingOption interface + 177/177 tests)*
+*Checklist Version 2.6 — February 28, 2026 — Updated after Session 15 (Product stack deployed on-chain + /sukuk /takaful /credit /dashboard pages live + Pinata JWT obtained)*

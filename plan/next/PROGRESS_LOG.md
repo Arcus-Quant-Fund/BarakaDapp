@@ -31,16 +31,87 @@
 | Frontend BRKX hooks | ✅ Live | `useBrkxTier` + `useKappaSignal` deployed · OrderPanel fee row + tier badge + BRKX indicator |
 | Paper 3 Appendix A | ✅ Complete | CIR-κ SDE · Feller lemma · κ-bond theorem · stochastic κ-yield curve · 11pp clean PDF |
 | Layer 2/3/4 Contracts | ✅ Complete | TakafulPool + PerpetualSukuk + iCDS + IEverlastingOption interface |
-| Pinata JWT / IPFS | ⏳ Pending | **Next session starts here** |
+| Product Stack Deploy | ✅ Live | EverlastingOption + TakafulPool + PerpetualSukuk + iCDS on Arbitrum Sepolia (Feb 28) |
+| Frontend Product Pages | ✅ Live | /sukuk /takaful /credit /dashboard deployed to baraka.arcusquantfund.com (Feb 28) |
+| Pinata JWT | ✅ Obtained | Key `bb023190f5171bdf5884` stored in .env — Feb 28 2026 |
+| Fatwa IPFS Upload | ⏳ Pending | **Next session starts here** — upload PDF → GovernanceModule.setFatwaURI() |
 | Discord / Twitter | ⏳ Pending | Community launch |
 | SSRN Preprint | ⏳ Pending | Upload all 3 papers |
 | Shariah Outreach | ⏳ Pending | AAOIFI contacts |
 
-**Overall: Full product stack built — Perps + EverlastingOption + Sukuk + Takaful + iCDS. 177/177 tests. Next: IPFS fatwa + community launch.**
+**Overall: Full product stack deployed on-chain + all frontend product pages live. 177/177 tests. Pinata JWT secured. Next: fatwa IPFS upload + community launch.**
 
 ---
 
 ## LOG ENTRIES
+
+---
+
+### February 28, 2026 — Session 15: Product Stack Deployed + Frontend Live + Pinata JWT
+
+**Focus:** Deploy all 4 product stack contracts to Arbitrum Sepolia, build and deploy all frontend product pages, obtain Pinata JWT, update all documentation.
+
+**Contracts Deployed (Arbitrum Sepolia, Feb 28 2026):**
+| Contract | Address |
+|---|---|
+| EverlastingOption (L1.5) | `0x977419b75182777c157E2192d4Ec2dC87413E006` |
+| TakafulPool (L3) | `0xD53d34cC599CfadB5D1f77516E7Eb326a08bb0E4` |
+| PerpetualSukuk (L2) | `0xd209f7B587c8301D5E4eC1691264deC1a560e48D` |
+| iCDS (L4) | `0xc4E8907619C8C02AF90D146B710306aB042c16c5` |
+
+BTC_POOL_ID (keccak256("BTC-40k-USDC")): `0xa62553efe090534f3bd23505218dd898105cb8863d630a8e01fae4e40ab72647`
+
+**Deployment note:** `--verify` flag caused exit code 1 due to Arbiscan 504 Gateway Timeout. All 4 contracts ARE deployed and mined (confirmed via console.log in forge output). Arbiscan source verification can be retried separately with `forge verify-contract`.
+
+**Script:** `contracts/script/DeployProductStack.s.sol`
+- Phase 1: EverlastingOption + setMarket(BTC_ASSET, σ²=0.64, κ=0.083, useOracleKappa=false)
+- Phase 2: TakafulPool + setKeeper + createPool("BTC-40k-USDC", BTC_ASSET, USDC, 40k floor)
+- Phase 3: PerpetualSukuk
+- Phase 4: iCDS + setKeeper
+
+**Frontend Pages Built + Deployed:**
+- `/sukuk` (SukukClient.tsx + useSukukData.ts) — subscribe, claimProfit, redeem
+- `/takaful` (TakafulClient.tsx + useTakafulData.ts) — tabarru contributions, pool stats, floor breach
+- `/credit` (CreditClient.tsx + useCreditData.ts) — open/accept/settle iCDS protections
+- `/dashboard` (DashboardClient.tsx) — unified portfolio view, aggregates all 4 layers
+
+**Frontend build:** 11 routes, 0 TypeScript errors → deployed to baraka.arcusquantfund.com ✅
+
+**Pinata IPFS Credentials obtained:**
+- API Key: `bb023190f5171bdf5884`
+- API Secret: `19be10482234e763746ece34a0862ef7adf616b96db24bfc1db0b9d8fb991f5a`
+- JWT: stored in `BarakaDapp/.env` as `PINATA_JWT`
+- Account: shehzadahmed@arcusquantfund.com | Regions: FRA1 + NYC1
+
+**Files Created/Changed:**
+| File | Change |
+|---|---|
+| `contracts/script/DeployProductStack.s.sol` | NEW — deployment script |
+| `contracts/deployments/421614.json` | Updated — productStack section added |
+| `frontend/lib/contracts.ts` | Updated — real addresses + BTC_POOL_ID |
+| `frontend/components/Navbar.tsx` | Updated — 4 new nav links |
+| `frontend/hooks/useSukukData.ts` | NEW |
+| `frontend/hooks/useTakafulData.ts` | NEW (BTC_POOL_ID corrected from placeholder) |
+| `frontend/hooks/useCreditData.ts` | NEW |
+| `frontend/app/sukuk/page.tsx` + `SukukClient.tsx` | NEW |
+| `frontend/app/takaful/page.tsx` + `TakafulClient.tsx` | NEW |
+| `frontend/app/credit/page.tsx` + `CreditClient.tsx` | NEW |
+| `frontend/app/dashboard/page.tsx` + `DashboardClient.tsx` | NEW |
+| `plan/next/CHECKLIST.md` | v2.6 — product stack + Pinata added |
+| `plan/next/PROGRESS_LOG.md` | Session 15 entry |
+| `plan/next/SESSION_LOG.md` | Session 15 entry |
+| `BarakaDapp/.env` | Pinata credentials appended |
+
+**Commits pushed to `Arcus-Quant-Fund/BarakaDapp`:**
+- `84cbedf` — Deploy product stack (L1.5/L2/L3/L4) + full frontend (15 files, 2437 insertions)
+
+**Tests Status:** 177/177 ✅ (unchanged — no new contract tests this session)
+
+**Next session:**
+1. `curl -X POST https://api.pinata.cloud/pinning/pinFileToIPFS -H "Authorization: Bearer $PINATA_JWT" -F file=@fatwa_placeholder.pdf` → get CID
+2. `GovernanceModule.setFatwaURI(cid)` on Arbitrum Sepolia
+3. SSRN preprint upload (all 3 papers)
+4. Discord + Twitter community launch
 
 ---
 
