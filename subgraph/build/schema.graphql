@@ -145,3 +145,70 @@ type Protocol @entity {
   totalVolume:         BigInt!
   lastUpdated:         BigInt!
 }
+
+# ──────────────────────────────────────────────────
+# TAKAFUL — mutual Islamic insurance (Layer 3)
+# ──────────────────────────────────────────────────
+
+type ContributionEvent @entity(immutable: true) {
+  id:             Bytes!   # tx hash + log index
+  poolId:         Bytes!   # keccak256(pool name)
+  member:         Bytes!   # contributor address
+  coverage:       BigInt!  # coverage amount in WAD
+  tabarru:        BigInt!  # donation amount (gross)
+  wakala:         BigInt!  # operator fee
+  blockNumber:    BigInt!
+  blockTimestamp: BigInt!
+  txHash:         Bytes!
+}
+
+type ClaimEvent @entity(immutable: true) {
+  id:             Bytes!
+  poolId:         Bytes!
+  beneficiary:    Bytes!
+  amount:         BigInt!
+  blockNumber:    BigInt!
+  blockTimestamp: BigInt!
+  txHash:         Bytes!
+}
+
+# ──────────────────────────────────────────────────
+# PERPETUAL SUKUK — Islamic capital markets (Layer 2)
+# ──────────────────────────────────────────────────
+
+type SukukSubscription @entity(immutable: true) {
+  id:             Bytes!
+  sukukId:        BigInt!
+  investor:       Bytes!
+  amount:         BigInt!
+  blockNumber:    BigInt!
+  blockTimestamp: BigInt!
+  txHash:         Bytes!
+}
+
+type SukukProfit @entity(immutable: true) {
+  id:             Bytes!
+  sukukId:        BigInt!
+  investor:       Bytes!
+  profit:         BigInt!
+  blockNumber:    BigInt!
+  blockTimestamp: BigInt!
+  txHash:         Bytes!
+}
+
+# ──────────────────────────────────────────────────
+# iCDS — Islamic Credit Default Swap (Layer 4)
+# ──────────────────────────────────────────────────
+
+type ProtectionEvent @entity(immutable: true) {
+  id:              Bytes!
+  protectionId:    BigInt!
+  eventType:       String!  # "Opened" | "Accepted" | "Settled"
+  seller:          Bytes    # null if not Opened
+  buyer:           Bytes    # null if not Accepted/Settled
+  notional:        BigInt   # null unless Opened
+  payout:          BigInt   # null unless Settled
+  blockNumber:     BigInt!
+  blockTimestamp:  BigInt!
+  txHash:          Bytes!
+}
