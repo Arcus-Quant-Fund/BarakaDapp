@@ -3,7 +3,7 @@
 %%  "From Perpetual Contracts to Islamic Credit:
 %%   The Random Stopping Time Equivalence and
 %%   a Riba-Free Foundation for Sukuk, Takaful, and Credit Protection"
-%%  Ahmed, Bhuyan & Islam — February 2026 (revised March 2026)
+%%  Shehzad Ahmed — February 2026 (revised March 2026)
 %% ============================================================
 \documentclass[10pt,twocolumn]{article}
 \usepackage[utf8]{inputenc}
@@ -65,16 +65,9 @@ a Riba-Free Foundation for Sukuk,\\
 Takaful, and Credit Protection}}
 
 \author[1]{Shehzad Ahmed}
-\author[2]{Rafiqul Bhuyan}
-\author[3]{Rubaiyat Islam}
 
-\affil[1]{Department of Finance, Independent University, Bangladesh\\
-\small\texttt{2120922@iub.edu.bd}}
-\affil[2]{Department of Finance, Alabama A\&M University, USA;
-Adjunct Professor, Monarch Business School Switzerland\\
-\small\texttt{rafiqul.bhuyan@aamu.edu}}
-\affil[3]{Department of Software Engineering, Daffodil International University,
-Bangladesh\\ \small\texttt{islam.swe@diu.edu.bd}}
+\affil[1]{Arcus Quant Fund; Baraka Protocol\\
+\small\texttt{shehzad@arcusquantfund.com}}
 
 \date{February 2026 (revised March 2026)}
 %% ============================================================
@@ -361,12 +354,13 @@ The central result of Ackerer et al.\ is a \textit{random time
 representation} that reveals the economic structure of perpetual
 pricing. Define the \textbf{convergence stopping time} $\theta_t$
 as a random variable with conditional density under $\Qa$:
-\begin{equation}
+\begin{multline}
 q(\theta_t \in ds \mid \F_t)
-= (\kappa_s - \iota_s)\,
-\exp\!\left(-\int_t^s (\kappa_u - \iota_u)\,du\right)ds, \quad s\geq t
+= (\kappa_s - \iota_s)\\
+\times\exp\!\left(-\int_t^s (\kappa_u - \iota_u)\,du\right)ds,
+\quad s\geq t
 \label{eq:density}
-\end{equation}
+\end{multline}
 This is a Cox process (doubly stochastic Poisson process) with
 intensity $\kappa_t - \iota_t$, as formalized in the theory of
 point processes by Brémaud \cite{Bremaud1981} and the credit risk
@@ -509,6 +503,7 @@ Comparing equations~\eqref{eq:density} and \eqref{eq:ds_density}
 reveals an immediate structural identity:
 
 \begin{center}
+\resizebox{\columnwidth}{!}{%
 \small
 \begin{tabular}{@{}lll@{}}
 \toprule
@@ -521,7 +516,7 @@ $X_{\theta_t}$ & $\phi(X_\tau)$ & Payoff at event \\
 $f_t$ & $P_t$ & Instrument price \\
 $\Qa$ & $Q$ & Pricing measure \\
 \bottomrule
-\end{tabular}
+\end{tabular}}
 \end{center}
 
 The two frameworks share an identical mathematical skeleton. The
@@ -864,10 +859,11 @@ Current wheat price: $x = \$7.50$.
 C_p &= \frac{(6.00)^{2.176}}{2.176}
 = \frac{47.85}{2.176} = 21.99
 \notag\\[4pt]
-\Pi &= 21.99 \times (7.50)^{-1.176}
-= 21.99 \times 0.1058 = \$2.33\text{/bushel}
+\Pi &= 21.99 \times (7.50)^{-1.176} \notag\\
+    &= 21.99 \times 0.1058 = \$2.33\text{/bushel}
 \label{eq:agri_example}\\[4pt]
-\pi_\mathrm{continuous} &= 0.08 \times 2.33 = \$0.186\text{/bushel/year}
+\pi_\mathrm{continuous} &= 0.08 \times 2.33 \notag\\
+&= \$0.186\text{/bushel/year}
 \notag
 \end{align}
 
@@ -1073,6 +1069,7 @@ finance contexts.
 \end{itemize}
 
 \begin{center}
+\resizebox{\columnwidth}{!}{%
 \small
 \begin{tabular}{@{}lll@{}}
 \toprule
@@ -1083,7 +1080,7 @@ Takaful & Historical claim frequency & Actuarial tables\\
 iCDS & Reference entity default history & Rating agencies\\
 Sovereign sukuk & Project completion probability & Government data\\
 \bottomrule
-\end{tabular}
+\end{tabular}}
 \end{center}
 
 %% ============================================================
@@ -1363,10 +1360,11 @@ with current parameters and applied to the next episode.
 
 \subsection{Results: 5 Episodes $\times$ 720 Steps}
 
-\begin{table}[h!]
+\begin{table*}[t]
 \centering
 \caption{Per-episode simulation outcomes.}
 \label{tab:sim_episodes}
+\resizebox{\textwidth}{!}{%
 \small
 \begin{tabular}{crrrrr}
 \toprule
@@ -1382,10 +1380,10 @@ $\overline{|F|}$ (bps) \\
 \textbf{Total} & \textbf{---} & \textbf{53} &
 \textbf{0/5} & \textbf{+427} & \textbf{52.4} \\
 \bottomrule
-\end{tabular}
-\end{table}
+\end{tabular}}
+\end{table*}
 
-\begin{table}[h!]
+\begin{table*}[t]
 \centering
 \caption{Mechanism design parameter evolution.}
 \label{tab:sim_params}
@@ -1400,7 +1398,7 @@ Liquidation penalty (\%)   &  1.0 &  1.3 & $+31\%$ \\
 Insurance split (\%)       & 50.0 & 60.8 & $+22\%$ \\
 \bottomrule
 \end{tabular}
-\end{table}
+\end{table*}
 
 \subsection{Claim Verification}
 
