@@ -60,5 +60,19 @@
     "kappaRegime": 0,
     "closeFee": "unit-tested (PositionManagerFee.t.sol 8/8)"
   },
-  "gasUsed": "~0.000395 ETH (initial) + ~0.00055 ETH (BRKX upgrade) + ~0.000312 ETH (redeploy+smoke)"
+  "gasUsed": "~0.000395 ETH (initial) + ~0.00055 ETH (BRKX upgrade) + ~0.000312 ETH (redeploy+smoke)",
+  "productStack": {
+    "deployedAt": "2026-02-28",
+    "EverlastingOption": "0x977419b75182777c157E2192d4Ec2dC87413E006",
+    "TakafulPool":       "0xD53d34cC599CfadB5D1f77516E7Eb326a08bb0E4",
+    "PerpetualSukuk":    "0xd209f7B587c8301D5E4eC1691264deC1a560e48D",
+    "iCDS":              "0xc4E8907619C8C02AF90D146B710306aB042c16c5",
+    "BTC_POOL_ID":       "0xa62553efe090534f3bd23505218dd898105cb8863d630a8e01fae4e40ab72647",
+    "arbiscan": {
+      "EverlastingOption": "https://sepolia.arbiscan.io/address/0x977419b75182777c157E2192d4Ec2dC87413E006",
+      "TakafulPool":       "https://sepolia.arbiscan.io/address/0xD53d34cC599CfadB5D1f77516E7Eb326a08bb0E4",
+      "PerpetualSukuk":    "https://sepolia.arbiscan.io/address/0xd209f7B587c8301D5E4eC1691264deC1a560e48D",
+      "iCDS":              "https://sepolia.arbiscan.io/address/0xc4E8907619C8C02AF90D146B710306aB042c16c5"
+    }
+  }
 }

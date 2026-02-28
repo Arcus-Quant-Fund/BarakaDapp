@@ -6,7 +6,11 @@ import { ConnectButton } from '@rainbow-me/rainbowkit'
 
 const NAV_LINKS = [
   { href: '/trade',        label: 'Trade' },
-  { href: '/markets',     label: 'Markets' },
+  { href: '/markets',      label: 'Markets' },
+  { href: '/sukuk',        label: 'Sukuk' },
+  { href: '/takaful',      label: 'Takaful' },
+  { href: '/credit',       label: 'Credit' },
+  { href: '/dashboard',    label: 'Dashboard' },
   { href: '/transparency', label: 'Transparency' },
 ]
 
