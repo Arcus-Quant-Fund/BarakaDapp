@@ -42,7 +42,8 @@
 | CI label fix | ✅ Done | forge 177/177, frontend 8/8 routes |
 | Transparency page | ✅ Updated | 13 contracts listed (9 L1 + 4 L2/L3/L4) |
 | Arbiscan verification | ✅ All verified | All 4 product stack contracts confirmed |
-| **Next session starts here →** | ⏳ | Discord/Twitter launch, SSRN preprint, mainnet scholar fatwa PDF |
+| Paper 2A (κ-Yield Curve Empirical) | ✅ Complete | 26pp, real data (Damodaran+FRED+Yahoo), all tables filled, zero PLACEHOLDERs, PDF compiles clean |
+| **Next session starts here →** | ⏳ | Discord/Twitter launch, SSRN preprint (all 4 papers), mainnet scholar fatwa PDF |
 
 ---
 

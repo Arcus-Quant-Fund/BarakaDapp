@@ -1,66 +1,40 @@
-\contentsline {section}{\numberline {1}Introduction}{4}{section.1}%
-\contentsline {subsection}{\numberline {1.1}The Riba Prohibition and Yield Curve Construction}{4}{subsection.1.1}%
-\contentsline {subsection}{\numberline {1.2}Contribution and Organisation}{5}{subsection.1.2}%
-\contentsline {section}{\numberline {2}Theoretical Framework}{6}{section.2}%
-\contentsline {subsection}{\numberline {2.1}The $\kappa $-Rate: From Perpetual Futures to Credit Pricing}{6}{subsection.2.1}%
-\contentsline {paragraph}{AHJ perpetual futures pricing.}{7}{section*.2}%
-\contentsline {paragraph}{Connection to Duffie--Singleton credit pricing.}{7}{section*.3}%
-\contentsline {subsection}{\numberline {2.2}From $\kappa $ to Sukuk Spreads: The Identification Equation}{8}{subsection.2.2}%
-\contentsline {paragraph}{Choice of benchmark rate.}{9}{section*.4}%
-\contentsline {paragraph}{Recovery rate convention.}{9}{section*.5}%
-\contentsline {paragraph}{Identification assumption.}{10}{section*.6}%
-\contentsline {subsection}{\numberline {2.3}The $\kappa $-Yield Curve: Definition and Properties}{10}{subsection.2.3}%
-\contentsline {paragraph}{Nelson--Siegel--Svensson parametrisation.}{11}{section*.7}%
-\contentsline {section}{\numberline {3}Data}{12}{section.3}%
-\contentsline {subsection}{\numberline {3.1}Sample Construction}{12}{subsection.3.1}%
-\contentsline {paragraph}{Geographic coverage.}{12}{section*.8}%
-\contentsline {paragraph}{Sample statistics.}{12}{section*.9}%
-\contentsline {paragraph}{Spread calculation.}{12}{section*.10}%
-\contentsline {subsection}{\numberline {3.2}Descriptive Statistics}{13}{subsection.3.2}%
-\contentsline {subsection}{\numberline {3.3}Time Series of Spreads}{13}{subsection.3.3}%
-\contentsline {section}{\numberline {4}Estimation Methodology}{15}{section.4}%
-\contentsline {subsection}{\numberline {4.1}Point Estimation of $\kappa $ from Spreads}{15}{subsection.4.1}%
-\contentsline {paragraph}{Standard errors.}{15}{section*.13}%
-\contentsline {paragraph}{Maturity bucketing.}{15}{section*.14}%
-\contentsline {paragraph}{Identification assumption revisited.}{15}{section*.15}%
-\contentsline {subsection}{\numberline {4.2}Nelson--Siegel--Svensson Curve Fitting}{16}{subsection.4.2}%
-\contentsline {paragraph}{Parameter constraints.}{16}{section*.16}%
-\contentsline {paragraph}{Starting values.}{16}{section*.17}%
-\contentsline {paragraph}{Minimum maturity coverage requirement.}{17}{section*.18}%
-\contentsline {subsection}{\numberline {4.3}GMM Estimation of CIR Dynamics}{17}{subsection.4.3}%
-\contentsline {paragraph}{Euler--Maruyama discretisation.}{17}{section*.19}%
-\contentsline {paragraph}{GMM moment conditions.}{17}{section*.20}%
-\contentsline {paragraph}{Estimation.}{18}{section*.21}%
-\contentsline {paragraph}{Half-life.}{18}{section*.22}%
-\contentsline {subsection}{\numberline {4.4}Forecast Comparison: $\kappa $-Model vs.\ SOFR-Model}{18}{subsection.4.4}%
-\contentsline {section}{\numberline {5}Results}{19}{section.5}%
-\contentsline {subsection}{\numberline {5.1}$\hat {\kappa }$ Estimates: Cross-Section}{19}{subsection.5.1}%
-\contentsline {paragraph}{Pattern 1: Sovereign $<$ corporate.}{19}{section*.24}%
-\contentsline {paragraph}{Pattern 2: GCC--Malaysia integration.}{20}{section*.25}%
-\contentsline {paragraph}{Pattern 3: Term structure.}{20}{section*.26}%
-\contentsline {subsection}{\numberline {5.2}The $\kappa $-Yield Curve}{20}{subsection.5.2}%
-\contentsline {paragraph}{NSS parameter interpretation.}{20}{section*.30}%
-\contentsline {subsection}{\numberline {5.3}Predictive Accuracy: $\kappa $-Model vs.\ SOFR-Model}{22}{subsection.5.3}%
-\contentsline {subsection}{\numberline {5.4}Panel Regression}{22}{subsection.5.4}%
-\contentsline {paragraph}{Main result.}{23}{section*.33}%
-\contentsline {subsection}{\numberline {5.5}CIR Dynamics}{23}{subsection.5.5}%
-\contentsline {paragraph}{Mean reversion.}{23}{section*.35}%
-\contentsline {paragraph}{Long-run mean.}{24}{section*.36}%
-\contentsline {paragraph}{Feller condition.}{24}{section*.37}%
-\contentsline {paragraph}{Specification test.}{24}{section*.38}%
-\contentsline {subsection}{\numberline {5.6}Robustness: Recovery Rate Sensitivity}{24}{subsection.5.6}%
-\contentsline {section}{\numberline {6}Discussion}{25}{section.6}%
-\contentsline {subsection}{\numberline {6.1}What $\kappa $ Tells Us About Islamic Credit Markets}{25}{subsection.6.1}%
-\contentsline {paragraph}{The shape of the $\kappa $-curve across the credit cycle.}{26}{section*.40}%
-\contentsline {paragraph}{GCC--Malaysia integration.}{26}{section*.41}%
-\contentsline {paragraph}{Riba-free pricing during the negative-rate era.}{26}{section*.42}%
-\contentsline {subsection}{\numberline {6.2}Implications for Islamic Portfolio Management}{26}{subsection.6.2}%
-\contentsline {paragraph}{$\kappa $-Duration.}{26}{section*.43}%
-\contentsline {paragraph}{$\kappa $-Convexity.}{27}{section*.44}%
-\contentsline {paragraph}{Benchmark construction.}{27}{section*.45}%
-\contentsline {paragraph}{Implications for iCDS pricing.}{27}{section*.46}%
-\contentsline {subsection}{\numberline {6.3}Limitations}{28}{subsection.6.3}%
-\contentsline {paragraph}{Limitation 1: Liquidity premium confound.}{28}{section*.47}%
-\contentsline {paragraph}{Limitation 2: Recovery rate uncertainty.}{28}{section*.48}%
-\contentsline {paragraph}{Limitation 3: Data vintage and market development.}{28}{section*.49}%
-\contentsline {section}{\numberline {7}Conclusion}{28}{section.7}%
+\contentsline {section}{\numberline {1}Introduction}{5}{section.1}%
+\contentsline {paragraph}{What we do.}{5}{section*.2}%
+\contentsline {paragraph}{Main findings.}{6}{section*.3}%
+\contentsline {paragraph}{Contribution to the literature.}{6}{section*.4}%
+\contentsline {paragraph}{Organisation.}{6}{section*.5}%
+\contentsline {section}{\numberline {2}Theoretical Framework}{7}{section.2}%
+\contentsline {subsection}{\numberline {2.1}The Convergence Intensity in the AHJ Framework}{7}{subsection.2.1}%
+\contentsline {subsection}{\numberline {2.2}The $\kappa $-Yield Curve via Nelson--Siegel--Svensson}{7}{subsection.2.2}%
+\contentsline {subsection}{\numberline {2.3}CIR Stochastic Dynamics for $\kappa $}{8}{subsection.2.3}%
+\contentsline {subsection}{\numberline {2.4}GMM Identification}{9}{subsection.2.4}%
+\contentsline {section}{\numberline {3}Data}{9}{section.3}%
+\contentsline {subsection}{\numberline {3.1}Spread Data: Damodaran CDS as Sukuk Proxy}{9}{subsection.3.1}%
+\contentsline {paragraph}{Transparency note.}{10}{section*.6}%
+\contentsline {subsection}{\numberline {3.2}Term Structure Expansion}{10}{subsection.3.2}%
+\contentsline {subsection}{\numberline {3.3}Control Variables}{10}{subsection.3.3}%
+\contentsline {subsection}{\numberline {3.4}Recovery Rate Assumption}{11}{subsection.3.4}%
+\contentsline {subsection}{\numberline {3.5}Descriptive Statistics}{11}{subsection.3.5}%
+\contentsline {section}{\numberline {4}Estimation Methodology}{12}{section.4}%
+\contentsline {subsection}{\numberline {4.1}Step 1: Extracting $\hat {\kappa }$}{12}{subsection.4.1}%
+\contentsline {subsection}{\numberline {4.2}Step 2: NSS Curve Fitting}{12}{subsection.4.2}%
+\contentsline {subsection}{\numberline {4.3}Step 3: Horse Race}{13}{subsection.4.3}%
+\contentsline {subsection}{\numberline {4.4}Step 4: Panel Regression (Structural Confirmation)}{13}{subsection.4.4}%
+\contentsline {paragraph}{Re-parameterised coefficient.}{13}{section*.9}%
+\contentsline {subsection}{\numberline {4.5}Step 5: GMM Estimation of CIR Dynamics}{14}{subsection.4.5}%
+\contentsline {section}{\numberline {5}Results}{14}{section.5}%
+\contentsline {subsection}{\numberline {5.1}Cross-Sectional $\kappa $ Estimates}{14}{subsection.5.1}%
+\contentsline {subsection}{\numberline {5.2}NSS Parameter Estimates}{16}{subsection.5.2}%
+\contentsline {subsection}{\numberline {5.3}Horse Race}{16}{subsection.5.3}%
+\contentsline {subsection}{\numberline {5.4}CIR Dynamics and the Feller Condition}{17}{subsection.5.4}%
+\contentsline {subsection}{\numberline {5.5}Panel Regression Results}{19}{subsection.5.5}%
+\contentsline {subsection}{\numberline {5.6}Robustness: Recovery Rate Sensitivity}{20}{subsection.5.6}%
+\contentsline {section}{\numberline {6}Discussion}{20}{section.6}%
+\contentsline {subsection}{\numberline {6.1}Practical Implications for Islamic Finance}{20}{subsection.6.1}%
+\contentsline {subsection}{\numberline {6.2}Path to Bloomberg Data}{22}{subsection.6.2}%
+\contentsline {subsection}{\numberline {6.3}Islamic Monetary Policy Implications}{22}{subsection.6.3}%
+\contentsline {section}{\numberline {7}Conclusion}{22}{section.7}%
+\contentsline {paragraph}{Future work.}{23}{section*.18}%
+\contentsline {section}{\numberline {A}Proof of Theorem~\ref {thm:main}}{25}{appendix.A}%
+\contentsline {section}{\numberline {B}GMM Moment Conditions}{26}{appendix.B}%
+\contentsline {section}{\numberline {C}Country Coverage and Sukuk Universe}{26}{appendix.C}%

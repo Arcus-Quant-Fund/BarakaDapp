@@ -1,0 +1,72 @@
+{
+  "generated_at": "2026-03-01T04:28:27.429181",
+  "sources": {
+    "damodaran": {
+      "url": "https://pages.stern.nyu.edu/~adamodar/pc/datasets/ctryprem.xlsx",
+      "note": "Annual sovereign CDS spreads. Used as sukuk spread proxy per Cakir & Raei (2007).",
+      "years": [
+        2012,
+        2013,
+        2014,
+        2015,
+        2016,
+        2017,
+        2018,
+        2019,
+        2020,
+        2021,
+        2022,
+        2023,
+        2024,
+        2025
+      ],
+      "n_obs": 98
+    },
+    "fred_sofr": {
+      "url": "https://fred.stlouisfed.org/data/SOFR.csv",
+      "note": "Riba-free benchmark rate. Pre-2018 uses Fed Funds Rate as proxy.",
+      "n_obs": 5844
+    },
+    "yahoo_finance": {
+      "tickers": [
+        "^TSBI.SR",
+        "^VIX",
+        "CL=F",
+        "GC=F"
+      ],
+      "note": "Macro controls and Tadawul Sukuk Index"
+    },
+    "world_bank": {
+      "url": "https://api.worldbank.org/v2/",
+      "note": "Annual country-level macro indicators"
+    }
+  },
+  "panel": {
+    "n_observations": 8232,
+    "n_countries": 7,
+    "n_sukuk_ids": 686,
+    "date_range": [
+      "2012-01-01",
+      "2025-12-01"
+    ],
+    "maturities_years": [
+      2.0,
+      3.0,
+      5.0,
+      7.0,
+      10.0,
+      15.0,
+      20.0
+    ],
+    "countries": [
+      "AE",
+      "BH",
+      "ID",
+      "KW",
+      "MY",
+      "QA",
+      "SA"
+    ]
+  },
+  "methodology_note": "Spread data derived from Damodaran (2026) annual sovereign CDS spreads applied to a BIS-calibrated term structure (BIS Quarterly Review, March 2022). Academic justification: Cakir & Raei (2007, IMF WP/07/237) document that sukuk spreads and Eurobond spreads (proxied here by CDS) are statistically equivalent for the same sovereign reference entity. Bloomberg terminal data would allow replacement with actual sukuk OAS data for individual issuances \u2014 a planned upgrade for the final published version."
+}

@@ -199,6 +199,41 @@ XAUT = 0xf9b276a1a05934ccD953861E8E59c6Bc428c8cbD
 
 ---
 
+#### Contract 9: EverlastingOption.sol ✅ IMPLEMENTED (Feb 2026)
+**Path:** `contracts/src/core/EverlastingOption.sol`
+**Purpose:** On-chain pricing for everlasting (perpetual) options. Implements Ackerer et al. Proposition 6 at ι=0. Pricing engine for Layer 2 Sukuk and Layer 3 Takaful.
+
+**Mathematical basis (Prop 6, ι=0, r_a=r_b):**
+```
+β₋ = ½ − √(¼ + 2κ/σ²)  < 0   (put / takaful floor exponent)
+β₊ = ½ + √(¼ + 2κ/σ²)  > 1   (call / sukuk cap exponent)
+
+Π_put(x, K)  = [K^{1−β₋} / (β₊−β₋)] · x^{β₋}   (takaful contribution)
+Π_call(x, K) = [K^{1−β₊} / (β₊−β₋)] · x^{β₊}   (sukuk embedded option)
+```
+No interest rate appears. κ replaces r entirely.
+
+**Key specs:**
+- `quotePut(asset, x, K)` — takaful floor premium
+- `quoteCall(asset, x, K)` — participation cap price
+- `quoteAtSpot(asset, K)` — both quotes at current oracle price
+- `getExponents(asset)` — β₋, β₊, denom for display
+- Inline `_lnWad` / `_expWad` (60-iter binary log + 8th-order Taylor)
+- Admin-configurable σ² and κ per market; optional live oracle κ
+- OZ Ownable2Step + Pausable + ReentrancyGuard
+
+**Tests:** `test/unit/EverlastingOption.t.sol` — 33/33 pass (unit + fuzz 1000 runs)
+- β₋ < 0, β₊ > 1, β₋ + β₊ = 1 (algebraic identity)
+- Put monotone decreasing in x, Call monotone increasing in x
+- put = call at x = K for any (σ², κ)
+- ATM price = K / denom (closed-form check)
+- Prices non-negative for all inputs (fuzz)
+- Math harness: exp(ln(x)) ≈ x roundtrip (fuzz)
+
+**Status:** Written + tested. Testnet deploy pending.
+
+---
+
 ### 1.3 Deploy Script (Day 11)
 **Path:** `contracts/script/Deploy.s.sol`
 **Deploy order:**
