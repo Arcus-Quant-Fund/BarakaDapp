@@ -1,5 +1,5 @@
 # BARAKA PROTOCOL — BUILD CHECKLIST
-**Last Updated:** February 27, 2026 (Session 12)
+**Last Updated:** February 28, 2026 (Session 16)
 **Status Legend:** `[ ]` = Not started · `[~]` = In progress · `[x]` = Complete · `[-]` = Deferred to v2
 
 ---
@@ -14,7 +14,7 @@
 | Testnet Deploy | ✅ Live | All 9 contracts on chain 421614 |
 | BRKX Token + Fee System | ✅ Live | PM v3 + CollateralVault v2 + OracleAdapter v2 + LiqEngine v2 redeployed |
 | Frontend | ✅ Live | https://baraka.arcusquantfund.com |
-| Subgraph | ✅ Live | https://thegraph.com/studio/subgraph/arcus |
+| Subgraph | ✅ Live v0.0.2 | v0.0.2 — fixed stale addresses + L2/L3/L4 data sources |
 | CI Pipeline | ✅ Active | .github/workflows/ci.yml (4 jobs) |
 | Custom Domain | ✅ Live | baraka.arcusquantfund.com (HTTP/2 + SSL) |
 | arcusquantfund.com /dapp | ✅ Updated | 9 contracts, 3 papers, IES simulation, BRKX, GitHub link |
@@ -37,7 +37,12 @@
 | Product Stack Deploy (L1.5/L2/L3/L4) | ✅ Live | EverlastingOption + TakafulPool + PerpetualSukuk + iCDS on Arbitrum Sepolia |
 | Frontend Product Pages | ✅ Live | /sukuk /takaful /credit /dashboard — baraka.arcusquantfund.com |
 | Pinata JWT | ✅ Obtained | `bb023190f5171bdf5884` — stored in BarakaDapp/.env |
-| **Next session starts here →** | ⏳ | Upload fatwa_placeholder.pdf to Pinata → GovernanceModule.setFatwaURI(cid) |
+| Fatwa IPFS + On-chain | ✅ Live | CID `QmVztQv...` → ShariahGuard.approveAsset(USDC, cid) — tx 0xab9cef34 (Feb 28) |
+| Subgraph v0.0.2 | ✅ Live | Fixed v1 stale addresses + TakafulPool/PerpetualSukuk/iCDS data sources |
+| CI label fix | ✅ Done | forge 177/177, frontend 8/8 routes |
+| Transparency page | ✅ Updated | 13 contracts listed (9 L1 + 4 L2/L3/L4) |
+| Arbiscan verification | ✅ All verified | All 4 product stack contracts confirmed |
+| **Next session starts here →** | ⏳ | Discord/Twitter launch, SSRN preprint, mainnet scholar fatwa PDF |
 
 ---
 
