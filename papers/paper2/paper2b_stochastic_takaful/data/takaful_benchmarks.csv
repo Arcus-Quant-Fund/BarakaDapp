@@ -1,0 +1,9 @@
+country,product,year,benefit_usd,premium_usd,premium_rate_pct,source
+Bangladesh,SadharanBima Crop,2020,500,15.0,3.0,BTRC/SadharanBima Annual Report 2020
+Bangladesh,Green Delta Agri,2022,500,17.5,3.5,Green Delta Insurance Annual Report 2022
+Pakistan,Pak-Qatar Crop,2019,800,32.0,4.0,SECP Takaful Report 2019
+Pakistan,Salama Crop Takaful,2021,800,28.0,3.5,SBP Islamic Finance Review 2021
+Indonesia,ASEI Crop Insurance,2020,600,18.0,3.0,OJK Insurance Statistics 2020
+Indonesia,Ramayana Takaful Agri,2022,600,24.0,4.0,OJK Insurance Statistics 2022
+India,PMFBY (conventional),2021,450,9.0,2.0,MoAFW PMFBY Factsheet 2021 (subsidy-adjusted)
+India,PMFBY (conventional),2023,450,11.25,2.5,MoAFW PMFBY Factsheet 2023

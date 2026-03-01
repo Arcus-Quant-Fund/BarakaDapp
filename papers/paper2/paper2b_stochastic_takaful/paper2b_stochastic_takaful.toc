@@ -1,0 +1,42 @@
+\contentsline {section}{\numberline {1}Introduction}{4}{section.1}%
+\contentsline {section}{\numberline {2}Theoretical Framework}{5}{section.2}%
+\contentsline {subsection}{\numberline {2.1}Takaful as a Mutual Guarantee}{5}{subsection.2.1}%
+\contentsline {subsection}{\numberline {2.2}Continuous-Time Loss Intensity}{5}{subsection.2.2}%
+\contentsline {subsection}{\numberline {2.3}The Riba Loading in Conventional Pricing}{6}{subsection.2.3}%
+\contentsline {section}{\numberline {3}CIR Stochastic Hazard Rate Model}{6}{section.3}%
+\contentsline {subsection}{\numberline {3.1}CIR Dynamics}{6}{subsection.3.1}%
+\contentsline {subsection}{\numberline {3.2}Closed-Form Affine Premium}{7}{subsection.3.2}%
+\contentsline {subsection}{\numberline {3.3}Comparison: Constant vs Stochastic $\kappa $}{7}{subsection.3.3}%
+\contentsline {section}{\numberline {4}Data}{7}{section.4}%
+\contentsline {subsection}{\numberline {4.1}Cereal Yield Data}{7}{subsection.4.1}%
+\contentsline {paragraph}{Country selection.}{8}{section*.2}%
+\contentsline {subsection}{\numberline {4.2}Takaful Premium Benchmarks}{8}{subsection.4.2}%
+\contentsline {section}{\numberline {5}Estimation Methodology}{8}{section.5}%
+\contentsline {subsection}{\numberline {5.1}Loss Year Identification}{8}{subsection.5.1}%
+\contentsline {subsection}{\numberline {5.2}MLE Hazard Estimation}{9}{subsection.5.2}%
+\contentsline {subsection}{\numberline {5.3}CIR Calibration from Decade-Level $\hat {\kappa }$}{9}{subsection.5.3}%
+\contentsline {section}{\numberline {6}Empirical Results}{9}{section.6}%
+\contentsline {subsection}{\numberline {6.1}Cereal Yield Trends and Loss Years}{9}{subsection.6.1}%
+\contentsline {subsection}{\numberline {6.2}Decade-Level $\hat {\kappa }$ and Mean Reversion}{10}{subsection.6.2}%
+\contentsline {subsection}{\numberline {6.3}CIR Parameter Estimates}{11}{subsection.6.3}%
+\contentsline {paragraph}{Interpretation.}{11}{section*.8}%
+\contentsline {subsection}{\numberline {6.4}Model vs Observed Premiums}{12}{subsection.6.4}%
+\contentsline {subsection}{\numberline {6.5}Stochastic vs Constant $\kappa $ Premium}{13}{subsection.6.5}%
+\contentsline {section}{\numberline {7}Riba Loading Decomposition}{15}{section.7}%
+\contentsline {subsection}{\numberline {7.1}Quantifying the Riba Loading}{15}{subsection.7.1}%
+\contentsline {subsection}{\numberline {7.2}Policy Implications}{15}{subsection.7.2}%
+\contentsline {section}{\numberline {8}Smart Contract Implementation}{16}{section.8}%
+\contentsline {subsection}{\numberline {8.1}TakafulPool Architecture}{16}{subsection.8.1}%
+\contentsline {subsection}{\numberline {8.2}Claims Settlement}{17}{subsection.8.2}%
+\contentsline {subsection}{\numberline {8.3}On-Chain Pricing vs CIR Model}{17}{subsection.8.3}%
+\contentsline {section}{\numberline {9}AAOIFI Compliance}{17}{section.9}%
+\contentsline {subsection}{\numberline {9.1}Relevant Standards}{17}{subsection.9.1}%
+\contentsline {subsection}{\numberline {9.2}Compliance Analysis of the $\kappa $-Framework}{18}{subsection.9.2}%
+\contentsline {paragraph}{Riba elimination.}{18}{section*.15}%
+\contentsline {paragraph}{Gharar minimisation.}{18}{section*.16}%
+\contentsline {paragraph}{Maysir avoidance.}{18}{section*.17}%
+\contentsline {paragraph}{Transparency.}{18}{section*.18}%
+\contentsline {section}{\numberline {10}Conclusion}{18}{section.10}%
+\contentsline {section}{\numberline {A}MLE Consistency Under Bernoulli Loss Process}{21}{appendix.A}%
+\contentsline {section}{\numberline {B}Euler--Maruyama Discretisation of CIR}{21}{appendix.B}%
+\contentsline {section}{\numberline {C}AAOIFI Standard No.~26: Takaful Compliance Checklist}{21}{appendix.C}%

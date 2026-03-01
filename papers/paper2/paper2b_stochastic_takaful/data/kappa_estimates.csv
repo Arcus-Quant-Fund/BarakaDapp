@@ -1,0 +1,5 @@
+iso,country,T,n_loss,p_hat,kappa_hat
+BD,Bangladesh,44,3,0.0682,0.0706
+ID,Indonesia,44,6,0.1364,0.1466
+IN,India,44,5,0.1136,0.1206
+PK,Pakistan,44,5,0.1136,0.1206

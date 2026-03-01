@@ -1,0 +1,9 @@
+country,product,year,benefit_usd,premium_obs,rate_obs_pct,kappa_hat,pi_model,model_to_obs
+Bangladesh,SadharanBima Crop,2020,500,15.0,3.0,0.0706,35.3,2.353
+Bangladesh,Green Delta Agri,2022,500,17.5,3.5,0.0706,35.3,2.017
+Pakistan,Pak-Qatar Crop,2019,800,32.0,4.0,0.1206,96.48,3.015
+Pakistan,Salama Crop Takaful,2021,800,28.0,3.5,0.1206,96.48,3.446
+Indonesia,ASEI Crop Insurance,2020,600,18.0,3.0,0.1466,87.96,4.887
+Indonesia,Ramayana Takaful Agri,2022,600,24.0,4.0,0.1466,87.96,3.665
+India,PMFBY (conventional),2021,450,9.0,2.0,0.1206,54.27,6.03
+India,PMFBY (conventional),2023,450,11.25,2.5,0.1206,54.27,4.824

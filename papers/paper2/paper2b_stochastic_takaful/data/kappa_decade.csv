@@ -1,0 +1,17 @@
+iso,country,decade,T_d,n_loss_d,p_d,kappa_d
+BD,Bangladesh,1980,10,2,0.2,0.2231
+BD,Bangladesh,1990,10,1,0.1,0.1054
+BD,Bangladesh,2000,10,0,0.0,-0.0
+BD,Bangladesh,2010,10,0,0.0,-0.0
+ID,Indonesia,1980,10,2,0.2,0.2231
+ID,Indonesia,1990,10,3,0.3,0.3567
+ID,Indonesia,2000,10,0,0.0,-0.0
+ID,Indonesia,2010,10,1,0.1,0.1054
+IN,India,1980,10,3,0.3,0.3567
+IN,India,1990,10,0,0.0,-0.0
+IN,India,2000,10,1,0.1,0.1054
+IN,India,2010,10,1,0.1,0.1054
+PK,Pakistan,1980,10,3,0.3,0.3567
+PK,Pakistan,1990,10,1,0.1,0.1054
+PK,Pakistan,2000,10,0,0.0,-0.0
+PK,Pakistan,2010,10,1,0.1,0.1054
