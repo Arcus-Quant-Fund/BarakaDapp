@@ -1,5 +1,5 @@
 # BARAKA PROTOCOL — BUILD CHECKLIST
-**Last Updated:** February 28, 2026 (Session 16)
+**Last Updated:** March 1, 2026 (Session 17)
 **Status Legend:** `[ ]` = Not started · `[~]` = In progress · `[x]` = Complete · `[-]` = Deferred to v2
 
 ---
@@ -8,16 +8,16 @@
 
 | Phase | Status | URL / Notes |
 |---|---|---|
-| Smart Contracts (12) | ✅ Complete | 8 core + BRKXToken + EverlastingOption + TakafulPool + PerpetualSukuk + iCDS |
-| Tests | ✅ 177/177 | +84 new: EverlastingOption (33) + TakafulPool (16) + PerpetualSukuk (16) + iCDS (19) |
+| Smart Contracts (13) | ✅ Complete | 8 core + BRKXToken + EverlastingOption + TakafulPool + PerpetualSukuk + iCDS |
+| Tests | ✅ 369/369 | +192 (Session 16+17): Invariant×9 · GovernanceModule·51 · InsuranceFund·32 · CollateralVault·41 · LiquidationEngine·27 · OracleAdapter·32 |
 | Slither | ✅ Clean | HIGH 0, MEDIUM 0 |
-| Testnet Deploy | ✅ Live | All 9 contracts on chain 421614 |
+| Testnet Deploy | ✅ Live | All 13 contracts on chain 421614 |
 | BRKX Token + Fee System | ✅ Live | PM v3 + CollateralVault v2 + OracleAdapter v2 + LiqEngine v2 redeployed |
 | Frontend | ✅ Live | https://baraka.arcusquantfund.com |
 | Subgraph | ✅ Live v0.0.2 | v0.0.2 — fixed stale addresses + L2/L3/L4 data sources |
 | CI Pipeline | ✅ Active | .github/workflows/ci.yml (4 jobs) |
 | Custom Domain | ✅ Live | baraka.arcusquantfund.com (HTTP/2 + SSL) |
-| arcusquantfund.com /dapp | ✅ Updated | 9 contracts, 3 papers, IES simulation, BRKX, GitHub link |
+| arcusquantfund.com /dapp | ✅ Updated | 13 contracts, 6 papers, IES simulation, BRKX, GitHub link |
 | Automated E2E (fork) | ✅ 6/6 | `bash e2e.sh` — 20s, zero gas |
 | Paper 1 (ι=0 Shariah Perpetuals) | ✅ Complete | `papers/paper1/` — 16pp, 6 figures, PDF compiled |
 | Paper 2 (Credit Equivalence) | ✅ Complete | `papers/paper2/` — 11pp incl. Section 8 simulation validation |
@@ -34,6 +34,10 @@
 | PerpetualSukuk.sol (Layer 2) | ✅ Complete | Islamic capital market instrument; par+embedded call at maturity; 16/16 tests |
 | iCDS.sol (Layer 4) | ✅ Complete | Islamic Credit Default Swap; quarterly put-priced premium; LGD settlement; 19/19 tests + 1k fuzz |
 | IEverlastingOption.sol interface | ✅ Complete | quotePut/quoteCall/quoteAtSpot/getExponents — used by all Layer 2/3/4 |
+| CollateralVault unit tests | ✅ Complete | `test/unit/CollateralVault.t.sol` — 41/41 (deposit/withdraw/cooldown/lock/unlock/chargeFromFree + 3 fuzz) |
+| LiquidationEngine unit tests | ✅ Complete | `test/unit/LiquidationEngine.t.sol` — 27/27 + 2 fuzz (penalty cap, conservation invariant verified) |
+| OracleAdapter unit tests | ✅ Complete | `test/unit/OracleAdapter.t.sol` — 32/32 + 2 fuzz (stale/diverge/circuit-breaker/TWAP/ring-buffer) |
+| Mainnet Deploy Script | ✅ Complete | `script/DeployMainnet.s.sol` — Arbitrum One (42161), pre-flight checks + post-deploy assertions |
 | Product Stack Deploy (L1.5/L2/L3/L4) | ✅ Live | EverlastingOption + TakafulPool + PerpetualSukuk + iCDS on Arbitrum Sepolia |
 | Frontend Product Pages | ✅ Live | /sukuk /takaful /credit /dashboard — baraka.arcusquantfund.com |
 | Pinata JWT | ✅ Obtained | `bb023190f5171bdf5884` — stored in BarakaDapp/.env |
@@ -46,7 +50,7 @@
 | Invariant tests (iota=0 + leverage) | ✅ Complete | `Invariant_IotaZero.t.sol` (5 invariants, 256x128 depth) + `Invariant_MaxLeverage.t.sol` (4 invariants) — 186/186 total |
 | GovernanceModule unit tests | ✅ Complete | `test/unit/GovernanceModule.t.sol` — 51/51 (propose/vote/queue/execute/veto/cancel/timelock/fuzz) |
 | InsuranceFund unit tests | ✅ Complete | `test/unit/InsuranceFund.t.sol` — 32/32 (receive/cover/surplus/weekly-tracker/fuzz) |
-| **Next session starts here →** | ⏳ | Discord/Twitter launch, SSRN preprint (all 4 papers), mainnet scholar fatwa PDF |
+| **Next session starts here →** | ⏳ | Discord server + @BarakaDEX Twitter + LinkedIn pages + security audit selection |
 
 ---
 
@@ -134,8 +138,10 @@
   - [x] MEDIUM fixed: divide-before-multiply, 2× incorrect-equality, reentrancy CEI restructure, 3× uninitialized-local, unused-return
 - [x] Unit tests for InsuranceFund — `test/unit/InsuranceFund.t.sol` (32/32)
 - [x] Unit tests for GovernanceModule — `test/unit/GovernanceModule.t.sol` (51/51)
-- [ ] Unit tests for OracleAdapter (covered partially by KappaSignal.t.sol), CollateralVault, LiquidationEngine *(remaining gaps)*
-- [ ] `forge coverage` >= 90% *(Phase 2 priority)*
+- [x] Unit tests for OracleAdapter — `test/unit/OracleAdapter.t.sol` 32/32 (6 external fns, all stale/diverge/circuit-breaker/TWAP branches + 2 fuzz)
+- [x] Unit tests for CollateralVault — `test/unit/CollateralVault.t.sol` 41/41 (deposit/withdraw/cooldown/lock/unlock/chargeFromFree + 3 fuzz)
+- [x] Unit tests for LiquidationEngine — `test/unit/LiquidationEngine.t.sol` 27/27 (penalty cap, conservation + 2 fuzz)
+- [~] `forge coverage` >= 90% — line 94–100% ✓; func 100% ✓; branch lower (OZ-internal Ownable2Step/Pausable branches not user-facing)
 - [x] Invariant test: iota=0 never violated — `test/invariant/Invariant_IotaZero.t.sol` (5 invariants, 256 runs x 128 depth = 32,768 calls each)
 - [x] Invariant test: leverage > 5 never possible — `test/invariant/Invariant_MaxLeverage.t.sol` (4 invariants, 256 runs x 128 depth = 32,768 calls each)
 - [ ] Integration test: oracle failover (Chainlink staleness, circuit breaker) *(Phase 2)*
@@ -229,7 +235,7 @@
 - [x] `.github/workflows/ci.yml` — 4 jobs:
   - `contracts`: forge build + forge test (60/60) on every PR
   - `slither`: fails if any HIGH or MEDIUM introduced (`--fail-high --fail-medium`)
-  - `frontend`: `npm ci && npm run build` (5/5 routes)
+  - `frontend`: `npm ci && npm run build` (8/8 routes)
   - `subgraph`: `npm run codegen && npm run build` (4 WASM modules)
 - [ ] Vercel auto-deploy — connect GitHub repo to Vercel project (push main = deploy)
 - [ ] Discord webhook monitoring
@@ -299,9 +305,9 @@ Revenue split: 50% → InsuranceFund / 50% → Treasury
   - MockFeed swapped in for live Chainlink to control prices + timestamps
   - Auto-unpauses all contracts if left paused on testnet
 - [x] **Pinata JWT** — obtained Feb 28 2026 (Key: `bb023190f5171bdf5884`, stored in `.env`)
-- [ ] **Upload fatwa_placeholder.pdf** → get IPFS CID → call `GovernanceModule.setFatwaURI(cid)`
+- [x] **Fatwa on-chain** — CID `QmVztQvWd5QkD5euhiUb2ycwr2SHL928Y2AC9rnWCMn7c2` → `ShariahGuard.approveAsset(USDC, cid)` tx `0xab9cef3...` (block 245895608, Feb 28 2026)
 - [ ] Discord server (#announcements #trading #shariah-questions #dev)
-- [ ] Twitter / X account @BarakaProtocol
+- [ ] Twitter / X account @BarakaDEX (handle @BarakaProtocol taken)
 - [ ] Testnet public announcement (Discord + Twitter)
 - [ ] Shariah scholar outreach — AAOIFI contacts, Dr. Bhuyan's academic network
 - [ ] Bug bounty scope document
@@ -310,32 +316,38 @@ Revenue split: 50% → InsuranceFund / 50% → Treasury
 
 ## PHASE 6 — RESEARCH PAPERS
 
-### Paper 1 — Interest Parameter in Perpetual Futures (Shariah + Empirical)
-- [x] Written — `latest.tex`
-- [x] Authors: Ahmed, Bhuyan, Islam
+### Paper 1 — ι=0 Shariah Perpetual Futures
+- [x] Written — `papers/paper1/paper1_shariah_perpetuals.tex`
+- [x] **SSRN 6322778** ✅ published 2026-03-01
 - [ ] Submit to Islamic Economic Studies (IRTI/IsDB) or JKAU: Islamic Economics
-- [ ] Preprint on SSRN
 
-### Paper 2 — Random Stopping Time ≡ Credit Event (Riba-Free Credit Pricing)
-- [x] Conceived — see PLAN.md §PAPER ROADMAP
-- [x] Written — `papers/paper2/paper2_credit_equivalence.tex` (Feb 27 2026)
-- [x] Literature review integrated: Brémaud (1981), Protter (2005), Elliott et al. (2000), Jeanblanc & Rutkowski (2000), Schönbucher (2003), Billah (2007), Htay & Salman (2012), Khan & Ahmed (2001), SeekersGuidance (2025), Jobst (2007)
+### Paper 2 — Random Stopping Time ≡ Credit Event (κ-Rate Framework)
+- [x] Written — `papers/paper2/paper2_credit_equivalence.tex`
+- [x] **SSRN 6322858** ✅ published 2026-03-01
 - [ ] Submit to Journal of Banking & Finance or Mathematical Finance
-- [ ] Preprint on SSRN / arXiv (q-fin.GN)
 - [ ] Share with AAOIFI for fatwa process input
 
-### Paper 3 — The κ-Rate: Riba-Free Monetary Alternative (written + appendix)
-- [x] Written — `papers/paper3/paper3_kappa_rate.tex` (Feb 28 2026) — **11 pages** (compiled clean)
-- [x] Literature review: Fisher (1930), Böhm-Bawerk (1890), Wicksell (1898), Keynes (1936), Chapra (1985), Khan & Mirakhor (1987), Iqbal & Mirakhor (2011), CIR (1985), Vasicek (1977), Nelson-Siegel (1987), El-Gamal (2006), Zarqa (1983), Khan & Abdallah (2017), Mirakhor & Askari (2010)
-- [x] Core thesis: κ is Wicksell's natural rate minus riba — first rigorous riba-free monetary alternative
-- [x] κ-yield curve: κ(T) = 1/T, Islamic analog of the CIR term structure
-- [x] Applications: credit instruments, takaful, monetary policy signalling, sovereign sukuk benchmark
-- [x] **Appendix A: Stochastic κ Dynamics** — CIR-κ SDE `dκ_t = α(κ̄−κ_t)dt + σ_κ√κ_t dW_t^Q`; Feller condition lemma (κ>0 a.s.); closed-form κ-bond pricing theorem (Riccati ODE proof); stochastic κ-yield curve proposition (short/long-rate limits, normal/inverted/flat shapes); calibration equation; CIR correspondence table
-  - Fix applied: `\DeclareMathOperator*{\argmin}` added to preamble (calibration eq. missing this)
-  - PDF recompiled: **zero errors, all cross-refs resolved, 11 pages**
-- [x] NOTE: simulation (cadCAD/RL/GT/MD) = data tool, cited as data note in Paper 3 (not a standalone paper)
-- [ ] Submit to Journal of Economic Theory / Review of Financial Studies
-- [ ] Preprint on SSRN / arXiv (q-fin.EC, q-fin.MF)
+### Paper 2A — κ-Yield Curve (Islamic Term Structure)
+- [x] Written — `papers/paper2/paper2a_kappa_yield_curve/` — 26pp, real data (Damodaran+FRED+Yahoo)
+- [x] **SSRN 6322938** ✅ published 2026-03-01
+- [ ] Submit to Journal of Financial Economics
+
+### Paper 2B — Stochastic Takaful Pricing (CIR Hazard Model)
+- [x] Written — `papers/paper2/paper2b_stochastic_takaful/` — 28pp, CIR hazard model
+- [x] Key result: India PMFBY κ̂=12.06% matches actuarial ≈12% exactly
+- [x] **SSRN 6323459** ✅ published 2026-03-01
+- [ ] Submit to Geneva Papers on Risk and Insurance
+
+### Paper 2C — iCDS Implementation (Islamic Credit Default Swap)
+- [x] Written — `papers/paper2/paper2c_icds/` — quarterly put-priced premium, LGD settlement
+- [x] **SSRN 6323519** ✅ published 2026-03-01
+- [ ] Submit to Journal of Banking & Finance
+
+### Paper 3 — IES Simulation Framework (cadCAD + RL + Game Theory + MD)
+- [x] Written — `papers/paper3/paper3_simulation_framework.tex` — 8pp
+- [x] Key results: 0% insolvency, Nash lev 2.72×/3.28×, net transfer ≈$0, MD converged
+- [x] **SSRN 6323618** ✅ published 2026-03-01
+- [ ] Submit to Computational Economics or JASSS
 
 ### Paper 4 — Empirical Baraka Protocol (post-mainnet)
 - [ ] After live trading data exists on mainnet
@@ -345,9 +357,13 @@ Revenue split: 50% → InsuranceFund / 50% → Treasury
 ## PHASE 5 — PRE-MAINNET (future)
 
 ### Additional Tests (before mainnet)
-- [ ] Unit tests for OracleAdapter, CollateralVault, LiquidationEngine, InsuranceFund, GovernanceModule
-- [ ] `forge coverage` >= 90%
-- [ ] Invariant tests: ι=0 never violated, leverage never > 5
+- [x] Unit tests for OracleAdapter — `test/unit/OracleAdapter.t.sol` 32/32 + 2 fuzz
+- [x] Unit tests for CollateralVault — `test/unit/CollateralVault.t.sol` 41/41 + 3 fuzz
+- [x] Unit tests for LiquidationEngine — `test/unit/LiquidationEngine.t.sol` 27/27 + 2 fuzz
+- [x] Unit tests for InsuranceFund — `test/unit/InsuranceFund.t.sol` 32/32
+- [x] Unit tests for GovernanceModule — `test/unit/GovernanceModule.t.sol` 51/51
+- [~] `forge coverage` >= 90% — line 94–100% ✓; func 100% ✓; branch lower (OZ-internal branches only)
+- [x] Invariant tests: ι=0 never violated (`Invariant_IotaZero.t.sol`); leverage never > 5 (`Invariant_MaxLeverage.t.sol`)
 - [ ] Integration test: oracle failover (staleness, circuit breaker trigger)
 
 ### Security
@@ -356,14 +372,16 @@ Revenue split: 50% → InsuranceFund / 50% → Treasury
 
 ### Shariah Compliance
 - [x] Pinata JWT obtained — Feb 28 2026 (Key `bb023190f5171bdf5884`, stored in `.env`)
-- [ ] Upload `fatwa_placeholder.pdf` to Pinata → call `GovernanceModule.setFatwaURI(cid)` on Sepolia
-- [ ] Fatwa obtained from AAOIFI-certified scholars
-- [ ] Fatwa IPFS hash stored in ShariahGuard.fatwaIPFS mapping
+- [x] Fatwa placeholder uploaded to Pinata — CID `QmVztQvWd5QkD5euhiUb2ycwr2SHL928Y2AC9rnWCMn7c2` (Feb 28 2026)
+- [x] `ShariahGuard.approveAsset(USDC, cid)` broadcast — tx `0xab9cef3...` (block 245895608) — USDC fatwa IPFS now on-chain
+- [ ] Fatwa obtained from AAOIFI-certified scholars (formal board — pre-mainnet requirement)
+- [x] Fatwa IPFS hash stored in ShariahGuard.fatwaIPFS[USDC] ✅
 
 ### Infrastructure
-- [ ] Mainnet deployer wallet (separate from testnet)
+- [x] `script/DeployMainnet.s.sol` — Arbitrum One (42161) production deploy: pre-flight (ETH balance, feed freshness, multisig ≠ deployer, FATWA_CID ≥ 46 chars), full wire-up, post-deploy assertions
+- [ ] Mainnet deployer wallet (separate from testnet) + fund with ≥ 0.1 ETH
 - [ ] GRT tokens for subgraph publication on The Graph Network (decentralized)
-- [ ] Mainnet Chainlink feed addresses confirmed
+- [ ] Mainnet Chainlink feed addresses confirmed *(already hardcoded in DeployMainnet.s.sol: BTC/USD `0x6ce18586...`, ETH/USD `0x639Fe6ab...`)*
 
 ---
 
@@ -412,4 +430,4 @@ npx graph deploy arcus --version-label v0.0.2
 
 ---
 
-*Checklist Version 2.6 — February 28, 2026 — Updated after Session 15 (Product stack deployed on-chain + /sukuk /takaful /credit /dashboard pages live + Pinata JWT obtained)*
+*Checklist Version 2.7 — March 1, 2026 — Updated after Session 17 (CollateralVault/LiquidationEngine/OracleAdapter unit tests: 100 new tests, 369 total · DeployMainnet.s.sol: Arbitrum One production script complete)*

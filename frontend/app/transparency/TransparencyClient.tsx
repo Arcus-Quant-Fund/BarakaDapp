@@ -41,7 +41,7 @@ const PRINCIPLES = [
     title: 'No Gharar (Uncertainty / Hidden Risk)',
     status: 'ENFORCED',
     color: 'var(--green-lite)',
-    body: 'All 9 contracts are verified on Arbiscan — source code is public. No proxy contracts, no upgradeable contracts (OZ upgradeable deliberately NOT installed). No admin backdoors. The only governance is a 48-hour timelock with Shariah board veto. All fees, liquidation parameters, and funding mechanics are visible on-chain.',
+    body: 'All 13 contracts are verified on Arbiscan — source code is public. No proxy contracts, no upgradeable contracts (OZ upgradeable deliberately NOT installed). No admin backdoors. The only governance is a 48-hour timelock with Shariah board veto. All fees, liquidation parameters, and funding mechanics are visible on-chain.',
   },
   {
     id: '04',
@@ -200,7 +200,7 @@ export default function TransparencyClient() {
         }}
       >
         <h2 style={{ fontSize: '14px', fontWeight: 700, color: 'var(--text-main)', marginBottom: '16px' }}>
-          Mathematical Proof (Ackerer et al. 2024)
+          Mathematical Proof (Ackerer et al. 2025, Mathematical Finance)
         </h2>
 
         <div
@@ -235,15 +235,123 @@ export default function TransparencyClient() {
         </div>
 
         <p style={{ fontSize: '12px', color: 'var(--text-muted)', lineHeight: 1.6 }}>
-          Reference: Ackerer, D., Hugonnier, J., & Jermann, U. (2024).{' '}
-          <em>Perpetual Futures Pricing</em>. Mathematical Finance 34(4), 1277–1308.
-          The BarakaDapp implementation follows Theorem 3 / Proposition 3 precisely — see
+          Reference: Ackerer, D., Hugonnier, J., & Jermann, U. (2025).{' '}
+          <em>Perpetual Futures Pricing</em>. <em>Mathematical Finance</em>, DOI:10.1111/mafi.70018.
+          The Baraka implementation follows Theorem 3 / Proposition 3 precisely — see
           NatSpec comments in FundingEngine.sol. The κ-rate monetary framework and
-          everlasting option pricing (Proposition 6) are developed in Ahmed, Bhuyan &amp; Islam
-          (2026), Papers 2 &amp; 3 — available at{' '}
-          <a href="https://github.com/Arcus-Quant-Fund/BarakaDapp" style={{ color: 'var(--green-lite)', textDecoration: 'none' }}>
-            github.com/Arcus-Quant-Fund/BarakaDapp
-          </a>.
+          everlasting option pricing (Proposition 6) are developed in Ahmed (2026),
+          SSRN 6322778 / 6322858 — available at baraka.arcusquantfund.com.
+        </p>
+      </div>
+
+      {/* BSM vs AHJ comparison */}
+      <div
+        style={{
+          background: 'var(--bg-panel)',
+          border: '1px solid var(--border)',
+          borderRadius: '12px',
+          padding: '24px',
+        }}
+      >
+        <h2 style={{ fontSize: '14px', fontWeight: 700, color: 'var(--text-main)', marginBottom: '6px' }}>
+          Why Not Black-Scholes / Merton?
+        </h2>
+        <p style={{ fontSize: '12px', color: 'var(--text-muted)', marginBottom: '18px', lineHeight: 1.6 }}>
+          BSM is the industry standard for option pricing. It is also structurally incompatible with Islamic finance.
+          Here is why — and how the AHJ everlasting option framework resolves it.
+        </p>
+
+        {/* Formula comparison */}
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', marginBottom: '20px' }}>
+          <div
+            style={{
+              background: 'var(--bg-card)',
+              border: '1px solid rgba(239,68,68,0.25)',
+              borderRadius: '8px',
+              padding: '14px',
+              fontFamily: 'var(--font-geist-mono)',
+              fontSize: '12px',
+            }}
+          >
+            <div style={{ color: 'rgba(239,68,68,0.8)', fontWeight: 700, marginBottom: '10px', fontSize: '11px', letterSpacing: '0.05em' }}>
+              BLACK-SCHOLES / MERTON — HARAM
+            </div>
+            <div style={{ color: 'var(--text-muted)', marginBottom: '6px' }}>C = S·N(d₁) − K·<span style={{ color: 'rgba(239,68,68,0.9)', fontWeight: 700 }}>e^(−rT)</span>·N(d₂)</div>
+            <div style={{ color: 'var(--text-muted)', fontSize: '11px', lineHeight: 1.7 }}>
+              <div>d₁ = [ln(S/K) + (<span style={{ color: 'rgba(239,68,68,0.9)' }}>r</span> + σ²/2)T] / σ√T</div>
+              <div style={{ marginTop: '8px', color: 'rgba(239,68,68,0.7)' }}>
+                ↑ r appears twice. Removing it breaks the model.
+              </div>
+            </div>
+          </div>
+
+          <div
+            style={{
+              background: 'var(--bg-card)',
+              border: '1px solid var(--green-deep)',
+              borderRadius: '8px',
+              padding: '14px',
+              fontFamily: 'var(--font-geist-mono)',
+              fontSize: '12px',
+            }}
+          >
+            <div style={{ color: 'var(--green-lite)', fontWeight: 700, marginBottom: '10px', fontSize: '11px', letterSpacing: '0.05em' }}>
+              AHJ EVERLASTING OPTION — HALAL
+            </div>
+            <div style={{ color: 'var(--text-muted)', marginBottom: '6px' }}>Π(x,K) = [K^(1−β) / (β₊−β₋)] · x^<span style={{ color: 'var(--green-lite)', fontWeight: 700 }}>β</span></div>
+            <div style={{ color: 'var(--text-muted)', fontSize: '11px', lineHeight: 1.7 }}>
+              <div>β = ½ ± √(¼ + 2<span style={{ color: 'var(--green-lite)' }}>κ</span>/σ²)</div>
+              <div style={{ marginTop: '8px', color: 'var(--green-lite)' }}>
+                ↑ No r. No e^(−rT). No discounting at interest.
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Diff table */}
+        <div
+          style={{
+            border: '1px solid var(--border)',
+            borderRadius: '8px',
+            overflow: 'hidden',
+            fontSize: '12px',
+          }}
+        >
+          {[
+            { aspect: 'Discount factor',     bsm: 'K · e^(−rT)  ← this is riba',       ahj: 'None — no discounting required' },
+            { aspect: 'Maturity',            bsm: 'Fixed T (days/months/years)',         ahj: 'None — random stopping θ ~ Exp(κ)' },
+            { aspect: 'Pricing parameter',   bsm: 'r = risk-free rate (interest)',       ahj: 'κ = convergence intensity (no interest)' },
+            { aspect: 'Where rate comes from', bsm: 'Central bank / LIBOR / T-bills',   ahj: 'On-chain perpetual convergence dynamics' },
+            { aspect: 'Set r/ι = 0?',        bsm: 'Breaks the model',                   ahj: 'Required by Theorem 3 — model works perfectly' },
+            { aspect: 'Products priced',     bsm: 'European options only',              ahj: 'Perps · options · sukuk · takaful · iCDS' },
+            { aspect: 'Shariah status',      bsm: 'Structurally haram (r is riba)',     ahj: 'Halal by construction (ι = 0 proven)' },
+          ].map((row, i, arr) => (
+            <div
+              key={row.aspect}
+              style={{
+                display: 'grid',
+                gridTemplateColumns: '1fr 1.2fr 1.2fr',
+                borderBottom: i < arr.length - 1 ? '1px solid var(--border)' : 'none',
+              }}
+            >
+              <div style={{ padding: '10px 14px', color: 'var(--text-muted)', fontFamily: 'var(--font-geist-mono)', fontSize: '11px', borderRight: '1px solid var(--border)' }}>
+                {row.aspect}
+              </div>
+              <div style={{ padding: '10px 14px', color: 'rgba(239,68,68,0.75)', fontSize: '11px', borderRight: '1px solid var(--border)' }}>
+                {row.bsm}
+              </div>
+              <div style={{ padding: '10px 14px', color: 'var(--green-lite)', fontSize: '11px' }}>
+                {row.ahj}
+              </div>
+            </div>
+          ))}
+        </div>
+
+        <p style={{ fontSize: '11px', color: 'var(--text-muted)', marginTop: '14px', lineHeight: 1.6 }}>
+          BSM prices options by discounting at the rate lenders charge for money over time — that is riba.
+          AHJ prices everlasting options by the rate at which markets converge to equilibrium — that is not.
+          The economic content is different even when the numerical values are similar.
+          See Ahmed (2026), SSRN 6322858 for the full derivation.
         </p>
       </div>
 
