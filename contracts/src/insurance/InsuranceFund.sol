@@ -123,6 +123,35 @@ contract InsuranceFund is IInsuranceFund, Ownable2Step, Pausable, ReentrancyGuar
     }
 
     /**
+     * @notice Pay net PnL profit to a trader when their position closes with a gain.
+     *         The InsuranceFund acts as the protocol counterparty for PnL settlement.
+     *         Pays as much as available; silently caps at fund balance (avoids revert
+     *         when fund is undercapitalised — protocol will top up via surplus distribution).
+     *
+     * @param token     The collateral token to pay out.
+     * @param amount    The profit amount requested.
+     * @param recipient The trader's wallet address.
+     */
+    function payPnl(address token, uint256 amount, address recipient)
+        external
+        override
+        nonReentrant
+        whenNotPaused
+    {
+        require(authorised[msg.sender], "InsuranceFund: not authorised");
+        require(amount > 0,             "InsuranceFund: zero amount");
+        require(recipient != address(0), "InsuranceFund: zero recipient");
+
+        uint256 available    = _fundBalance[token];
+        uint256 actualPayout = amount > available ? available : amount;
+        if (actualPayout == 0) return;
+
+        _fundBalance[token] -= actualPayout;
+        IERC20(token).safeTransfer(recipient, actualPayout);
+        emit ShortfallCovered(token, actualPayout, recipient);
+    }
+
+    /**
      * @notice Returns the current fund balance for a token.
      */
     function fundBalance(address token) external view override returns (uint256) {

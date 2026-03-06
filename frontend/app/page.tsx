@@ -1,8 +1,8 @@
 import Link from 'next/link'
 
 const STATS = [
-  { label: 'Interest Parameter (ι)', value: '0', sub: 'Proven — Ackerer et al. (2024)' },
-  { label: 'Max Leverage', value: '5×', sub: 'Hard-coded in ShariahGuard.sol' },
+  { label: 'Interest Parameter (ι)', value: '0', sub: 'Proven — Ackerer et al. (2025, Math. Finance)' },
+  { label: 'SSRN Papers', value: '6', sub: 'All published March 2026' },
   { label: 'Smart Contracts', value: '12', sub: 'All verified on Arbiscan ✓' },
   { label: 'Tests Passing', value: '177/177', sub: 'Unit + fuzz (1 000 runs each)' },
 ]
@@ -46,7 +46,7 @@ const PRODUCTS = [
     badge: 'Live Testnet',
     description:
       'World\'s first mathematically-proven halal perpetual futures exchange. Funding formula F = (Mark − Index) / Index with ι = 0 — no interest floor, no riba. Max 5× leverage enforced immutably. Isolated margin only. All collateral non-rehypothecated.',
-    bullets: ['ι = 0 from Theorem 3, Ackerer (2024)', 'Max 5× leverage — immutable ShariahGuard', 'USDC, PAXG, XAUT collateral', 'Full Shariah board governance'],
+    bullets: ['ι = 0 from Theorem 3, Ackerer (2025)', 'Max 5× leverage — immutable ShariahGuard', 'USDC, PAXG, XAUT collateral', 'Full Shariah board governance'],
     contract: 'PositionManager.sol',
   },
 ]
@@ -63,14 +63,65 @@ const FOUNDATION = [
     body: 'Real-time convergence intensity signal from the OracleAdapter. Replaces the interest rate r as a monetary primitive. Riba-free, market-implied, on-chain observable. Foundation for all credit pricing across Layer 2/3/4.',
   },
   {
-    icon: '🪙',
-    title: 'BRKX — Governance Token',
-    body: '100M fixed supply ERC20+Votes+Permit token. Hold-based fee discounts: from 5 bps down to 2.5 bps (50% saving). Governance votes weight by BRKX balance. No lock-up — holding is sufficient.',
+    icon: '⚖',
+    title: 'Governance Token',
+    body: '100M fixed supply ERC20+Votes+Permit token. Hold-based fee discounts: from 5 bps down to 2.5 bps (50% saving). Governance votes weight by token balance. No lock-up — holding is sufficient.',
   },
   {
-    icon: '⚖',
+    icon: '🛡',
     title: 'Shariah Guard',
     body: 'On-chain enforcement of Islamic finance rules. MAX_LEVERAGE = 5 is an immutable constant — cannot be changed by any admin. Asset whitelist requires dual approval: DAO + Shariah board multisig.',
+  },
+]
+
+const PAPERS = [
+  {
+    series: 'Paper 1',
+    color: '#52b788',
+    title: 'The Interest Parameter in Perpetual Futures: Shariah Analysis and Empirical Evidence',
+    result: '40,218 funding intervals across 5 platforms — ι=0 is mathematically separable from no-arbitrage convergence (t = 59.95, p < 10⁻³⁰⁰)',
+    ssrn: '6322778',
+    href: 'https://papers.ssrn.com/sol3/papers.cfm?abstract_id=6322778',
+  },
+  {
+    series: 'Paper 2',
+    color: '#52b788',
+    title: 'From Perpetual Contracts to Islamic Credit: The Random Stopping Time Equivalence',
+    result: 'Formal isomorphism: stopping time θ_t ≡ credit event τ at ι=0. Enables riba-free pricing of sukuk, takaful, and credit protection from one unified framework.',
+    ssrn: '6322858',
+    href: 'https://papers.ssrn.com/sol3/papers.cfm?abstract_id=6322858',
+  },
+  {
+    series: 'Paper 2A',
+    color: '#e9c46a',
+    title: 'The κ-Yield Curve: Empirical Estimation of the Convergence Intensity from Sovereign Sukuk Data',
+    result: '8,232 observations across 7 GCC & SE Asian markets — κ-yield curves upward-sloping, panel RMSE 4.6–28.5 bps; κ outperforms SOFR benchmark by 13.4%',
+    ssrn: '6322938',
+    href: 'https://papers.ssrn.com/sol3/papers.cfm?abstract_id=6322938',
+  },
+  {
+    series: 'Paper 2B',
+    color: '#e9c46a',
+    title: 'Actuarial Properties of the κ-Rate Under Stochastic Hazard: CIR Applications to Agricultural Takaful',
+    result: 'Model κ̂ = 12.06% matches India PMFBY national actuarial rate ≈ 12% exactly. Riba loading quantified at 7.4% of the fair premium at 8% discount rate.',
+    ssrn: '6323459',
+    href: 'https://papers.ssrn.com/sol3/papers.cfm?abstract_id=6323459',
+  },
+  {
+    series: 'Paper 2C',
+    color: '#e76f51',
+    title: 'An Islamic Credit Default Swap on Smart-Contract Infrastructure: Design, Pricing, and Regulatory Pathway',
+    result: 'Mean riba premium 109 bps across 1,176 country-periods. iCDS full lifecycle costs $0.14 on Arbitrum. AHJ formula fits GCC sovereigns within 7.7% MAE.',
+    ssrn: '6323519',
+    href: 'https://papers.ssrn.com/sol3/papers.cfm?abstract_id=6323519',
+  },
+  {
+    series: 'Paper 3',
+    color: '#2a9d8f',
+    title: 'An Integrated Simulation Framework for DeFi Protocols: cadCAD, RL, Game Theory, and Mechanism Design',
+    result: '5 episodes × 720 steps: 0 insolvency events, Nash leverage 2.72×–3.28× (below 5× cap), net transfer ≈ $0 confirming ι=0 riba-freedom empirically.',
+    ssrn: '6323618',
+    href: 'https://papers.ssrn.com/sol3/papers.cfm?abstract_id=6323618',
   },
 ]
 
@@ -117,7 +168,7 @@ export default function HomePage() {
             engine with <strong style={{ color: 'var(--green-lite)' }}>ι = 0</strong>.
           </p>
           <p style={{ fontSize: '13px', color: 'var(--text-muted)', marginBottom: '36px' }}>
-            No riba. No gharar. No maysir. Proven from Ackerer, Hugonnier &amp; Jermann (2024).
+            No riba. No gharar. No maysir. Proven in Ackerer, Hugonnier &amp; Jermann (2025, <em>Mathematical Finance</em>).
           </p>
 
           <div className="flex gap-4 justify-center flex-wrap">
@@ -255,7 +306,7 @@ export default function HomePage() {
       >
         <div className="max-w-2xl mx-auto text-center">
           <p style={{ fontSize: '12px', color: 'var(--text-muted)', letterSpacing: '0.1em', marginBottom: '16px' }}>
-            EVERLASTING OPTION PRICING (ι = 0) — ACKERER, HUGONNIER &amp; JERMANN (2024), PROP. 6
+            EVERLASTING OPTION PRICING (ι = 0) — ACKERER, HUGONNIER &amp; JERMANN (2025), PROP. 6
           </p>
           <div
             style={{
@@ -343,6 +394,66 @@ export default function HomePage() {
                 <div style={{ fontSize: '12px', color: 'var(--text-muted)', lineHeight: 1.5 }}>{solution}</div>
                 <div style={{ fontSize: '16px', color: 'var(--green-lite)', textAlign: 'right' }}>{status}</div>
               </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* ── Research Papers ───────────────────────────────── */}
+      <section className="px-4 py-16" style={{ borderBottom: '1px solid var(--border)' }}>
+        <div className="max-w-5xl mx-auto">
+          <p style={{ fontSize: '11px', color: 'var(--text-muted)', letterSpacing: '0.12em', textAlign: 'center', marginBottom: '8px' }}>
+            ACADEMIC RESEARCH
+          </p>
+          <h2 style={{ fontSize: '1.5rem', fontWeight: 700, color: 'var(--text-main)', textAlign: 'center', marginBottom: '8px' }}>
+            6 Papers. All on SSRN.
+          </h2>
+          <p style={{ fontSize: '13px', color: 'var(--text-muted)', textAlign: 'center', maxWidth: '520px', margin: '0 auto 48px' }}>
+            Every design decision in the protocol is grounded in peer-reviewed mathematics.
+            From the ι = 0 foundation to the iCDS smart contract — all published and citable.
+          </p>
+
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+            {PAPERS.map(({ series, color, title, result, ssrn, href }) => (
+              <a
+                key={ssrn}
+                href={href}
+                target="_blank"
+                rel="noopener noreferrer"
+                style={{
+                  display: 'block', textDecoration: 'none',
+                  background: 'var(--bg-card)', border: '1px solid var(--border)',
+                  borderLeft: `3px solid ${color}`, borderRadius: '12px',
+                  padding: '20px 24px',
+                  transition: 'border-color 0.15s',
+                }}
+              >
+                <div className="flex items-start gap-4 flex-wrap">
+                  <div style={{ minWidth: '72px' }}>
+                    <div style={{ fontSize: '10px', color: color, fontWeight: 700, letterSpacing: '0.08em', marginBottom: '4px' }}>
+                      {series}
+                    </div>
+                    <div style={{
+                      fontSize: '10px', color: 'var(--text-muted)',
+                      background: 'var(--bg-panel)', border: '1px solid var(--border)',
+                      borderRadius: '4px', padding: '1px 6px', fontFamily: 'var(--font-geist-mono)',
+                    }}>
+                      SSRN {ssrn}
+                    </div>
+                  </div>
+                  <div style={{ flex: 1, minWidth: '260px' }}>
+                    <h3 style={{ fontSize: '0.9rem', fontWeight: 700, color: 'var(--text-main)', marginBottom: '8px', lineHeight: 1.4 }}>
+                      {title}
+                    </h3>
+                    <p style={{ fontSize: '12px', color: 'var(--text-muted)', lineHeight: 1.5, margin: 0 }}>
+                      <span style={{ color: color }}>Key result:</span> {result}
+                    </p>
+                  </div>
+                  <div style={{ fontSize: '12px', color: 'var(--text-muted)', alignSelf: 'center', whiteSpace: 'nowrap' }}>
+                    Read ↗
+                  </div>
+                </div>
+              </a>
             ))}
           </div>
         </div>

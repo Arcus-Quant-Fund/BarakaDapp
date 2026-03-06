@@ -96,7 +96,10 @@ contract BarakaIntegrationTest is Test {
         // 2. Wire authorisations
         vault.setAuthorised(address(pm),        true);
         vault.setAuthorised(address(liqEngine), true);
+        insurance.setAuthorised(address(pm),        true); // PM routes funding costs to InsuranceFund on close
+        insurance.setAuthorised(address(liqEngine), true);
         liqEngine.setPositionManager(address(pm));
+        liqEngine.setOracle(address(oracle));
 
         vm.stopPrank();
 
@@ -168,6 +171,7 @@ contract BarakaIntegrationTest is Test {
 
         // ── Advance time past 24h cooldown — no funding (mark == index) ──
         vm.warp(block.timestamp + 25 hours);
+        vm.roll(block.number + 1);
 
         // ── Close position ──
         vm.prank(trader);
@@ -370,7 +374,7 @@ contract BarakaIntegrationTest is Test {
         // ── Assertions ──
 
         // Snapshot cleared
-        (address snapTrader,,,,,,) = liqEngine.snapshots(posId);
+        (address snapTrader,,,,,,,) = liqEngine.snapshots(posId);
         assertEq(snapTrader, address(0), "snapshot cleared after liquidation");
 
         // Remaining collateral (2.5e6) returned to trader as free balance
@@ -630,7 +634,10 @@ contract BarakaIntegrationTest is Test {
         vm.prank(owner);
         vault.pause();
 
-        // Trader can withdraw immediately without waiting 24h
+        // 72h must elapse before emergency exit is available
+        vm.warp(block.timestamp + 72 hours);
+
+        // Trader can withdraw after 72h without the normal 24h deposit cooldown
         vm.prank(trader);
         vault.withdraw(address(usdc), 1_000e6);
 
@@ -659,8 +666,9 @@ contract BarakaIntegrationTest is Test {
         // Price rises 50% against the short
         oracle.setIndexPrice(wbtc, 75_000e18);
 
-        // Warp past 24h so close doesn't hit other issues
+        // Warp past 24h so close doesn't hit other issues; roll to next block for same-block guard
         vm.warp(block.timestamp + 25 hours);
+        vm.roll(block.number + 1);
 
         vm.prank(trader);
         pm.closePosition(posId);
@@ -687,17 +695,19 @@ contract BarakaIntegrationTest is Test {
         // Price rises 10% — update BOTH index and mark so F=0 (no funding between open/close)
         oracle.setIndexPrice(wbtc, 55_000e18);
         oracle.setMarkPrice(wbtc,  55_000e18);
-        // Do NOT warp: elapsed = 0 intervals → no funding payment → pos.collateral unchanged
+        // Roll to next block for same-block close guard; no warp needed (no funding = 0 intervals)
+        vm.roll(block.number + 1);
 
         vm.prank(trader);
         pm.closePosition(posId);
 
-        // finalCollateral = 1000e6 + 300e6 = 1300e6 (positive)
-        // → unlockCollateral(trader, usdc, pos.collateral=1000e6) → freeBalance = 1000e6
+        // finalCollateral = 1000e6 + 300e6 = 1300e6 → netReturn=1300e6 > initialCollateral=1000e6
+        // InsuranceFund.payPnl(300e6, trader) is called — IF has 0 balance so pays 0 silently.
+        // Trader keeps initialCollateral=1000e6 in vault free; profit paid when IF is seeded.
         assertEq(
             vault.freeBalance(trader, address(usdc)),
             collateral,
-            "MVP: original collateral returned on profitable close (PnL payout deferred to Phase 2)"
+            "initialCollateral returned to vault free on profitable close; profit from IF when funded"
         );
     }
 
@@ -744,6 +754,7 @@ contract BarakaIntegrationTest is Test {
         bytes32 posId = _openPosition(1_000e6, 3, true);
 
         vm.warp(block.timestamp + 25 hours);
+        vm.roll(block.number + 1);
         vm.prank(trader);
         pm.closePosition(posId);
 
@@ -834,5 +845,65 @@ contract BarakaIntegrationTest is Test {
         vm.prank(trader);
         vm.expectRevert();
         pm.openPosition(wbtc, address(usdc), collateral, leverage, true);
+    }
+
+    // ═══════════════════════════════════════════════════════════════════
+    // 10. PRODUCTION HARDENING — Session 14
+    // ═══════════════════════════════════════════════════════════════════
+
+    /**
+     * @notice Closing a position in the same block it was opened must revert.
+     *
+     * The same-block guard mirrors the LiquidationEngine's one-block delay:
+     * a flash-loan attacker cannot open and close in one transaction to
+     * extract funding payments or manipulate accounting.
+     */
+    function test_closePosition_sameBlockReverts() public {
+        _depositForTrader(1_000e6);
+        bytes32 posId = _openPosition(1_000e6, 3, true);
+
+        // Same block — no vm.roll — must revert
+        vm.prank(trader);
+        vm.expectRevert("PM: same-block close");
+        pm.closePosition(posId);
+    }
+
+    /**
+     * @notice Extreme funding over 28h drains collateral to 0, making
+     *         the position liquidatable on the next block.
+     *
+     * Setup:
+     *   collateral = 100e6  (100 USDC)
+     *   leverage   = 5x     → size = 500e6
+     *   mark       = $100,000 (100% premium → capped to MAX_RATE = 75e14)
+     *
+     * After 28 intervals of max-rate funding:
+     *   payment = 75e14 × 28 × 500e6 / 1e18 = 105e6
+     *   remaining collateral = max(100e6 − 105e6, 0) = 0
+     *   maintenance margin  = 500e6 × 2% = 10e6
+     *   0 < 10e6 → liquidatable
+     */
+    function test_ZeroCollateralBecomesLiquidatable() public {
+        uint256 collateral = 100e6;
+        _depositForTrader(collateral);
+
+        oracle.setMarkPrice(wbtc, 100_000e18); // mark >> index → MAX_RATE
+
+        bytes32 posId = _openPosition(collateral, 5, true); // size = 500e6
+
+        // Accrue 28 intervals of max-rate funding — drains collateral to 0
+        vm.warp(block.timestamp + 28 * INTERVAL + 1);
+        vm.prank(trader);
+        pm.settleFunding(posId);
+
+        // Verify collateral drained to zero
+        PositionManager.Position memory pos = pm.getPosition(posId);
+        assertEq(pos.collateral, 0, "collateral drained to zero by extreme funding");
+
+        // Roll to next block so liquidatability check passes
+        vm.roll(block.number + 1);
+
+        // Position is now liquidatable
+        assertTrue(liqEngine.isLiquidatable(posId), "zero-collateral position must be liquidatable");
     }
 }

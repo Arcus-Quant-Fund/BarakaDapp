@@ -62,13 +62,13 @@ contract MockFeed {
  */
 contract E2EForkTest is Test {
 
-    // ── Deployed contracts (Arbitrum Sepolia 421614) ──────────────────────────
-    PositionManager   pm        = PositionManager  (0x53E3063FE2194c2DAe30C36420A01A8573B150bC);
-    CollateralVault   vault     = CollateralVault  (0x5530e4670523cFd1A60dEFbB123f51ae6cae0c5E);
-    LiquidationEngine liqEngine = LiquidationEngine(0x456eBE7BbCb099E75986307E4105A652c108b608);
-    FundingEngine     engine    = FundingEngine    (0x459BE882BC8736e92AA4589D1b143e775b114b38);
+    // ── Deployed contracts (Arbitrum Sepolia 421614, v4 redeploy 2026-03-05) ──
+    PositionManager   pm        = PositionManager  (0x5a8b09cc1EE6462fCc34311A08770336C2b05d31);
+    CollateralVault   vault     = CollateralVault  (0x0e9e32e4e061Db57eE5d3309A986423A5ad3227E);
+    LiquidationEngine liqEngine = LiquidationEngine(0x8E709e3DBc3A074B27C77c1C0247d3F1DDDc65bA);
+    FundingEngine     engine    = FundingEngine    (0x9aFD9fba678CBDCA695C7b59CF73F2477E18AfF4);
     ShariahGuard      guard     = ShariahGuard     (0x26d4db76a95DBf945ac14127a23Cd4861DA42e69);
-    OracleAdapter     oracle    = OracleAdapter    (0xB8d9778288B96ee5a9d873F222923C0671fc38D4);
+    OracleAdapter     oracle    = OracleAdapter    (0x4f6C404aB37c202Dff0e40452b2541264Bd12999);
 
     // ── Constants ─────────────────────────────────────────────────────────────
     // DEPLOYER == Shariah board on testnet (same address, testnet only)
@@ -159,6 +159,7 @@ contract E2EForkTest is Test {
 
     function _warpAndRefresh(uint256 secs) internal {
         vm.warp(block.timestamp + secs);
+        vm.roll(block.number + 1); // advance block for same-block close protection
         mockFeed.setPrice(95_000e8); // updatedAt = new block.timestamp — within 5-min threshold
     }
 
@@ -167,6 +168,7 @@ contract E2EForkTest is Test {
     function _pushMarkObs(uint256 price) internal {
         oracle.recordMarkPrice(BTC_MARKET, price);
         vm.warp(block.timestamp + 1 minutes);
+        vm.roll(block.number + 1);
         mockFeed.setPrice(95_000e8);
         oracle.recordMarkPrice(BTC_MARKET, price);
     }
@@ -179,8 +181,12 @@ contract E2EForkTest is Test {
     // ═════════════════════════════════════════════════════════════════════════
 
     function test_1_FullLifecycle() public {
-        uint256 deposit  = 1_000e6;
-        uint256 leverage = 3;
+        uint256 collateral = 1_000e6;
+        uint256 leverage   = 3;
+        // v4 charges a BRKX fee from free balance on openPosition.
+        // Deposit extra (10 USDC) to cover the fee so the test doesn't revert.
+        uint256 feeBuffer  = 10e6;
+        uint256 deposit    = collateral + feeBuffer;
 
         emit log_string("");
         emit log_string("=== TEST 1: FULL LIFECYCLE ===");
@@ -197,14 +203,15 @@ contract E2EForkTest is Test {
 
         // ── STEP 2: Open 3x long ──────────────────────────────────────────────
         vm.prank(TRADER);
-        bytes32 posId = pm.openPosition(BTC_MARKET, address(usdc), deposit, leverage, true);
+        bytes32 posId = pm.openPosition(BTC_MARKET, address(usdc), collateral, leverage, true);
 
         PositionManager.Position memory pos = pm.getPosition(posId);
         assertTrue(pos.open,                              "Step2: position open");
-        assertEq(pos.size,     deposit * leverage,        "Step2: notional = collateral x leverage");
-        assertEq(pos.collateral, deposit,                 "Step2: collateral recorded");
+        assertEq(pos.size,     collateral * leverage,     "Step2: notional = collateral x leverage");
+        assertEq(pos.collateral, collateral,              "Step2: collateral recorded");
         assertTrue(pos.isLong,                            "Step2: is long");
-        assertEq(vault.freeBalance(TRADER, address(usdc)), 0, "Step2: collateral locked");
+        // Free balance = feeBuffer minus the fee that was charged
+        assertTrue(vault.freeBalance(TRADER, address(usdc)) < feeBuffer, "Step2: fee was charged");
 
         emit log_named_uint("[2] Open OK     - size (notional)", pos.size);
         emit log_named_uint("                  entry price     ", pos.entryPrice);
@@ -215,7 +222,7 @@ contract E2EForkTest is Test {
         vm.prank(TRADER);
         pm.settleFunding(posId);
 
-        assertEq(pm.getPosition(posId).collateral, deposit, "Step3: collateral unchanged when F=0");
+        assertEq(pm.getPosition(posId).collateral, collateral, "Step3: collateral unchanged when F=0");
         assertEq(pm.getUnrealizedPnl(posId), 0,             "Step3: PnL=0 price unchanged");
         emit log_named_uint("[3] Settle OK   - collateral unchanged", pm.getPosition(posId).collateral);
 
@@ -226,15 +233,17 @@ contract E2EForkTest is Test {
         pm.closePosition(posId);
 
         assertFalse(pm.getPosition(posId).open,             "Step4: position closed");
-        assertEq(vault.freeBalance(TRADER, address(usdc)), deposit, "Step4: full collateral returned");
-        emit log_named_uint("[4] Close OK    - free balance returned", vault.freeBalance(TRADER, address(usdc)));
+        // After close, collateral returns to free balance (minus fee already charged on open)
+        uint256 freeAfterClose = vault.freeBalance(TRADER, address(usdc));
+        assertGt(freeAfterClose, collateral - 1e6, "Step4: most collateral returned");
+        emit log_named_uint("[4] Close OK    - free balance returned", freeAfterClose);
 
         // ── STEP 5: Withdraw ──────────────────────────────────────────────────
         vm.prank(TRADER);
-        vault.withdraw(address(usdc), deposit);
+        vault.withdraw(address(usdc), freeAfterClose);
 
-        // Trader started with 10_000e6, deposited 1_000e6, withdrew 1_000e6 → back to 10_000e6
-        assertEq(usdc.balanceOf(TRADER), 10_000e6, "Step5: wallet balance restored");
+        // Trader gets back deposit minus fee
+        assertGt(usdc.balanceOf(TRADER), 10_000e6 - feeBuffer, "Step5: wallet balance restored minus fee");
         emit log_named_uint("[5] Withdraw OK - wallet balance", usdc.balanceOf(TRADER));
         emit log_string("=== PASS ===");
     }
@@ -254,20 +263,22 @@ contract E2EForkTest is Test {
         vm.deal(SHORT_TRADER, 1 ether);
 
         uint256 collateral = 1_000e6;
+        uint256 feeBuffer  = 10e6;
+        uint256 deposit    = collateral + feeBuffer;
 
         emit log_string("");
         emit log_string("=== TEST 2: FUNDING FLOW ===");
         emit log_string("    mark 0.6% above index over 3 intervals");
 
-        // Deposit both traders
+        // Deposit both traders (extra for v4 BRKX fees)
         vm.startPrank(TRADER);
-        usdc.approve(address(vault), collateral);
-        vault.deposit(address(usdc), collateral);
+        usdc.approve(address(vault), deposit);
+        vault.deposit(address(usdc), deposit);
         vm.stopPrank();
 
         vm.startPrank(SHORT_TRADER);
-        usdc.approve(address(vault), collateral);
-        vault.deposit(address(usdc), collateral);
+        usdc.approve(address(vault), deposit);
+        vault.deposit(address(usdc), deposit);
         vm.stopPrank();
 
         // Open long and short
@@ -284,6 +295,7 @@ contract E2EForkTest is Test {
         // Then push fresh mark observations inside the 30-min TWAP window.
         // mark = $95,570 = 0.6% above index $95,000
         vm.warp(block.timestamp + 3 hours);
+        vm.roll(block.number + 1);
         mockFeed.setPrice(95_000e8); // refresh feed (index stays $95k)
         uint256 markPremium = 95_000e18 * 1006 / 1000; // $95,570 in 1e18
         _pushMarkObs(markPremium);  // 2 fresh TWAP observations, 1 min apart
@@ -332,15 +344,17 @@ contract E2EForkTest is Test {
 
     function test_3_Liquidation() public {
         uint256 collateral = 200e6;
+        uint256 feeBuffer  = 10e6;
+        uint256 deposit    = collateral + feeBuffer;
 
         emit log_string("");
         emit log_string("=== TEST 3: LIQUIDATION FLOW ===");
         emit log_string("    5x long, mark 100% above index, 25 intervals max-rate funding");
 
-        // Deposit + open thin 5× long
+        // Deposit + open thin 5x long (extra for v4 BRKX fees)
         vm.startPrank(TRADER);
-        usdc.approve(address(vault), collateral);
-        vault.deposit(address(usdc), collateral);
+        usdc.approve(address(vault), deposit);
+        vault.deposit(address(usdc), deposit);
         bytes32 posId = pm.openPosition(BTC_MARKET, address(usdc), collateral, 5, true); // size=1000e6
         vm.stopPrank();
 
@@ -381,7 +395,7 @@ contract E2EForkTest is Test {
         liqEngine.liquidate(posId);
 
         // Snapshot must be cleared
-        (address snapTrader,,,,,,) = liqEngine.snapshots(posId);
+        (address snapTrader,,,,,,,) = liqEngine.snapshots(posId);
         assertEq(snapTrader, address(0), "Snapshot cleared after liquidation");
 
         // Liquidator received 5 USDC (50% of 1% of 1000e6 notional)
@@ -405,9 +419,10 @@ contract E2EForkTest is Test {
         emit log_string("");
         emit log_string("=== TEST 4: SHARIAH GUARD - BLOCKS 6x LEVERAGE ===");
 
+        // Extra deposit for v4 BRKX fee (though the revert should happen before fee)
         vm.startPrank(TRADER);
-        usdc.approve(address(vault), 1_000e6);
-        vault.deposit(address(usdc), 1_000e6);
+        usdc.approve(address(vault), 1_010e6);
+        vault.deposit(address(usdc), 1_010e6);
 
         vm.expectRevert("PM: leverage out of range");
         pm.openPosition(BTC_MARKET, address(usdc), 1_000e6, 6, true);
@@ -424,9 +439,10 @@ contract E2EForkTest is Test {
         emit log_string("");
         emit log_string("=== TEST 5: SHARIAH GUARD - EXACTLY 5x ALLOWED ===");
 
+        // Extra deposit for v4 BRKX fee
         vm.startPrank(TRADER);
-        usdc.approve(address(vault), 1_000e6);
-        vault.deposit(address(usdc), 1_000e6);
+        usdc.approve(address(vault), 1_010e6);
+        vault.deposit(address(usdc), 1_010e6);
         bytes32 posId = pm.openPosition(BTC_MARKET, address(usdc), 1_000e6, 5, true);
         vm.stopPrank();
 

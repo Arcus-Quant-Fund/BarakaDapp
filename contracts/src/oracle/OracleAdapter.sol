@@ -113,7 +113,7 @@ contract OracleAdapter is IOracleAdapter, Ownable2Step, Pausable {
      * @param asset The asset to snapshot.
      * @return price The current index price (1e18).
      */
-    function snapshotPrice(address asset) external whenNotPaused returns (uint256 price) {
+    function snapshotPrice(address asset) external onlyOwner whenNotPaused returns (uint256 price) {
         price = _resolveIndexPrice(asset);
         lastValidPrice[asset] = price;
         emit PriceRecorded(asset, price, block.timestamp);

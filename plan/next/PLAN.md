@@ -24,22 +24,41 @@ No interest term. No interest floor. Proven by Theorem 3 / Proposition 3 of the 
 
 ---
 
-## WHERE WE ARE NOW (Feb 2026)
+## WHERE WE ARE NOW (March 1, 2026)
 
 ### Done ✅
-- Full research foundation (Foundation.rtf, Applicationss.rtf, dooo.rtf, Islamic_DApp_Blueprint.md)
-- Mathematical proof documented (ι=0 no-arbitrage via Ackerer framework)
-- Website landing page `/dapp` live at arcusquantfund.com/dapp
-- Technology stack chosen (Foundry, Arbitrum, Next.js, The Graph)
-- Detailed build plan written (BARAKA_CLAUDE_CODE_PLAN.md, BARAKA_FREE_PLAN.md)
-- API keys collected for development
+- Full research foundation + mathematical proof (ι=0 proven by Ackerer Theorem 3 / Proposition 3)
+- **12 smart contracts:** 8 core (FundingEngine, ShariahGuard, OracleAdapter, PositionManager, CollateralVault, LiquidationEngine, InsuranceFund, GovernanceModule) + BRKXToken + EverlastingOption + TakafulPool + PerpetualSukuk + iCDS
+- **369/369 tests passing** (unit + integration + invariant + fuzz) — 0 failures
+  - CollateralVault.t.sol (41) · LiquidationEngine.t.sol (27) · OracleAdapter.t.sol (32)
+  - GovernanceModule.t.sol (51) · InsuranceFund.t.sol (32) · KappaSignal.t.sol (15)
+  - EverlastingOption.t.sol (33) · TakafulPool.t.sol (16) · PerpetualSukuk.t.sol (16) · iCDS.t.sol (19)
+  - BRKXToken.t.sol (10) · PositionManagerFee.t.sol (8) · FundingEngine.t.sol (14) · ShariahGuard.t.sol (16)
+  - BarakaIntegration.t.sol (30) · Invariant_IotaZero.t.sol (5) · Invariant_MaxLeverage.t.sol (4)
+- Slither: **HIGH 0, MEDIUM 0**
+- **Testnet (Arbitrum Sepolia 421614):** All contracts live + verified (PM v3, OracleAdapter v2, CollateralVault v2, LiquidationEngine v2 — redeployed Feb 27 2026)
+- **Product stack (L1.5/L2/L3/L4):** EverlastingOption + TakafulPool + PerpetualSukuk + iCDS deployed on Sepolia (Feb 28 2026)
+- **BRKX token + fee system** live — on-chain smoke test: 375k/375k tUSDC-wei split confirmed
+- **κ-signal oracle** live — `getPremium` + `getKappaSignal` + `KappaAlert` event in OracleAdapter v2
+- **Frontend** live: https://baraka.arcusquantfund.com (7 pages: / /trade /markets /transparency /sukuk /takaful /credit /dashboard)
+- **Subgraph** live: https://api.studio.thegraph.com/query/1742812/arcus/v0.0.1
+- **CI pipeline:** `.github/workflows/ci.yml` (4 jobs: contracts/slither/frontend/subgraph)
+- **GitHub** public repo: https://github.com/Arcus-Quant-Fund/BarakaDapp
+- **3 research papers written:** ι=0 Shariah perpetuals · credit equivalence · κ-Rate (11pp + Appendix A)
+- **Invariant tests:** Invariant_IotaZero.t.sol + Invariant_MaxLeverage.t.sol (9 invariants, 256×128 depth)
+- **Mainnet deploy script:** `script/DeployMainnet.s.sol` (Arbitrum One 42161, pre-flight + post-deploy assertions)
+- **Pinata JWT** obtained (Feb 28 2026) · **Fatwa IPFS** on-chain: ShariahGuard.approveAsset(USDC, cid)
 
-### Not Started ❌
-- Solidity smart contracts
-- Development environment
-- Frontend trading interface
-- Subgraph indexer
-- Any testnet deployment
+### Remaining ⏳
+- SSRN preprint upload (all 3 papers)
+- Discord server (#announcements #trading #shariah-questions #dev)
+- Twitter / X @BarakaProtocol + first announcement
+- Fatwa from AAOIFI-certified scholar (Dr. Bhuyan — long lead time)
+- Legal entity: Dubai LLC + US LLC (Dr. Bhuyan handling)
+- External audit (Certik / OpenZeppelin / Trail of Bits)
+- Mainnet deployer wallet (separate from testnet) + fund with ETH
+- 3-of-5 Safe for SHARIAH_MULTISIG
+- Mainnet launch (Arbitrum One 42161) — `script/DeployMainnet.s.sol` ready
 
 ---
 

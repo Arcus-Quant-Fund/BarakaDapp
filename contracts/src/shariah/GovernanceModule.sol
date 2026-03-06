@@ -2,6 +2,7 @@
 pragma solidity ^0.8.24;
 
 import "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
+import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 
 /**
  * @title GovernanceModule
@@ -32,6 +33,9 @@ contract GovernanceModule is ReentrancyGuard {
 
     uint256 public constant TIMELOCK_DELAY   = 48 hours;
     uint256 public constant VETO_WINDOW      = 48 hours; // Shariah board veto window
+    /// @notice H-5 fix: minimum voter participation required to queue a proposal.
+    ///         4% of total token supply must have cast a vote (for or against).
+    uint256 public constant QUORUM_BPS       = 400;      // 4% of total supply
 
     // ─────────────────────────────────────────────────────
     // Structs
@@ -74,7 +78,8 @@ contract GovernanceModule is ReentrancyGuard {
     event ProposalExecuted(uint256 indexed id);
     event ProposalVetoed(uint256 indexed id, string reason);
     event ProposalCancelled(uint256 indexed id);
-    event ShariahMultisigTransferred(address oldMultisig, address newMultisig);
+    event ShariahMultisigTransferred(address indexed oldMultisig, address indexed newMultisig);
+    event GovernanceTokenSet(address indexed token);
 
     // ─────────────────────────────────────────────────────
     // Modifiers
@@ -110,7 +115,8 @@ contract GovernanceModule is ReentrancyGuard {
         bytes calldata callData,
         string calldata description
     ) external returns (uint256 proposalId) {
-        require(target != address(0),       "Governance: zero target");
+        require(target != address(0),          "Governance: zero target");
+        require(target != address(this),       "Governance: self-call forbidden");
         require(bytes(description).length > 0, "Governance: empty description");
 
         proposalId = ++proposalCount;
@@ -133,15 +139,19 @@ contract GovernanceModule is ReentrancyGuard {
 
     /**
      * @notice Cast a vote on a pending proposal.
+     *         Voting weight equals the caller's governance token balance at call time.
      * @param proposalId  The proposal to vote on.
      * @param support     True = for, False = against.
-     * @param weight      Voting weight (simplified — production uses token balance snapshot).
      */
-    function castVote(uint256 proposalId, bool support, uint256 weight) external {
+    function castVote(uint256 proposalId, bool support) external {
+        require(governanceToken != address(0), "Governance: token not set");
+
         Proposal storage p = proposals[proposalId];
         require(p.status == ProposalStatus.Pending, "Governance: not pending");
         require(!hasVoted[proposalId][msg.sender],  "Governance: already voted");
-        require(weight > 0,                         "Governance: zero weight");
+
+        uint256 weight = IERC20(governanceToken).balanceOf(msg.sender);
+        require(weight > 0, "Governance: zero weight");
 
         hasVoted[proposalId][msg.sender] = true;
 
@@ -162,6 +172,17 @@ contract GovernanceModule is ReentrancyGuard {
         Proposal storage p = proposals[proposalId];
         require(p.status == ProposalStatus.Pending, "Governance: not pending");
         require(p.votesFor > p.votesAgainst,        "Governance: did not pass");
+
+        // H-5 fix: minimum quorum — 4% of total supply must participate.
+        // Guards against single-whale proposals passing with minimal participation.
+        if (governanceToken != address(0)) {
+            uint256 totalSupply = IERC20(governanceToken).totalSupply();
+            uint256 totalVotes  = p.votesFor + p.votesAgainst;
+            require(
+                totalVotes * 10_000 >= totalSupply * QUORUM_BPS,
+                "Governance: quorum not reached"
+            );
+        }
 
         p.status   = ProposalStatus.Queued;
         p.queuedAt = block.timestamp;
@@ -237,5 +258,6 @@ contract GovernanceModule is ReentrancyGuard {
 
     function setGovernanceToken(address token) external onlyShariahMultisig {
         governanceToken = token;
+        emit GovernanceTokenSet(token);
     }
 }

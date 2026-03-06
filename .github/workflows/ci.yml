@@ -11,7 +11,7 @@ jobs:
   # Smart Contract Tests (Foundry)
   # ─────────────────────────────────────────────────────────────────────────────
   contracts:
-    name: Forge Tests (177/177)
+    name: Forge Tests (410+)
     runs-on: ubuntu-latest
     defaults:
       run:
@@ -79,10 +79,10 @@ jobs:
           export PATH="$HOME/.foundry/bin:$PATH"
           slither . \
             --exclude-dependencies \
-            --no-fail-pedantic \
             --fail-high \
             --fail-medium
         # CI will fail if any HIGH or MEDIUM is introduced (LOW/INFO are acceptable)
+        # Note: --no-fail-pedantic removed — conflicts with --fail-high in slither 0.11.5+
 
   # ─────────────────────────────────────────────────────────────────────────────
   # Frontend Build (Next.js)
@@ -143,3 +143,55 @@ jobs:
 
       - name: graph build
         run: npm run build
+
+  # ─────────────────────────────────────────────────────────────────────────────
+  # Discord Notification (runs after all jobs, reports pass or fail)
+  # ─────────────────────────────────────────────────────────────────────────────
+  notify:
+    name: Discord Notify
+    runs-on: ubuntu-latest
+    needs: [contracts, slither, frontend, subgraph]
+    if: always()
+
+    steps:
+      - name: Post result to Discord #dev
+        env:
+          DISCORD_WEBHOOK: ${{ secrets.DISCORD_CI_WEBHOOK }}
+        run: |
+          CONTRACTS="${{ needs.contracts.result }}"
+          SLITHER="${{ needs.slither.result }}"
+          FRONTEND="${{ needs.frontend.result }}"
+          SUBGRAPH="${{ needs.subgraph.result }}"
+
+          if [[ "$CONTRACTS" == "success" && "$SLITHER" == "success" && "$FRONTEND" == "success" && "$SUBGRAPH" == "success" ]]; then
+            COLOR=3066993
+            TITLE="CI Passed"
+            EMOJI="✅"
+          else
+            COLOR=15158332
+            TITLE="CI Failed"
+            EMOJI="❌"
+          fi
+
+          BODY="**Contracts:** $CONTRACTS | **Slither:** $SLITHER | **Frontend:** $FRONTEND | **Subgraph:** $SUBGRAPH"
+          REF="${{ github.ref_name }}"
+          ACTOR="${{ github.actor }}"
+          SHA="${{ github.sha }}"
+          SHORT_SHA="${SHA:0:7}"
+          RUN_URL="https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+
+          curl -s -X POST "$DISCORD_WEBHOOK" \
+            -H "Content-Type: application/json" \
+            -d "{
+              \"embeds\": [{
+                \"title\": \"$EMOJI $TITLE — Baraka Protocol\",
+                \"description\": \"$BODY\",
+                \"color\": $COLOR,
+                \"fields\": [
+                  {\"name\": \"Branch\", \"value\": \"\`$REF\`\", \"inline\": true},
+                  {\"name\": \"Commit\", \"value\": \"\`$SHORT_SHA\`\", \"inline\": true},
+                  {\"name\": \"Pushed by\", \"value\": \"$ACTOR\", \"inline\": true}
+                ],
+                \"url\": \"$RUN_URL\"
+              }]
+            }"

@@ -9,16 +9,25 @@ export default function PositionTable() {
   const { positions, isLoading } = usePositions()
   const [closingId, setClosingId] = useState<`0x${string}` | null>(null)
 
+  const [confirmId, setConfirmId] = useState<`0x${string}` | null>(null)
+
   const { writeContract, data: txHash, isPending } = useWriteContract()
   const { isLoading: isConfirming, isSuccess } = useWaitForTransactionReceipt({ hash: txHash })
 
+  function requestClose(positionId: `0x${string}`) {
+    setConfirmId(positionId)
+    // Auto-cancel confirm state after 5s if user doesn't click again
+    setTimeout(() => setConfirmId((prev) => (prev === positionId ? null : prev)), 5000)
+  }
+
   function handleClose(positionId: `0x${string}`) {
+    setConfirmId(null)
     setClosingId(positionId)
     writeContract({
       address: CONTRACTS.PositionManager,
       abi: POSITION_MANAGER_ABI,
       functionName: 'closePosition',
-      args: [positionId], // bytes32 — passed directly as hex string
+      args: [positionId],
     })
   }
 
@@ -72,6 +81,7 @@ export default function PositionTable() {
           {positions.map((pos) => {
             const isClosing = closingId === pos.positionId && (isPending || isConfirming)
             const isClosed  = closingId === pos.positionId && isSuccess
+            const isConfirm = confirmId === pos.positionId
             const pnlColor  = pos.unrealisedPnl >= 0 ? 'var(--green-lite)' : 'var(--red-lite)'
 
             return (
@@ -124,22 +134,55 @@ export default function PositionTable() {
                 <div style={{ textAlign: 'right' }}>
                   {isClosed ? (
                     <span style={{ fontSize: '11px', color: 'var(--green-lite)' }}>Closed ✓</span>
+                  ) : isClosing ? (
+                    <span style={{ fontSize: '11px', color: 'var(--text-muted)' }}>...</span>
+                  ) : isConfirm ? (
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '3px', alignItems: 'flex-end' }}>
+                      <button
+                        onClick={() => handleClose(pos.positionId)}
+                        style={{
+                          padding: '4px 10px',
+                          fontSize: '11px',
+                          fontWeight: 700,
+                          border: '1px solid rgba(229,83,83,0.5)',
+                          borderRadius: '6px',
+                          cursor: 'pointer',
+                          background: 'rgba(229,83,83,0.25)',
+                          color: 'var(--red-lite)',
+                        }}
+                      >
+                        Confirm?
+                      </button>
+                      <button
+                        onClick={() => setConfirmId(null)}
+                        style={{
+                          padding: '2px 8px',
+                          fontSize: '10px',
+                          border: 'none',
+                          borderRadius: '4px',
+                          cursor: 'pointer',
+                          background: 'transparent',
+                          color: 'var(--text-muted)',
+                        }}
+                      >
+                        Cancel
+                      </button>
+                    </div>
                   ) : (
                     <button
-                      onClick={() => handleClose(pos.positionId)}
-                      disabled={isClosing}
+                      onClick={() => requestClose(pos.positionId)}
                       style={{
                         padding: '5px 12px',
                         fontSize: '11px',
                         fontWeight: 700,
                         border: '1px solid var(--border)',
                         borderRadius: '6px',
-                        cursor: isClosing ? 'not-allowed' : 'pointer',
-                        background: isClosing ? 'var(--bg-card)' : 'rgba(229,83,83,0.12)',
-                        color: isClosing ? 'var(--text-muted)' : 'var(--red-lite)',
+                        cursor: 'pointer',
+                        background: 'rgba(229,83,83,0.12)',
+                        color: 'var(--red-lite)',
                       }}
                     >
-                      {isClosing ? '...' : 'Close'}
+                      Close
                     </button>
                   )}
                   {txHash && closingId === pos.positionId && (

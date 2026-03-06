@@ -7,6 +7,61 @@
 
 ---
 
+### Session 17 — March 1, 2026
+
+**Focus:** Close coverage gaps (CollateralVault 7% branches, LiquidationEngine 19% branches, OracleAdapter 71% funcs); write production mainnet deploy script for Arbitrum One.
+
+**Tests Created (100 new → 369/369 total):**
+- `test/unit/CollateralVault.t.sol` — **41/41** + 3 fuzz
+  - `MockShariahGuardCV` inline mock with `approveToken/revokeToken`
+  - Branches: deposit (paused/unapproved/zero/happy); withdraw (zero/insufficient/cooldown/emergency-exit-paused/post-cooldown); lockCollateral (unauthorized/paused/insufficient/happy); unlockCollateral; transferCollateral; chargeFromFree (unauthorized/paused/insufficient); constructor zero-guard
+  - Fuzz: deposit+withdraw roundtrip; lock+unlock roundtrip; transfer never exceeds locked
+- `test/unit/LiquidationEngine.t.sol` — **27/27** + 2 fuzz
+  - `MockVaultLE` with `seed()` helper; `_pushSnapshot()` via pm prank
+  - Branches: isLiquidatable (zero-trader/same-block/healthy/liquidatable); penalty cap when collateral < uncapped_penalty; insurance cap when insuranceShare > penalty/2; conservation (sum == collateral)
+  - Fuzz: `testFuzz_penaltySplitNeverExceedsCollateral` — `free(liq) + free(IF) + free(trader) == collateral`
+- `test/unit/OracleAdapter.t.sol` — **32/32** + 2 fuzz
+  - `MockChainlinkFeed` at bottom with `setAnswer()` + `makeStale()` (_updatedAt=0)
+  - Critical: `FEED_ANS = 5_000_000_000_000` (5e12 = $50k × 10^8); `vm.warp(1 days)` in setUp
+  - Branches: setOracle guards; pause/unpause × 6 external fns; getIndexPrice (both-fresh/primary-stale/secondary-stale/all-stale/diverge/negative/unregistered); circuit breaker (spike >20%/within-range/inactive); getMarkPrice (<2obs fallback/2obs TWAP/all-obs-outside-window fallback); recordMarkPrice (zero/ring-wrap at 60); snapshotPrice (updates+emits)
+
+**Errors Fixed During Session:**
+1. `FEED_ANS = 5_000_000` (5e6) → 5e16 price vs BASE 5e22 — fix: `5_000_000_000_000` (5e12)
+2. `makeStale()` + default block.timestamp=1 → staleness check `1-0=1 > 300` false → fix: `vm.warp(1 days)`
+3. XAUT address EIP-55 checksum: `0xf9b276a1a...` → `0xf9b276A1A...`
+
+**Mainnet Deploy Script Created:**
+- `script/DeployMainnet.s.sol` — Arbitrum One (chainId 42161)
+- `_preflight()`: deployer ETH ≥ 0.1, multisig ≠ deployer, CID ≥ 46 chars, feed freshness check
+- `_checkFeedFresh()`: `latestRoundData()` → answer > 0 && updatedAt within MAX_FEED_AGE (5 min)
+- `_verify()`: post-deploy assertions — all addresses non-zero, snapshotPrice for BTC+ETH, auth wiring, BRKX supply 100M
+- Env vars: `DEPLOYER_PRIVATE_KEY`, `SHARIAH_MULTISIG`, `TREASURY`, `FATWA_CID`
+- Note: ShariahGuard.approveAsset() requires Shariah multisig — script prints instructions instead
+
+**Coverage (post session 17):**
+- OracleAdapter: 95% lines / 55% branches / 100% funcs
+- LiquidationEngine: 95% / 33% / 100%
+- CollateralVault: 96% / 7% / 100%
+- GovernanceModule: 100% / 11% / 100%
+- InsuranceFund: 94% / 8% / 100%
+- Note: Low branch % = OZ-internal (Ownable2Step/Pausable/ReentrancyGuard internals), not user-facing logic
+
+**Files Created:**
+- `contracts/test/unit/CollateralVault.t.sol`
+- `contracts/test/unit/LiquidationEngine.t.sol`
+- `contracts/test/unit/OracleAdapter.t.sol`
+- `contracts/script/DeployMainnet.s.sol`
+
+**Tests Status:** 369/369 ✅ (all non-fork)
+
+**Next session:**
+1. SSRN preprint upload — all 3 papers
+2. Discord server (#announcements #trading #shariah-questions #dev)
+3. Twitter @BarakaProtocol — account + first post
+4. Distribute BRKX to test wallets
+
+---
+
 ### Session 15 — February 28, 2026
 
 **Focus:** Deploy product stack (L1.5/L2/L3/L4) to Arbitrum Sepolia, build all 4 frontend product pages, obtain Pinata JWT, update all documentation.

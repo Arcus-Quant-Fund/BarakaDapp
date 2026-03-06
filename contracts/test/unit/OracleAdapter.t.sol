@@ -318,6 +318,15 @@ contract OracleAdapterTest is Test {
         adapter.snapshotPrice(asset);
     }
 
+    function test_snapshotPrice_nonOwnerReverts() public {
+        // H-2 fix: snapshotPrice writes the circuit-breaker baseline and must
+        // be owner-only to prevent an attacker from locking in a manipulated price.
+        address attacker = address(0xDEAD);
+        vm.prank(attacker);
+        vm.expectRevert();
+        adapter.snapshotPrice(asset);
+    }
+
     // ─────────────────────────────────────────────────────
     // Fuzz
     // ─────────────────────────────────────────────────────

@@ -109,6 +109,21 @@ contract PerpetualSukuk is Ownable2Step, Pausable, ReentrancyGuard {
     mapping(uint256 => SukukInfo)                         public sukuks;
     mapping(uint256 => mapping(address => Subscription)) public subscriptions;
 
+    /**
+     * @dev Per-sukuk reserve tracking — prevents cross-sukuk balance contamination.
+     *
+     * _issuerReserve[id]    — issuer's parValue deposit for sukuk `id`.
+     *                         Decremented by profit claims and call-upside payouts.
+     *                         Can reach zero; investors still receive full principal.
+     *
+     * _investorPrincipal[id] — running total of all subscriber deposits for sukuk `id`.
+     *                          Decremented only at redemption (sub.amount per investor).
+     *                          Always sufficient for principal repayment while unredeemed
+     *                          investors remain (each subscriber deposited their own amount).
+     */
+    mapping(uint256 => uint256) private _issuerReserve;
+    mapping(uint256 => uint256) private _investorPrincipal;
+
     // ─────────────────────────────────────────────────────────────
     //  Events
     // ─────────────────────────────────────────────────────────────
@@ -179,8 +194,11 @@ contract PerpetualSukuk is Ownable2Step, Pausable, ReentrancyGuard {
             redeemed:        false
         });
 
-        // Pull par value as collateral from issuer (secures principal repayment)
+        // Pull par value as collateral from issuer (funds profits + call upside)
         IERC20(token).safeTransferFrom(msg.sender, address(this), parValue);
+
+        // Credit the issuer's per-sukuk reserve — never touches any other sukuk's balance
+        _issuerReserve[id] = parValue;
 
         emit SukukIssued(id, msg.sender, asset, token, parValue, profitRateWad, maturityEpoch);
     }
@@ -210,6 +228,11 @@ contract PerpetualSukuk is Ownable2Step, Pausable, ReentrancyGuard {
         sub.lastProfitAt  = block.timestamp;
 
         IERC20(s.token).safeTransferFrom(msg.sender, address(this), amount);
+
+        // Track investor's deposit in the per-sukuk principal reserve.
+        // This is the investor's own money: always redeemable at maturity.
+        _investorPrincipal[id] += amount;
+
         emit Subscribed(id, msg.sender, amount);
     }
 
@@ -229,7 +252,7 @@ contract PerpetualSukuk is Ownable2Step, Pausable, ReentrancyGuard {
      * @param id Sukuk identifier.
      */
     function claimProfit(uint256 id) external nonReentrant whenNotPaused {
-        SukukInfo storage s    = sukuks[id];
+        SukukInfo storage s      = sukuks[id];
         Subscription storage sub = subscriptions[id][msg.sender];
         if (sub.amount == 0 || sub.redeemed) return; // nothing to claim
 
@@ -238,7 +261,15 @@ contract PerpetualSukuk is Ownable2Step, Pausable, ReentrancyGuard {
         uint256 profit = (sub.amount * s.profitRateWad * elapsed) / (WAD * SECS_PER_YEAR);
         if (profit == 0) return; // nothing accrued yet (normal for short intervals)
 
+        // Cap profit at the remaining issuer reserve for this sukuk.
+        // This prevents claimProfit from ever touching another sukuk's funds or
+        // the investor principal pot (which is segregated in _investorPrincipal[id]).
+        uint256 available = _issuerReserve[id];
+        if (profit > available) profit = available;
+        if (profit == 0) return; // issuer reserve exhausted
+
         sub.lastProfitAt = block.timestamp;
+        _issuerReserve[id] -= profit;
 
         IERC20(s.token).safeTransfer(msg.sender, profit);
         emit ProfitClaimed(id, msg.sender, profit);
@@ -273,25 +304,35 @@ contract PerpetualSukuk is Ownable2Step, Pausable, ReentrancyGuard {
         require(sub.amount > 0,                     "PS: not subscribed");
         require(!sub.redeemed,                      "PS: already redeemed");
 
+        // CEI: mark redeemed before any external calls
         sub.redeemed = true;
         uint256 principal = sub.amount;
 
-        // Embedded call: callRateWad = Π_call(spot, parValue)
+        // ── Principal repayment ──────────────────────────────────────────────
+        // Drawn exclusively from _investorPrincipal[id] — the per-sukuk pot that
+        // was funded by subscriber deposits.  No other sukuk's funds can be touched.
+        // _investorPrincipal[id] must be >= principal because the investor deposited
+        // exactly `principal` when subscribing (checked by totalSubscribed <= parValue).
+        require(_investorPrincipal[id] >= principal, "PS: principal reserve depleted");
+        _investorPrincipal[id] -= principal;
+        IERC20(s.token).safeTransfer(msg.sender, principal);
+
+        // ── Embedded call upside ─────────────────────────────────────────────
+        // Drawn from _issuerReserve[id] — the per-sukuk pot funded by the issuer's
+        // parValue deposit.  Capped at whatever remains after profit distributions.
+        // If the issuer reserve is exhausted the investor still received full principal.
         uint256 spotWad     = oracle.getIndexPrice(s.asset);
         uint256 callRateWad = evOption.quoteCall(s.asset, spotWad, s.parValue);
         uint256 callUpside  = (callRateWad * principal) / WAD;
 
-        // Pay principal (always available — issuer deposited parValue at issuance)
-        uint256 balance = IERC20(s.token).balanceOf(address(this));
-        uint256 toPay   = principal > balance ? balance : principal;
-        if (toPay > 0) IERC20(s.token).safeTransfer(msg.sender, toPay);
+        uint256 issuerAvail = _issuerReserve[id];
+        uint256 actualCall  = callUpside > issuerAvail ? issuerAvail : callUpside;
+        if (actualCall > 0) {
+            _issuerReserve[id] -= actualCall;
+            IERC20(s.token).safeTransfer(msg.sender, actualCall);
+        }
 
-        // Pay call upside from remaining balance (if available)
-        uint256 remaining = IERC20(s.token).balanceOf(address(this));
-        uint256 actualCall = callUpside > remaining ? remaining : callUpside;
-        if (actualCall > 0) IERC20(s.token).safeTransfer(msg.sender, actualCall);
-
-        emit Redeemed(id, msg.sender, toPay, actualCall);
+        emit Redeemed(id, msg.sender, principal, actualCall);
     }
 
     // ─────────────────────────────────────────────────────────────
@@ -335,6 +376,18 @@ contract PerpetualSukuk is Ownable2Step, Pausable, ReentrancyGuard {
         if (sub.amount == 0 || sub.redeemed) return 0;
         uint256 elapsed = block.timestamp - sub.lastProfitAt;
         accrued = (sub.amount * s.profitRateWad * elapsed) / (WAD * SECS_PER_YEAR);
+        // Reflect that claimProfit is capped at the per-sukuk issuer reserve
+        if (accrued > _issuerReserve[id]) accrued = _issuerReserve[id];
+    }
+
+    /// @notice Returns the per-sukuk issuer reserve (funds profits + call upside).
+    function issuerReserve(uint256 id) external view returns (uint256) {
+        return _issuerReserve[id];
+    }
+
+    /// @notice Returns the per-sukuk investor principal reserve (funds redemptions).
+    function investorPrincipal(uint256 id) external view returns (uint256) {
+        return _investorPrincipal[id];
     }
 
     /// @notice Returns the next sukuk ID (= current count of issued sukuks).

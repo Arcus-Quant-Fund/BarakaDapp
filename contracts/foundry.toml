@@ -4,7 +4,7 @@ out = "out"
 libs = ["lib"]
 solc_version = "0.8.24"
 optimizer = true
-optimizer_runs = 200
+optimizer_runs = 600
 via_ir = true
 
 remappings = [
@@ -14,11 +14,11 @@ remappings = [
 ]
 
 [profile.default.fuzz]
-runs = 1000
+runs = 5000
 
 [profile.default.invariant]
-runs   = 256   # sequences per invariant
-depth  = 128   # calls per sequence
+runs   = 1000  # sequences per invariant
+depth  = 256   # calls per sequence
 
 [rpc_endpoints]
 arbitrum_sepolia = "${ALCHEMY_ARBITRUM_SEPOLIA_RPC}"

@@ -169,6 +169,9 @@ contract FundingEngine is IFundingEngine, Ownable2Step, Pausable, ReentrancyGuar
         uint256 intervals = elapsed / FUNDING_INTERVAL;
         // slither-disable-next-line incorrect-equality (safe: 0 intervals means no full interval has passed)
         if (intervals == 0) return cumulativeFundingIndex[market];
+        // H-1 fix: cap intervals to prevent DoS from stale-then-large-batch accrual.
+        // 720 intervals = 30 days at 1-hour rate; more than enough for any real gap.
+        if (intervals > 720) intervals = 720;
 
         int256 rate = _computeFundingRate(market);
 

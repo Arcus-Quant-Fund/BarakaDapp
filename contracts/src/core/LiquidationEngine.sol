@@ -7,6 +7,7 @@ import "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
 import "../interfaces/ILiquidationEngine.sol";
 import "../interfaces/IInsuranceFund.sol";
 import "../interfaces/ICollateralVault.sol";
+import "../interfaces/IOracleAdapter.sol";
 
 /**
  * @title LiquidationEngine
@@ -41,6 +42,10 @@ contract LiquidationEngine is ILiquidationEngine, Ownable2Step, Pausable, Reentr
     /// @notice Reference to PositionManager for position data reads
     address public positionManager;
 
+    /// @notice Oracle for current price lookups (optional — set post-deploy via setOracle).
+    ///         When not set, isLiquidatable falls back to snapshot collateral only.
+    IOracleAdapter public oracle;
+
     // ─────────────────────────────────────────────────────
     // State — position snapshot (pushed by PositionManager)
     // ─────────────────────────────────────────────────────
@@ -51,6 +56,7 @@ contract LiquidationEngine is ILiquidationEngine, Ownable2Step, Pausable, Reentr
         address collateralToken;
         uint256 collateral;    // current collateral (shrinks with funding)
         uint256 notional;      // size * entry price
+        uint256 entryPrice;    // oracle price at open (1e18) — used for unrealizedPnl
         uint256 openBlock;     // block number when position was opened
         bool    isLong;
     }
@@ -96,6 +102,11 @@ contract LiquidationEngine is ILiquidationEngine, Ownable2Step, Pausable, Reentr
         positionManager = pm;
     }
 
+    function setOracle(address _oracle) external onlyOwner {
+        require(_oracle != address(0), "LiquidationEngine: zero oracle");
+        oracle = IOracleAdapter(_oracle);
+    }
+
     function pause()   external onlyOwner { _pause(); }
     function unpause() external onlyOwner { _unpause(); }
 
@@ -115,6 +126,7 @@ contract LiquidationEngine is ILiquidationEngine, Ownable2Step, Pausable, Reentr
         address collateralToken,
         uint256 collateral,
         uint256 notional,
+        uint256 entryPrice,
         uint256 openBlock,
         bool    isLong
     ) external onlyPositionManager {
@@ -124,6 +136,7 @@ contract LiquidationEngine is ILiquidationEngine, Ownable2Step, Pausable, Reentr
             collateralToken: collateralToken,
             collateral:      collateral,
             notional:        notional,
+            entryPrice:      entryPrice,
             openBlock:       openBlock,
             isLong:          isLong
         });
@@ -139,7 +152,9 @@ contract LiquidationEngine is ILiquidationEngine, Ownable2Step, Pausable, Reentr
     // ─────────────────────────────────────────────────────
 
     /**
-     * @notice Returns true if a position's collateral has fallen below maintenance margin.
+     * @notice Returns true if a position's current equity has fallen below maintenance margin.
+     *         When oracle is set, equity = collateral + unrealizedPnL(currentPrice).
+     *         When oracle is not set or entryPrice is zero, falls back to snapshot collateral.
      */
     function isLiquidatable(bytes32 positionId) external view override returns (bool) {
         LiqSnapshot storage snap = snapshots[positionId];
@@ -148,7 +163,7 @@ contract LiquidationEngine is ILiquidationEngine, Ownable2Step, Pausable, Reentr
         if (block.number <= snap.openBlock) return false;
 
         uint256 maintenanceMargin = snap.notional * MAINTENANCE_MARGIN_BPS / BPS_DENOM;
-        return snap.collateral < maintenanceMargin;
+        return _currentEquity(snap) < int256(maintenanceMargin);
     }
 
     /**
@@ -162,7 +177,7 @@ contract LiquidationEngine is ILiquidationEngine, Ownable2Step, Pausable, Reentr
         require(block.number > snap.openBlock, "LiquidationEngine: too soon (1-block delay)");
 
         uint256 maintenanceMargin = snap.notional * MAINTENANCE_MARGIN_BPS / BPS_DENOM;
-        require(snap.collateral < maintenanceMargin, "LiquidationEngine: position healthy");
+        require(_currentEquity(snap) < int256(maintenanceMargin), "LiquidationEngine: position healthy");
 
         uint256 available     = snap.collateral;
 
@@ -212,5 +227,31 @@ contract LiquidationEngine is ILiquidationEngine, Ownable2Step, Pausable, Reentr
             insuranceShare,
             block.timestamp
         );
+    }
+
+    // ─────────────────────────────────────────────────────
+    // Internal
+    // ─────────────────────────────────────────────────────
+
+    /**
+     * @notice Compute current economic equity for a snapshot.
+     *         equity = collateral + unrealizedPnL(currentOraclePrice)
+     *
+     *         Fallback to snapshot collateral when:
+     *           - oracle is not yet set (address(oracle) == 0)
+     *           - entryPrice is zero (snapshot predates oracle integration)
+     *           - oracle returns zero price (stale or broken feed)
+     */
+    function _currentEquity(LiqSnapshot storage snap) internal view returns (int256) {
+        if (address(oracle) == address(0) || snap.entryPrice == 0) {
+            return int256(snap.collateral);
+        }
+        uint256 currentPrice = oracle.getIndexPrice(snap.asset);
+        if (currentPrice == 0) return int256(snap.collateral);
+
+        int256 priceDelta    = int256(currentPrice) - int256(snap.entryPrice);
+        int256 unrealizedPnl = priceDelta * int256(snap.notional) / int256(snap.entryPrice);
+        if (!snap.isLong) unrealizedPnl = -unrealizedPnl;
+        return int256(snap.collateral) + unrealizedPnl;
     }
 }

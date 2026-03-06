@@ -53,6 +53,9 @@ contract CollateralVault is ICollateralVault, Ownable2Step, Pausable, Reentrancy
     /// @notice user → token → timestamp of last deposit (for withdrawal cooldown)
     mapping(address => mapping(address => uint256)) private _lastDeposit;
 
+    /// @notice Timestamp when the protocol was last paused (for 72h emergency exit delay).
+    uint256 public pausedAt;
+
     // ─────────────────────────────────────────────────────
     // Events
     // ─────────────────────────────────────────────────────
@@ -82,7 +85,10 @@ contract CollateralVault is ICollateralVault, Ownable2Step, Pausable, Reentrancy
         emit AuthorisedSet(caller, status);
     }
 
-    function pause()   external onlyOwner { _pause(); }
+    function pause() external onlyOwner {
+        _pause();
+        pausedAt = block.timestamp;
+    }
     function unpause() external onlyOwner { _unpause(); }
 
     // ─────────────────────────────────────────────────────
@@ -114,11 +120,16 @@ contract CollateralVault is ICollateralVault, Ownable2Step, Pausable, Reentrancy
         require(amount > 0, "CollateralVault: zero amount");
         require(_freeBalance[msg.sender][token] >= amount, "CollateralVault: insufficient free balance");
 
-        // Enforce cooldown unless protocol is paused (emergency exit)
+        // Enforce cooldown unless protocol is paused (emergency exit — 72h delay after pause)
         if (!paused()) {
             require(
                 block.timestamp >= _lastDeposit[msg.sender][token] + WITHDRAWAL_COOLDOWN,
                 "CollateralVault: withdrawal cooldown active"
+            );
+        } else {
+            require(
+                block.timestamp >= pausedAt + 72 hours,
+                "CollateralVault: emergency exit not yet available"
             );
         }
 

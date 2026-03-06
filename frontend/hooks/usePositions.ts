@@ -85,6 +85,7 @@ interface PositionTuple {
   asset:              string
   collateralToken:    string
   size:               bigint
+  initialCollateral:  bigint
   collateral:         bigint
   entryPrice:         bigint
   fundingIndexAtOpen: bigint

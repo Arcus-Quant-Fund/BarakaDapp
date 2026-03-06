@@ -212,4 +212,69 @@ contract FundingEngineTest is Test {
         vm.expectRevert();
         engine.setOracle(address(0x1));
     }
+
+    // ─────────────────────────────────────────────────────
+    // setOracle — coverage tests
+    // ─────────────────────────────────────────────────────
+
+    function test_setOracle_updatesAddress() public {
+        MockOracle newOracle = new MockOracle();
+        vm.prank(owner);
+        engine.setOracle(address(newOracle));
+        assertEq(address(engine.oracle()), address(newOracle), "oracle should be updated");
+    }
+
+    function test_setOracle_zeroAddressReverts() public {
+        vm.prank(owner);
+        vm.expectRevert("FundingEngine: zero oracle");
+        engine.setOracle(address(0));
+    }
+
+    function test_setOracle_emitsOracleUpdatedEvent() public {
+        MockOracle newOracle = new MockOracle();
+        vm.prank(owner);
+        vm.expectEmit(true, true, false, false);
+        emit FundingEngine.OracleUpdated(address(oracle), address(newOracle));
+        engine.setOracle(address(newOracle));
+    }
+
+    // ─────────────────────────────────────────────────────
+    // H-1: interval cap
+    // ─────────────────────────────────────────────────────
+
+    function test_H1_intervalCapAt720() public {
+        oracle.setIndexPrice(market, 100e18);
+        oracle.setMarkPrice(market,  101e18); // 1% premium → rate = MAX (75bps)
+
+        // Initialise
+        vm.prank(owner);
+        engine.updateCumulativeFunding(market);
+
+        // Warp 1000 intervals (> 720 cap) — without cap this would accrue 1000 × rate
+        vm.warp(block.timestamp + 1000 hours);
+
+        vm.prank(owner);
+        int256 cumulative = engine.updateCumulativeFunding(market);
+
+        // Accrual must be capped at 720 × MAX_FUNDING_RATE, not 1000 × MAX_FUNDING_RATE
+        int256 cappedMax = engine.MAX_FUNDING_RATE() * 720;
+        assertEq(cumulative, cappedMax, "H-1: intervals capped at 720");
+    }
+
+    function test_H1_normalAccrualUnchanged() public {
+        oracle.setIndexPrice(market, 100e18);
+        oracle.setMarkPrice(market,  101e18);
+
+        vm.prank(owner);
+        engine.updateCumulativeFunding(market);
+
+        // 3 intervals — well below cap of 720
+        vm.warp(block.timestamp + 3 hours);
+
+        vm.prank(owner);
+        int256 cumulative = engine.updateCumulativeFunding(market);
+
+        // Exactly 3 × MAX_FUNDING_RATE (since 1% premium clamps to MAX)
+        assertEq(cumulative, engine.MAX_FUNDING_RATE() * 3, "H-1: normal accrual unchanged below cap");
+    }
 }

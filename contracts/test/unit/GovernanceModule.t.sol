@@ -10,7 +10,7 @@ import "../../src/shariah/GovernanceModule.sol";
  *
  * Tests cover:
  *   - Proposal creation (propose)
- *   - Voting (castVote) — for / against / double-vote / zero-weight
+ *   - Voting (castVote) — for / against / double-vote / zero-balance
  *   - Queuing (queue) — pass / fail / not-pending
  *   - Timelock (execute) — before/after 48h, vetoed, not-queued
  *   - Shariah board veto — pending and queued proposals
@@ -23,6 +23,7 @@ import "../../src/shariah/GovernanceModule.sol";
 contract GovernanceModuleTest is Test {
 
     GovernanceModule public gov;
+    MockERC20        public govToken;
 
     address public board    = address(0xBEEF); // Shariah board multisig
     address public proposer = address(0xCAFE);
@@ -34,6 +35,11 @@ contract GovernanceModuleTest is Test {
     // Dummy target contract that does nothing (for execute tests)
     address public target;
 
+    // Helper: mint tokens to a voter
+    function _mint(address voter, uint256 amount) internal {
+        govToken.mint(voter, amount);
+    }
+
     // Helper: deploy a proposal with sensible defaults
     function _propose() internal returns (uint256 id) {
         vm.prank(proposer);
@@ -41,18 +47,22 @@ contract GovernanceModuleTest is Test {
     }
 
     // Helper: pass a proposal with more votes for than against
+    // voter1 (100) votes for, voter2 (10) votes against → passes
     function _proposeAndPass() internal returns (uint256 id) {
         id = _propose();
+        _mint(voter1, 100);
+        _mint(voter2, 10);
         vm.prank(voter1);
-        gov.castVote(id, true, 100);  // 100 for
+        gov.castVote(id, true);   // 100 for
         vm.prank(voter2);
-        gov.castVote(id, false, 10);  // 10 against
+        gov.castVote(id, false);  // 10 against
         // votesFor(100) > votesAgainst(10) -> can queue
     }
 
     function setUp() public {
-        gov    = new GovernanceModule(board, address(0));
-        target = address(new DummyTarget());
+        govToken = new MockERC20();
+        gov      = new GovernanceModule(board, address(govToken));
+        target   = address(new DummyTarget());
     }
 
     // ─────────────────────────────────────────────────────
@@ -129,14 +139,21 @@ contract GovernanceModuleTest is Test {
         gov.propose(target, "", "");
     }
 
+    function test_propose_selfCallReverts() public {
+        vm.prank(proposer);
+        vm.expectRevert("Governance: self-call forbidden");
+        gov.propose(address(gov), abi.encodeWithSignature("setGovernanceToken(address)", address(0)), "governance takeover");
+    }
+
     // ─────────────────────────────────────────────────────
     // castVote()
     // ─────────────────────────────────────────────────────
 
     function test_castVote_forIncrementsVotesFor() public {
         uint256 id = _propose();
+        _mint(voter1, 500);
         vm.prank(voter1);
-        gov.castVote(id, true, 500);
+        gov.castVote(id, true);
 
         GovernanceModule.Proposal memory p = _getProposal(id);
         assertEq(p.votesFor, 500);
@@ -145,8 +162,9 @@ contract GovernanceModuleTest is Test {
 
     function test_castVote_againstIncrementsVotesAgainst() public {
         uint256 id = _propose();
+        _mint(voter1, 300);
         vm.prank(voter1);
-        gov.castVote(id, false, 300);
+        gov.castVote(id, false);
 
         GovernanceModule.Proposal memory p = _getProposal(id);
         assertEq(p.votesFor, 0);
@@ -155,9 +173,12 @@ contract GovernanceModuleTest is Test {
 
     function test_castVote_multipleVoters() public {
         uint256 id = _propose();
-        vm.prank(voter1); gov.castVote(id, true,  100);
-        vm.prank(voter2); gov.castVote(id, true,  200);
-        vm.prank(voter3); gov.castVote(id, false, 50);
+        _mint(voter1, 100);
+        _mint(voter2, 200);
+        _mint(voter3, 50);
+        vm.prank(voter1); gov.castVote(id, true);
+        vm.prank(voter2); gov.castVote(id, true);
+        vm.prank(voter3); gov.castVote(id, false);
 
         GovernanceModule.Proposal memory p = _getProposal(id);
         assertEq(p.votesFor,     300);
@@ -166,42 +187,56 @@ contract GovernanceModuleTest is Test {
 
     function test_castVote_emitsEvent() public {
         uint256 id = _propose();
+        _mint(voter1, 42);
         vm.prank(voter1);
         vm.expectEmit(true, false, false, true);
         emit GovernanceModule.VoteCast(id, voter1, true, 42);
-        gov.castVote(id, true, 42);
+        gov.castVote(id, true);
     }
 
     function test_castVote_doubleVoteReverts() public {
         uint256 id = _propose();
+        _mint(voter1, 100);
         vm.startPrank(voter1);
-        gov.castVote(id, true, 100);
+        gov.castVote(id, true);
         vm.expectRevert("Governance: already voted");
-        gov.castVote(id, true, 100);
+        gov.castVote(id, true);
         vm.stopPrank();
     }
 
     function test_castVote_zeroWeightReverts() public {
         uint256 id = _propose();
+        // voter1 holds 0 tokens (default)
         vm.prank(voter1);
         vm.expectRevert("Governance: zero weight");
-        gov.castVote(id, true, 0);
+        gov.castVote(id, true);
+    }
+
+    function test_castVote_tokenNotSetReverts() public {
+        GovernanceModule g = new GovernanceModule(board, address(0));
+        vm.prank(proposer);
+        uint256 id = g.propose(target, "", "desc");
+        vm.prank(voter1);
+        vm.expectRevert("Governance: token not set");
+        g.castVote(id, true);
     }
 
     function test_castVote_notPendingReverts() public {
         uint256 id = _proposeAndPass();
         gov.queue(id); // moves to Queued
 
+        _mint(voter3, 100);
         vm.prank(voter3);
         vm.expectRevert("Governance: not pending");
-        gov.castVote(id, true, 100);
+        gov.castVote(id, true);
     }
 
     function test_castVote_hasVotedTracked() public {
         uint256 id = _propose();
         assertFalse(gov.hasVoted(id, voter1));
+        _mint(voter1, 100);
         vm.prank(voter1);
-        gov.castVote(id, true, 100);
+        gov.castVote(id, true);
         assertTrue(gov.hasVoted(id, voter1));
     }
 
@@ -233,8 +268,10 @@ contract GovernanceModuleTest is Test {
 
     function test_queue_failsIfVotesAgainstWins() public {
         uint256 id = _propose();
-        vm.prank(voter1); gov.castVote(id, false, 200); // more against
-        vm.prank(voter2); gov.castVote(id, true,  100); // less for
+        _mint(voter1, 200);
+        _mint(voter2, 100);
+        vm.prank(voter1); gov.castVote(id, false); // more against
+        vm.prank(voter2); gov.castVote(id, true);  // less for
 
         vm.expectRevert("Governance: did not pass");
         gov.queue(id);
@@ -242,8 +279,10 @@ contract GovernanceModuleTest is Test {
 
     function test_queue_failsIfTied() public {
         uint256 id = _propose();
-        vm.prank(voter1); gov.castVote(id, true,  100);
-        vm.prank(voter2); gov.castVote(id, false, 100); // tied
+        _mint(voter1, 100);
+        _mint(voter2, 100);
+        vm.prank(voter1); gov.castVote(id, true);
+        vm.prank(voter2); gov.castVote(id, false); // tied
 
         vm.expectRevert("Governance: did not pass"); // requires strictly >
         gov.queue(id);
@@ -255,6 +294,30 @@ contract GovernanceModuleTest is Test {
 
         vm.expectRevert("Governance: not pending");
         gov.queue(id); // double queue
+    }
+
+    function test_queue_failsIfQuorumNotMet() public {
+        // voter1 gets 100 tokens out of a 10_000-token supply — far below 4% quorum
+        govToken.mint(address(0xDEAD1), 9_900); // inflate supply without voting
+        uint256 id = _propose();
+        _mint(voter1, 100);
+        vm.prank(voter1); gov.castVote(id, true); // 100 of 10_000 supply = 1% < 4%
+
+        vm.expectRevert("Governance: quorum not reached");
+        gov.queue(id);
+    }
+
+    function test_queue_passesWhenQuorumMet() public {
+        // voter1 gets 100 tokens = total supply (100% participation)
+        uint256 id = _propose();
+        _mint(voter1, 100);
+        vm.prank(voter1); gov.castVote(id, true);
+        gov.queue(id); // 100% participation, 100% for → must pass
+        assertEq(uint256(_getProposal(id).status), uint256(GovernanceModule.ProposalStatus.Queued));
+    }
+
+    function test_queue_quorumConstantIs400() public view {
+        assertEq(gov.QUORUM_BPS(), 400);
     }
 
     // ─────────────────────────────────────────────────────
@@ -328,7 +391,8 @@ contract GovernanceModuleTest is Test {
         vm.prank(proposer);
         uint256 id = gov.propose(address(dt), data, "Ping the target contract");
 
-        vm.prank(voter1); gov.castVote(id, true, 100);
+        _mint(voter1, 100);
+        vm.prank(voter1); gov.castVote(id, true);
         gov.queue(id);
         vm.warp(block.timestamp + 48 hours + 1);
         gov.execute(id);
@@ -448,7 +512,7 @@ contract GovernanceModuleTest is Test {
     function test_transferMultisig_emitsEvent() public {
         address newBoard = address(0x4E3577);
         vm.prank(board);
-        vm.expectEmit(false, false, false, true);
+        vm.expectEmit(true, true, false, false);
         emit GovernanceModule.ShariahMultisigTransferred(board, newBoard);
         gov.transferShariahMultisig(newBoard);
     }
@@ -470,15 +534,24 @@ contract GovernanceModuleTest is Test {
     // ─────────────────────────────────────────────────────
 
     function test_setGovernanceToken_onlyShariahBoard() public {
+        address newToken = address(0x1234);
         vm.prank(board);
-        gov.setGovernanceToken(address(0x1234));
-        assertEq(gov.governanceToken(), address(0x1234));
+        gov.setGovernanceToken(newToken);
+        assertEq(gov.governanceToken(), newToken);
     }
 
     function test_setGovernanceToken_nonBoardReverts() public {
         vm.prank(attacker);
         vm.expectRevert("Governance: not Shariah board");
         gov.setGovernanceToken(address(0x1234));
+    }
+
+    function test_setGovernanceToken_emitsEvent() public {
+        address newToken = address(0x5678);
+        vm.prank(board);
+        vm.expectEmit(true, false, false, false);
+        emit GovernanceModule.GovernanceTokenSet(newToken);
+        gov.setGovernanceToken(newToken);
     }
 
     // ─────────────────────────────────────────────────────
@@ -492,9 +565,12 @@ contract GovernanceModuleTest is Test {
         assertEq(uint256(_getProposal(id).status), uint256(GovernanceModule.ProposalStatus.Pending));
 
         // 2. Vote
-        vm.prank(voter1); gov.castVote(id, true,  1000);
-        vm.prank(voter2); gov.castVote(id, true,   500);
-        vm.prank(voter3); gov.castVote(id, false,  200);
+        _mint(voter1, 1000);
+        _mint(voter2,  500);
+        _mint(voter3,  200);
+        vm.prank(voter1); gov.castVote(id, true);
+        vm.prank(voter2); gov.castVote(id, true);
+        vm.prank(voter3); gov.castVote(id, false);
         assertEq(_getProposal(id).votesFor,     1500);
         assertEq(_getProposal(id).votesAgainst, 200);
 
@@ -589,4 +665,26 @@ contract GovernanceModuleTest is Test {
 contract DummyTarget {
     bool public pinged;
     function ping() external { pinged = true; }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// MockERC20 — minimal mintable ERC20 for governance token tests
+// ─────────────────────────────────────────────────────────────────────────────
+
+contract MockERC20 {
+    mapping(address => uint256) private _balances;
+    uint256 private _totalSupply;
+
+    function mint(address to, uint256 amount) external {
+        _balances[to]  += amount;
+        _totalSupply   += amount;
+    }
+
+    function balanceOf(address account) external view returns (uint256) {
+        return _balances[account];
+    }
+
+    function totalSupply() external view returns (uint256) {
+        return _totalSupply;
+    }
 }

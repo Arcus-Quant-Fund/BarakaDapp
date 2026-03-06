@@ -6,6 +6,7 @@ import "@openzeppelin/contracts/utils/Pausable.sol";
 import "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
 import "@openzeppelin/contracts/utils/math/Math.sol";
 import "../interfaces/IOracleAdapter.sol";
+import "../interfaces/IEverlastingOption.sol";
 
 /**
  * @title EverlastingOption
@@ -55,7 +56,7 @@ import "../interfaces/IOracleAdapter.sol";
  * - iCDS protection pricing: put on credit-linked note
  * - κ-yield curve construction: option-implied κ across strikes
  */
-contract EverlastingOption is Ownable2Step, Pausable, ReentrancyGuard {
+contract EverlastingOption is IEverlastingOption, Ownable2Step, Pausable, ReentrancyGuard {
 
     // ─────────────────────────────────────────────────────────────
     //  Constants

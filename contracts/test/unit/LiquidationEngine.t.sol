@@ -47,6 +47,7 @@ contract MockVaultLE is ICollateralVault {
 contract MockInsuranceFundLE is IInsuranceFund {
     function receiveFromLiquidation(address, uint256) external override {}
     function coverShortfall(address, uint256)         external override {}
+    function payPnl(address, uint256, address)        external override {}
     function fundBalance(address) external view override returns (uint256) { return 0; }
 }
 
@@ -94,7 +95,8 @@ contract LiquidationEngineTest is Test {
         vm.stopPrank();
     }
 
-    /// @dev Push a snapshot via PM and seed the vault with the collateral
+    /// @dev Push a snapshot via PM and seed the vault with the collateral.
+    ///      entryPrice = 0 → _currentEquity falls back to snapshot collateral (no oracle needed).
     function _pushSnapshot(
         bytes32 id,
         uint256 collateral,
@@ -102,7 +104,7 @@ contract LiquidationEngineTest is Test {
         uint256 openBlock
     ) internal {
         vm.prank(pm);
-        engine.updateSnapshot(id, trader, token, token, collateral, notional, openBlock, true);
+        engine.updateSnapshot(id, trader, token, token, collateral, notional, 0, openBlock, true);
         vault.seed(trader, token, collateral);
     }
 
@@ -147,12 +149,12 @@ contract LiquidationEngineTest is Test {
     function test_updateSnapshot_onlyPM() public {
         vm.prank(attacker);
         vm.expectRevert("LiquidationEngine: not PositionManager");
-        engine.updateSnapshot(POS_ID, trader, token, token, COLLATERAL, NOTIONAL, block.number, true);
+        engine.updateSnapshot(POS_ID, trader, token, token, COLLATERAL, NOTIONAL, 0, block.number, true);
     }
 
     function test_updateSnapshot_storesData() public {
         vm.prank(pm);
-        engine.updateSnapshot(POS_ID, trader, token, token, COLLATERAL, NOTIONAL, block.number, false);
+        engine.updateSnapshot(POS_ID, trader, token, token, COLLATERAL, NOTIONAL, 0, block.number, false);
 
         (
             address t,
@@ -160,6 +162,7 @@ contract LiquidationEngineTest is Test {
             address ct,
             uint256 c,
             uint256 n,
+            ,          // entryPrice (not checked in this test — set to 0)
             uint256 ob,
             bool isLong
         ) = engine.snapshots(POS_ID);
@@ -177,12 +180,12 @@ contract LiquidationEngineTest is Test {
         vm.prank(pm);
         vm.expectEmit(true, false, false, false);
         emit LiquidationEngine.SnapshotUpdated(POS_ID);
-        engine.updateSnapshot(POS_ID, trader, token, token, COLLATERAL, NOTIONAL, block.number, true);
+        engine.updateSnapshot(POS_ID, trader, token, token, COLLATERAL, NOTIONAL, 0, block.number, true);
     }
 
     function test_removeSnapshot_onlyPM() public {
         vm.prank(pm);
-        engine.updateSnapshot(POS_ID, trader, token, token, COLLATERAL, NOTIONAL, block.number, true);
+        engine.updateSnapshot(POS_ID, trader, token, token, COLLATERAL, NOTIONAL, 0, block.number, true);
 
         vm.prank(attacker);
         vm.expectRevert("LiquidationEngine: not PositionManager");
@@ -191,11 +194,11 @@ contract LiquidationEngineTest is Test {
 
     function test_removeSnapshot_deletesSnapshot() public {
         vm.prank(pm);
-        engine.updateSnapshot(POS_ID, trader, token, token, COLLATERAL, NOTIONAL, block.number, true);
+        engine.updateSnapshot(POS_ID, trader, token, token, COLLATERAL, NOTIONAL, 0, block.number, true);
         vm.prank(pm);
         engine.removeSnapshot(POS_ID);
 
-        (address t,,,,,,) = engine.snapshots(POS_ID);
+        (address t,,,,,,,) = engine.snapshots(POS_ID);
         assertEq(t, address(0));
     }
 
@@ -209,7 +212,7 @@ contract LiquidationEngineTest is Test {
 
     function test_isLiquidatable_sameBlockReturnsFalse() public {
         vm.prank(pm);
-        engine.updateSnapshot(POS_ID, trader, token, token, COLLATERAL, NOTIONAL, block.number, true);
+        engine.updateSnapshot(POS_ID, trader, token, token, COLLATERAL, NOTIONAL, 0, block.number, true);
         // block.number == openBlock → not yet eligible
         assertFalse(engine.isLiquidatable(POS_ID));
     }
@@ -218,14 +221,14 @@ contract LiquidationEngineTest is Test {
         // 5% collateral > 2% maintenance
         uint256 healthyCollateral = 5_000e6;
         vm.prank(pm);
-        engine.updateSnapshot(POS_ID, trader, token, token, healthyCollateral, NOTIONAL, block.number, true);
+        engine.updateSnapshot(POS_ID, trader, token, token, healthyCollateral, NOTIONAL, 0, block.number, true);
         vm.roll(block.number + 1);
         assertFalse(engine.isLiquidatable(POS_ID));
     }
 
     function test_isLiquidatable_underwaterReturnsTrue() public {
         vm.prank(pm);
-        engine.updateSnapshot(POS_ID, trader, token, token, COLLATERAL, NOTIONAL, block.number, true);
+        engine.updateSnapshot(POS_ID, trader, token, token, COLLATERAL, NOTIONAL, 0, block.number, true);
         vm.roll(block.number + 1);
         assertTrue(engine.isLiquidatable(POS_ID));
     }
@@ -282,7 +285,7 @@ contract LiquidationEngineTest is Test {
         engine.liquidate(POS_ID);
 
         // Snapshot deleted
-        (address t,,,,,,) = engine.snapshots(POS_ID);
+        (address t,,,,,,,) = engine.snapshots(POS_ID);
         assertEq(t, address(0));
 
         assertEq(vault.free(liquidator,            token), 500e6);
@@ -374,7 +377,7 @@ contract LiquidationEngineTest is Test {
         vm.prank(liquidator);
         engine.liquidate(POS_ID); // must succeed after unpause
 
-        (address t,,,,,,) = engine.snapshots(POS_ID);
+        (address t,,,,,,,) = engine.snapshots(POS_ID);
         assertEq(t, address(0));
     }
 
@@ -391,7 +394,7 @@ contract LiquidationEngineTest is Test {
         collateral = bound(collateral, 1,   notional * 5);
 
         vm.prank(pm);
-        engine.updateSnapshot(POS_ID, trader, token, token, collateral, notional, block.number, true);
+        engine.updateSnapshot(POS_ID, trader, token, token, collateral, notional, 0, block.number, true);
         vm.roll(block.number + 1);
 
         bool liq = engine.isLiquidatable(POS_ID);
@@ -411,7 +414,7 @@ contract LiquidationEngineTest is Test {
 
         bytes32 id = keccak256(abi.encode(collateral, notional));
         vm.prank(pm);
-        engine.updateSnapshot(id, trader, token, token, collateral, notional, block.number, true);
+        engine.updateSnapshot(id, trader, token, token, collateral, notional, 0, block.number, true);
         vault.seed(trader, token, collateral);
         vm.roll(block.number + 1);
 

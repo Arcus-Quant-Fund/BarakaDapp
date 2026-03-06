@@ -12,6 +12,7 @@ import "../interfaces/IOracleAdapter.sol";
 import "../interfaces/ICollateralVault.sol";
 import "../interfaces/ILiquidationEngine.sol";
 import "../interfaces/IInsuranceFund.sol";
+import "../interfaces/IPositionManager.sol";
 
 /**
  * @title PositionManager
@@ -23,7 +24,7 @@ import "../interfaces/IInsuranceFund.sol";
  *   - Funding accrues hourly via FundingEngine (ι=0 formula).
  *   - Unrealized PnL: (currentPrice − entryPrice) * size / entryPrice
  */
-contract PositionManager is Ownable2Step, Pausable, ReentrancyGuard {
+contract PositionManager is IPositionManager, Ownable2Step, Pausable, ReentrancyGuard {
     using SafeERC20 for IERC20;
 
     // ─────────────────────────────────────────────────────
@@ -35,6 +36,7 @@ contract PositionManager is Ownable2Step, Pausable, ReentrancyGuard {
         address asset;            // market (e.g. WBTC address used as market ID)
         address collateralToken;  // USDC / PAXG / XAUT
         uint256 size;             // notional size in 1e18 (collateral units)
+        uint256 initialCollateral; // collateral locked at open — never changes after open
         uint256 collateral;       // current collateral backing (shrinks with funding losses)
         uint256 entryPrice;       // oracle index price at open (1e18)
         int256  fundingIndexAtOpen; // cumulative funding index at position open
@@ -60,6 +62,9 @@ contract PositionManager is Ownable2Step, Pausable, ReentrancyGuard {
     // ─────────────────────────────────────────────────────
 
     mapping(bytes32 => Position) public positions;
+
+    /// @notice Per-user nonce used to prevent same-block positionId collisions.
+    mapping(address => uint256) private _nonces;
 
     /// @notice BRKX token used for hold-based fee discounts.
     ///         When address(0), fee collection is disabled (protocol-off state).
@@ -198,22 +203,24 @@ contract PositionManager is Ownable2Step, Pausable, ReentrancyGuard {
         _collectFee(msg.sender, collateralToken, notional);
 
         // ── Create position ──
+        // Nonce prevents same-user, same-params, same-block collisions.
         positionId = keccak256(
-            abi.encodePacked(msg.sender, asset, collateralToken, block.timestamp, block.number)
+            abi.encodePacked(msg.sender, asset, collateralToken, block.timestamp, block.number, _nonces[msg.sender]++)
         );
 
         positions[positionId] = Position({
-            trader:            msg.sender,
-            asset:             asset,
-            collateralToken:   collateralToken,
-            size:              notional,
-            collateral:        collateral,
-            entryPrice:        indexPrice,
+            trader:             msg.sender,
+            asset:              asset,
+            collateralToken:    collateralToken,
+            size:               notional,
+            initialCollateral:  collateral,
+            collateral:         collateral,
+            entryPrice:         indexPrice,
             fundingIndexAtOpen: currentFundingIndex,
-            openBlock:         block.number,
-            openTimestamp:     block.timestamp,
-            isLong:            isLong,
-            open:              true
+            openBlock:          block.number,
+            openTimestamp:      block.timestamp,
+            isLong:             isLong,
+            open:               true
         });
 
         // ── Push snapshot to LiquidationEngine ──
@@ -248,6 +255,7 @@ contract PositionManager is Ownable2Step, Pausable, ReentrancyGuard {
         Position storage pos = positions[positionId];
         require(pos.open,                   "PM: position not open");
         require(pos.trader == msg.sender,   "PM: not your position");
+        require(block.number > pos.openBlock, "PM: same-block close");
 
         // --- Effects: mark closed BEFORE any external calls (CEI pattern) ---
         pos.open = false;
@@ -268,14 +276,41 @@ contract PositionManager is Ownable2Step, Pausable, ReentrancyGuard {
         // Remove liquidation snapshot
         _removeLiqSnapshot(positionId);
 
-        if (finalCollateral > 0) {
-            // Return remaining collateral to trader
-            vault.unlockCollateral(msg.sender, pos.collateralToken, pos.collateral);
-            // PnL transfer handled off-chain via InsuranceFund / counterparty matching
-            // (simplified for MVP — full AMM/orderbook integration in Phase 2)
+        // Unlock the full originally-locked amount to clear vault accounting.
+        // initialCollateral is what was locked in openPosition and never changes.
+        vault.unlockCollateral(msg.sender, pos.collateralToken, pos.initialCollateral);
+
+        // ── PnL Settlement (net-return model) ──────────────────────────────────
+        // netReturn = pos.collateral (post-funding) + pnl (price-based)
+        //
+        // Case 1: netReturn ≤ 0  → total loss: route all initialCollateral to InsuranceFund.
+        // Case 2: netReturn < initialCollateral → partial loss: charge the shortfall to IF.
+        //         Trader keeps netReturn in vault free balance.
+        // Case 3: netReturn = initialCollateral → break-even: no settlement needed.
+        //         Trader keeps initialCollateral in vault free balance.
+        // Case 4: netReturn > initialCollateral → net profit: IF pays excess to trader's wallet.
+        //         Trader keeps initialCollateral in vault free + receives profit in wallet.
+        if (finalCollateral <= 0) {
+            // Total loss — route all unlocked collateral to InsuranceFund
+            vault.chargeFromFree(msg.sender, pos.collateralToken, pos.initialCollateral);
+            IERC20(pos.collateralToken).forceApprove(address(insuranceFund), pos.initialCollateral);
+            insuranceFund.receiveFromLiquidation(pos.collateralToken, pos.initialCollateral);
         } else {
-            // Loss exceeds collateral — liquidation should have occurred earlier
-            vault.unlockCollateral(msg.sender, pos.collateralToken, 0);
+            uint256 netReturn = uint256(finalCollateral);
+            if (netReturn < pos.initialCollateral) {
+                // Partial loss: charge the shortfall from trader's free balance to InsuranceFund
+                uint256 netLoss = pos.initialCollateral - netReturn;
+                vault.chargeFromFree(msg.sender, pos.collateralToken, netLoss);
+                IERC20(pos.collateralToken).forceApprove(address(insuranceFund), netLoss);
+                insuranceFund.receiveFromLiquidation(pos.collateralToken, netLoss);
+                // Trader retains netReturn in vault free balance (withdraw via vault.withdraw)
+            } else if (netReturn > pos.initialCollateral) {
+                // Net profit: InsuranceFund pays excess directly to trader's wallet
+                uint256 netProfit = netReturn - pos.initialCollateral;
+                insuranceFund.payPnl(pos.collateralToken, netProfit, msg.sender);
+                // Trader retains initialCollateral in vault free balance
+            }
+            // netReturn == initialCollateral: break-even, trader keeps initialCollateral in vault free
         }
 
         // ── Collect closing fee (from just-unlocked free balance) ──
@@ -400,29 +435,21 @@ contract PositionManager is Ownable2Step, Pausable, ReentrancyGuard {
 
     function _pushLiqSnapshot(bytes32 positionId) internal {
         Position storage pos = positions[positionId];
-        // Interface via external call to LiquidationEngine.updateSnapshot
-        // (we cast to a concrete type here — LiquidationEngine exposes this publicly)
-        (bool ok,) = address(liquidationEngine).call(
-            abi.encodeWithSignature(
-                "updateSnapshot(bytes32,address,address,address,uint256,uint256,uint256,bool)",
-                positionId,
-                pos.trader,
-                pos.asset,
-                pos.collateralToken,
-                pos.collateral,
-                pos.size,
-                pos.openBlock,
-                pos.isLong
-            )
+        liquidationEngine.updateSnapshot(
+            positionId,
+            pos.trader,
+            pos.asset,
+            pos.collateralToken,
+            pos.collateral,
+            pos.size,
+            pos.entryPrice,
+            pos.openBlock,
+            pos.isLong
         );
-        require(ok, "PM: snapshot update failed");
     }
 
     function _removeLiqSnapshot(bytes32 positionId) internal {
-        (bool ok,) = address(liquidationEngine).call(
-            abi.encodeWithSignature("removeSnapshot(bytes32)", positionId)
-        );
-        require(ok, "PM: snapshot removal failed");
+        liquidationEngine.removeSnapshot(positionId);
     }
 
     // ─────────────────────────────────────────────────────

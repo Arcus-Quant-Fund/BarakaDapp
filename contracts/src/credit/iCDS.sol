@@ -76,6 +76,17 @@ contract iCDS is Ownable2Step, Pausable, ReentrancyGuard {
     /// @notice Premium payment interval: quarterly (90 days).
     uint256 public constant PREMIUM_PERIOD = 90 days;
 
+    /**
+     * @notice After triggerCreditEvent, the buyer has SETTLEMENT_WINDOW to call settle().
+     *         If the window passes without settlement, anyone may call expireTrigger()
+     *         to release the seller's collateral.
+     *
+     *         Rationale: without a deadline the seller's notional can be locked
+     *         indefinitely — a griefing vector where the buyer waits for price recovery
+     *         then settles a stale trigger. 7 days is generous for any buyer to act.
+     */
+    uint256 public constant SETTLEMENT_WINDOW = 7 days;
+
     // ─────────────────────────────────────────────────────────────
     //  Immutables
     // ─────────────────────────────────────────────────────────────
@@ -104,6 +115,8 @@ contract iCDS is Ownable2Step, Pausable, ReentrancyGuard {
      * @param tenorEnd          Unix timestamp when protection expires.
      * @param lastPremiumAt     Timestamp of last premium payment (or acceptance).
      * @param premiumsCollected Total premiums paid to seller so far.
+     * @param triggeredAt       Timestamp when triggerCreditEvent was called (0 if never).
+     *                          Buyer must call settle() within triggeredAt + SETTLEMENT_WINDOW.
      * @param status            Current lifecycle status.
      */
     struct Protection {
@@ -117,6 +130,7 @@ contract iCDS is Ownable2Step, Pausable, ReentrancyGuard {
         uint256 tenorEnd;
         uint256 lastPremiumAt;
         uint256 premiumsCollected;
+        uint256 triggeredAt;
         Status  status;
     }
 
@@ -126,13 +140,15 @@ contract iCDS is Ownable2Step, Pausable, ReentrancyGuard {
     //  Events
     // ─────────────────────────────────────────────────────────────
 
-    event ProtectionOpened   (uint256 indexed id, address indexed seller, address refAsset, address token, uint256 notional, uint256 tenorEnd);
-    event ProtectionAccepted (uint256 indexed id, address indexed buyer);
-    event PremiumPaid        (uint256 indexed id, address indexed buyer,  uint256 amount);
+    event ProtectionOpened    (uint256 indexed id, address indexed seller, address refAsset, address token, uint256 notional, uint256 tenorEnd);
+    event ProtectionAccepted  (uint256 indexed id, address indexed buyer);
+    event PremiumPaid         (uint256 indexed id, address indexed buyer,  uint256 amount);
     event CreditEventTriggered(uint256 indexed id, address indexed keeper, uint256 spotWad, uint256 floorWad);
-    event Settled            (uint256 indexed id, address indexed buyer,  uint256 payout, uint256 sellerReturn);
-    event Expired            (uint256 indexed id, address indexed seller, uint256 collateralReturned);
-    event KeeperSet          (address indexed keeper, bool status);
+    event Settled             (uint256 indexed id, address indexed buyer,  uint256 payout, uint256 sellerReturn);
+    event Expired             (uint256 indexed id, address indexed seller, uint256 collateralReturned);
+    /// @notice Emitted when a triggered credit event expires unresolved (buyer did not settle in time).
+    event TriggerExpired      (uint256 indexed id, address indexed caller, address indexed seller, uint256 collateralReturned);
+    event KeeperSet           (address indexed keeper, bool status);
 
     // ─────────────────────────────────────────────────────────────
     //  Constructor
@@ -202,6 +218,7 @@ contract iCDS is Ownable2Step, Pausable, ReentrancyGuard {
             tenorEnd:          block.timestamp + tenorDays * 1 days,
             lastPremiumAt:     0,
             premiumsCollected: 0,
+            triggeredAt:       0,
             status:            Status.Open
         });
 
@@ -269,7 +286,12 @@ contract iCDS is Ownable2Step, Pausable, ReentrancyGuard {
         uint256 premium = _computePremium(prot);
         require(premium > 0, "iCDS: zero premium");
 
-        prot.lastPremiumAt     = block.timestamp;
+        // H-6 fix: advance by exactly one PREMIUM_PERIOD (not to block.timestamp).
+        // If multiple periods have elapsed the buyer must call payPremium once per
+        // period, each time advancing the clock by exactly PREMIUM_PERIOD.
+        // Setting to block.timestamp would let a buyer skip N-1 missed periods by
+        // paying only a single premium — a seller-side value extraction.
+        prot.lastPremiumAt     += PREMIUM_PERIOD;
         prot.premiumsCollected += premium;
 
         IERC20(prot.token).safeTransferFrom(msg.sender, prot.seller, premium);
@@ -298,7 +320,8 @@ contract iCDS is Ownable2Step, Pausable, ReentrancyGuard {
         uint256 spotWad = oracle.getIndexPrice(prot.refAsset);
         require(spotWad <= prot.recoveryFloorWad, "iCDS: no default");
 
-        prot.status = Status.Triggered;
+        prot.status      = Status.Triggered;
+        prot.triggeredAt = block.timestamp;   // starts the SETTLEMENT_WINDOW clock
         emit CreditEventTriggered(id, msg.sender, spotWad, prot.recoveryFloorWad);
     }
 
@@ -321,6 +344,12 @@ contract iCDS is Ownable2Step, Pausable, ReentrancyGuard {
         Protection storage prot = protections[id];
         require(prot.status  == Status.Triggered, "iCDS: not triggered");
         require(msg.sender   == prot.buyer,       "iCDS: not buyer");
+        // Buyer must settle within SETTLEMENT_WINDOW from the trigger timestamp.
+        // After the window passes, expireTrigger() releases the seller's collateral.
+        require(
+            block.timestamp <= prot.triggeredAt + SETTLEMENT_WINDOW,
+            "iCDS: settlement window expired"
+        );
 
         prot.status = Status.Settled;
 
@@ -361,6 +390,37 @@ contract iCDS is Ownable2Step, Pausable, ReentrancyGuard {
 
         IERC20(prot.token).safeTransfer(prot.seller, prot.notional);
         emit Expired(id, prot.seller, prot.notional);
+    }
+
+    // ─────────────────────────────────────────────────────────────
+    //  Anyone: expire a stale trigger
+    // ─────────────────────────────────────────────────────────────
+
+    /**
+     * @notice Expire a Triggered protection whose settlement window has elapsed
+     *         without the buyer calling settle(). Returns full notional to the seller.
+     *         Callable by anyone — the function is permissionless so automated keepers
+     *         can maintain contract hygiene without owner involvement.
+     *
+     *         This prevents the buyer griefing attack where the buyer holds the seller's
+     *         collateral locked indefinitely (or waits for price recovery before settling
+     *         a trigger that was ephemeral).
+     *
+     * @param id Protection identifier.
+     */
+    function expireTrigger(uint256 id) external nonReentrant whenNotPaused {
+        Protection storage prot = protections[id];
+        require(prot.status == Status.Triggered, "iCDS: not triggered");
+        require(
+            block.timestamp > prot.triggeredAt + SETTLEMENT_WINDOW,
+            "iCDS: window still open"
+        );
+
+        prot.status = Status.Expired;
+
+        // Return full notional to seller — the credit event was not settled in time
+        IERC20(prot.token).safeTransfer(prot.seller, prot.notional);
+        emit TriggerExpired(id, msg.sender, prot.seller, prot.notional);
     }
 
     // ─────────────────────────────────────────────────────────────

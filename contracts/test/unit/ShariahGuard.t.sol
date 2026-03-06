@@ -176,4 +176,27 @@ contract ShariahGuardTest is Test {
         // Must not revert
         guard.validatePosition(usdc, collateral, notional);
     }
+
+    // ─────────────────────────────────────────────────────
+    // transferShariahMultisig — coverage tests
+    // ─────────────────────────────────────────────────────
+
+    function test_transferShariahMultisig_success() public {
+        address newBoard = address(0x7777);
+        vm.prank(shariahBoard);
+        guard.transferShariahMultisig(newBoard);
+        assertEq(guard.shariahMultisig(), newBoard, "multisig should update");
+    }
+
+    function test_transferShariahMultisig_onlyBoardReverts() public {
+        vm.prank(trader);
+        vm.expectRevert("ShariahGuard: not Shariah board");
+        guard.transferShariahMultisig(address(0x7777));
+    }
+
+    function test_transferShariahMultisig_zeroAddressReverts() public {
+        vm.prank(shariahBoard);
+        vm.expectRevert("ShariahGuard: zero address");
+        guard.transferShariahMultisig(address(0));
+    }
 }

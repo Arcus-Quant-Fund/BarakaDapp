@@ -1,5 +1,5 @@
 # BARAKA PROTOCOL — BUILD CHECKLIST
-**Last Updated:** March 1, 2026 (Session 17)
+**Last Updated:** March 5, 2026 (Session 19)
 **Status Legend:** `[ ]` = Not started · `[~]` = In progress · `[x]` = Complete · `[-]` = Deferred to v2
 
 ---
@@ -9,9 +9,10 @@
 | Phase | Status | URL / Notes |
 |---|---|---|
 | Smart Contracts (13) | ✅ Complete | 8 core + BRKXToken + EverlastingOption + TakafulPool + PerpetualSukuk + iCDS |
-| Tests | ✅ 369/369 | +192 (Session 16+17): Invariant×9 · GovernanceModule·51 · InsuranceFund·32 · CollateralVault·41 · LiquidationEngine·27 · OracleAdapter·32 |
+| Tests | ✅ 410/410 | +7 this session: H-1 cap×2 · H-2 access×1 · H-5 quorum×3 · H-6 period-skip×1 |
 | Slither | ✅ Clean | HIGH 0, MEDIUM 0 |
-| Testnet Deploy | ✅ Live | All 13 contracts on chain 421614 |
+| AI Security Audit | ✅ ALL 8 FINDINGS FIXED | C-1/C-2/C-3/C-4 ✅ · H-1/H-2/H-5/H-6 ✅ |
+| Testnet Deploy | ⏳ Needs redeploy | FundingEngine + OracleAdapter + GovernanceModule + iCDS changed — redeploy pending |
 | BRKX Token + Fee System | ✅ Live | PM v3 + CollateralVault v2 + OracleAdapter v2 + LiqEngine v2 redeployed |
 | Frontend | ✅ Live | https://baraka.arcusquantfund.com |
 | Subgraph | ✅ Live v0.0.2 | v0.0.2 — fixed stale addresses + L2/L3/L4 data sources |
@@ -31,12 +32,12 @@
 | Paper 3 stochastic κ appendix | ✅ Complete | CIR-κ SDE, Feller lemma, κ-bond theorem, κ-yield curve — 11pp clean PDF |
 | EverlastingOption.sol | ✅ Complete | Ackerer Prop 6 at ι=0; inline lnWad+expWad; 33/33 tests pass (unit+fuzz) |
 | TakafulPool.sol (Layer 3) | ✅ Complete | Mutual takaful insurance; wakala 10%; put-priced tabarru; 16/16 tests |
-| PerpetualSukuk.sol (Layer 2) | ✅ Complete | Islamic capital market instrument; par+embedded call at maturity; 16/16 tests |
-| iCDS.sol (Layer 4) | ✅ Complete | Islamic Credit Default Swap; quarterly put-priced premium; LGD settlement; 19/19 tests + 1k fuzz |
+| PerpetualSukuk.sol (Layer 2) | ✅ C-1 fixed | Per-sukuk reserve isolation (`_issuerReserve[id]`, `_investorPrincipal[id]`); 18/18 tests |
+| iCDS.sol (Layer 4) | ✅ C-4+H-6 fixed | C-4: settlement window; H-6: `lastPremiumAt += PREMIUM_PERIOD`; 25/25 tests + 1k fuzz |
 | IEverlastingOption.sol interface | ✅ Complete | quotePut/quoteCall/quoteAtSpot/getExponents — used by all Layer 2/3/4 |
 | CollateralVault unit tests | ✅ Complete | `test/unit/CollateralVault.t.sol` — 41/41 (deposit/withdraw/cooldown/lock/unlock/chargeFromFree + 3 fuzz) |
-| LiquidationEngine unit tests | ✅ Complete | `test/unit/LiquidationEngine.t.sol` — 27/27 + 2 fuzz (penalty cap, conservation invariant verified) |
-| OracleAdapter unit tests | ✅ Complete | `test/unit/OracleAdapter.t.sol` — 32/32 + 2 fuzz (stale/diverge/circuit-breaker/TWAP/ring-buffer) |
+| LiquidationEngine unit tests | ✅ Complete | `test/unit/LiquidationEngine.t.sol` — 27/27 + 2 fuzz · C-2: oracle equity check + `entryPrice` in snapshot |
+| OracleAdapter unit tests | ✅ Complete | `test/unit/OracleAdapter.t.sol` — 33/33 + 2 fuzz (+1 H-2: snapshotPrice onlyOwner) |
 | Mainnet Deploy Script | ✅ Complete | `script/DeployMainnet.s.sol` — Arbitrum One (42161), pre-flight checks + post-deploy assertions |
 | Product Stack Deploy (L1.5/L2/L3/L4) | ✅ Live | EverlastingOption + TakafulPool + PerpetualSukuk + iCDS on Arbitrum Sepolia |
 | Frontend Product Pages | ✅ Live | /sukuk /takaful /credit /dashboard — baraka.arcusquantfund.com |
@@ -48,9 +49,12 @@
 | Arbiscan verification | ✅ All verified | All 4 product stack contracts confirmed |
 | Paper 2A (κ-Yield Curve Empirical) | ✅ Complete | 26pp, real data (Damodaran+FRED+Yahoo), all tables filled, zero PLACEHOLDERs, PDF compiles clean |
 | Invariant tests (iota=0 + leverage) | ✅ Complete | `Invariant_IotaZero.t.sol` (5 invariants, 256x128 depth) + `Invariant_MaxLeverage.t.sol` (4 invariants) — 186/186 total |
-| GovernanceModule unit tests | ✅ Complete | `test/unit/GovernanceModule.t.sol` — 51/51 (propose/vote/queue/execute/veto/cancel/timelock/fuzz) |
+| GovernanceModule unit tests | ✅ Complete | `test/unit/GovernanceModule.t.sol` — 54/54 (+3 quorum tests; H-5: QUORUM_BPS=400, 4% of totalSupply) |
 | InsuranceFund unit tests | ✅ Complete | `test/unit/InsuranceFund.t.sol` — 32/32 (receive/cover/surplus/weekly-tracker/fuzz) |
-| **Next session starts here →** | ⏳ | Discord server + @BarakaDEX Twitter + LinkedIn pages + security audit selection |
+| Security audit scope doc | ✅ Done | `docs/SECURITY_AUDIT_SCOPE.md` — 13 contracts, risk areas, scope |
+| Security audit outreach | ✅ Done | `docs/AUDIT_OUTREACH_EMAILS.md` — C4/Sherlock/Halborn/OZ emails ready to send |
+| CI Discord webhook | ✅ Done | GitHub secret DISCORD_CI_WEBHOOK set; notify job in ci.yml |
+| **Next session starts here →** | ⏳ | Redeploy testnet (4 contracts changed) · send C4+Sherlock audit submissions |
 
 ---
 
@@ -123,7 +127,7 @@
 
 ### Testing
 - [x] Unit tests — `FundingEngine.t.sol` (14/14) + `ShariahGuard.t.sol` (16/16)
-- [x] Integration tests — `BarakaIntegration.t.sol` (30/30)
+- [x] Integration tests — `BarakaIntegration.t.sol` (32/32)
   - [x] Full lifecycle: deposit → open → settle → close → withdraw
   - [x] Liquidation flow: funding erodes collateral → liquidate → split
   - [x] Shariah gate: unapproved asset, leverage > 5, emergency pause
@@ -306,9 +310,10 @@ Revenue split: 50% → InsuranceFund / 50% → Treasury
   - Auto-unpauses all contracts if left paused on testnet
 - [x] **Pinata JWT** — obtained Feb 28 2026 (Key: `bb023190f5171bdf5884`, stored in `.env`)
 - [x] **Fatwa on-chain** — CID `QmVztQvWd5QkD5euhiUb2ycwr2SHL928Y2AC9rnWCMn7c2` → `ShariahGuard.approveAsset(USDC, cid)` tx `0xab9cef3...` (block 245895608, Feb 28 2026)
-- [ ] Discord server (#announcements #trading #shariah-questions #dev)
-- [ ] Twitter / X account @BarakaDEX (handle @BarakaProtocol taken)
-- [ ] Testnet public announcement (Discord + Twitter)
+- [x] Discord server (#announcements #trading #shariah-questions #dev) — set up March 4 2026
+- [ ] Twitter / X account @BarakaDEX (handle @BarakaProtocol taken — create new account manually)
+- [x] Testnet public announcement (Discord #announcements posted March 4 2026)
+- [x] Arcus Quant Fund Slack workspace — 4 channels created + populated (March 4 2026)
 - [ ] Shariah scholar outreach — AAOIFI contacts, Dr. Bhuyan's academic network
 - [ ] Bug bounty scope document
 
@@ -367,7 +372,26 @@ Revenue split: 50% → InsuranceFund / 50% → Treasury
 - [ ] Integration test: oracle failover (staleness, circuit breaker trigger)
 
 ### Security
-- [ ] External audit (Certik / OpenZeppelin / Trail of Bits)
+
+**AI Audit completed March 5, 2026 — ALL 8 FINDINGS FIXED (Session 18–19):**
+
+| ID | Severity | Description | Status |
+|---|---|---|---|
+| C-1 | Critical | PerpetualSukuk shared `balanceOf` → cross-sukuk drain | ✅ Fixed: per-ID `_issuerReserve` + `_investorPrincipal` |
+| C-2 | Critical | LiquidationEngine uses stale snapshot collateral, ignores oracle price | ✅ Fixed: `_currentEquity()` with `IOracleAdapter` + `entryPrice` |
+| C-3 | Critical | PositionManager winning traders receive $0 PnL (off-chain comment) | ✅ Fixed: `InsuranceFund.payPnl()` + net-return settlement model |
+| C-4 | Critical | iCDS: no settlement deadline → seller collateral locked forever | ✅ Fixed: `SETTLEMENT_WINDOW=7days` + `expireTrigger()` |
+| H-1 | High | FundingEngine: intervals not capped → DoS on large gap | ✅ Fixed: `if (intervals > 720) intervals = 720` |
+| H-2 | High | OracleAdapter: `snapshotPrice()` no access control → circuit-breaker manipulation | ✅ Fixed: `onlyOwner` added |
+| H-5 | High | GovernanceModule: no quorum requirement | ✅ Fixed: `QUORUM_BPS=400` (4% of totalSupply) in `queue()` |
+| H-6 | Medium | iCDS: `payPremium` sets `lastPremiumAt = block.timestamp` → buyer skips periods | ✅ Fixed: `lastPremiumAt += PREMIUM_PERIOD` |
+
+- [x] Fix H-1: cap intervals at 720 in FundingEngine + 2 tests
+- [x] Fix H-2: add `onlyOwner` to `OracleAdapter.snapshotPrice()` + 1 test
+- [x] Fix H-5: GovernanceModule QUORUM_BPS=400 in `queue()` + 3 tests + MockERC20 totalSupply
+- [x] Fix H-6: iCDS `lastPremiumAt += PREMIUM_PERIOD` + 2 tests (period-skip scenario)
+- [ ] Redeploy testnet (FundingEngine + OracleAdapter + GovernanceModule + iCDS)
+- [ ] External audit (Code4rena / Sherlock — submission in progress)
 - [ ] Audit findings remediated + re-tested
 
 ### Shariah Compliance

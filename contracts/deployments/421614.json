@@ -3,36 +3,45 @@
   "chainId": 421614,
   "deployedAt": "2026-02-25",
   "upgradedAt": "2026-02-27",
-  "redeployedAt": "2026-02-27",
+  "redeployedAt": "2026-03-05",
   "deployer": "0x12A21D0D172265A520aF286F856B5aF628e66D46",
   "treasury": "0x12A21D0D172265A520aF286F856B5aF628e66D46",
   "contracts": {
-    "OracleAdapter":     "0x86C475d9943ABC61870C6F19A7e743B134e1b563",
+    "OracleAdapter":     "0x4f6C404aB37c202Dff0e40452b2541264Bd12999",
     "ShariahGuard":      "0x26d4db76a95DBf945ac14127a23Cd4861DA42e69",
-    "FundingEngine":     "0x459BE882BC8736e92AA4589D1b143e775b114b38",
+    "FundingEngine":     "0x9aFD9fba678CBDCA695C7b59CF73F2477E18AfF4",
     "InsuranceFund":     "0x7B440af63D5fa5592E53310ce914A21513C1a716",
     "CollateralVault":   "0x0e9e32e4e061Db57eE5d3309A986423A5ad3227E",
-    "LiquidationEngine": "0x17D9399C7e17690bE23544E379907eC1AB6b7E07",
-    "PositionManager":   "0x035E38fd8b34486530A4Cd60cE9D840e1a0A124a",
-    "GovernanceModule":  "0x8c987818dffcD00c000Fe161BFbbD414B0529341",
+    "LiquidationEngine": "0x8E709e3DBc3A074B27C77c1C0247d3F1DDDc65bA",
+    "PositionManager":   "0x5a8b09cc1EE6462fCc34311A08770336C2b05d31",
+    "GovernanceModule":  "0xf342a5Af21772B663a1c70C7135275230C3F75c5",
     "BRKXToken":         "0xD3f7E29cAC5b618fAB44Dd8a64C4CC335C154A32"
   },
   "legacy": {
-    "PositionManager_v1":   "0x53E3063FE2194c2DAe30C36420A01A8573B150bC",
-    "PositionManager_v2":   "0x787E15807f32f84aC3D929CB136216897b788070",
-    "CollateralVault_v1":   "0x5530e4670523cFd1A60dEFbB123f51ae6cae0c5E",
-    "LiquidationEngine_v1": "0x456eBE7BbCb099E75986307E4105A652c108b608",
-    "OracleAdapter_v1":     "0xB8d9778288B96ee5a9d873F222923C0671fc38D4"
+    "PositionManager_v1":    "0x53E3063FE2194c2DAe30C36420A01A8573B150bC",
+    "PositionManager_v2":    "0x787E15807f32f84aC3D929CB136216897b788070",
+    "PositionManager_v3":    "0x035E38fd8b34486530A4Cd60cE9D840e1a0A124a",
+    "CollateralVault_v1":    "0x5530e4670523cFd1A60dEFbB123f51ae6cae0c5E",
+    "LiquidationEngine_v1":  "0x456eBE7BbCb099E75986307E4105A652c108b608",
+    "LiquidationEngine_v2":  "0x17D9399C7e17690bE23544E379907eC1AB6b7E07",
+    "OracleAdapter_v1":      "0xB8d9778288B96ee5a9d873F222923C0671fc38D4",
+    "OracleAdapter_v2":      "0x86C475d9943ABC61870C6F19A7e743B134e1b563",
+    "FundingEngine_v1":      "0x459BE882BC8736e92AA4589D1b143e775b114b38",
+    "GovernanceModule_v1":   "0x8c987818dffcD00c000Fe161BFbbD414B0529341",
+    "EverlastingOption_v1":  "0x977419b75182777c157E2192d4Ec2dC87413E006",
+    "TakafulPool_v1":        "0xD53d34cC599CfadB5D1f77516E7Eb326a08bb0E4",
+    "PerpetualSukuk_v1":     "0xd209f7B587c8301D5E4eC1691264deC1a560e48D",
+    "iCDS_v1":               "0xc4E8907619C8C02AF90D146B710306aB042c16c5"
   },
   "arbiscan": {
-    "OracleAdapter":     "https://sepolia.arbiscan.io/address/0x86C475d9943ABC61870C6F19A7e743B134e1b563",
+    "OracleAdapter":     "https://sepolia.arbiscan.io/address/0x4f6C404aB37c202Dff0e40452b2541264Bd12999",
     "ShariahGuard":      "https://sepolia.arbiscan.io/address/0x26d4db76a95DBf945ac14127a23Cd4861DA42e69",
-    "FundingEngine":     "https://sepolia.arbiscan.io/address/0x459BE882BC8736e92AA4589D1b143e775b114b38",
+    "FundingEngine":     "https://sepolia.arbiscan.io/address/0x9aFD9fba678CBDCA695C7b59CF73F2477E18AfF4",
     "InsuranceFund":     "https://sepolia.arbiscan.io/address/0x7B440af63D5fa5592E53310ce914A21513C1a716",
     "CollateralVault":   "https://sepolia.arbiscan.io/address/0x0e9e32e4e061Db57eE5d3309A986423A5ad3227E",
-    "LiquidationEngine": "https://sepolia.arbiscan.io/address/0x17D9399C7e17690bE23544E379907eC1AB6b7E07",
-    "PositionManager":   "https://sepolia.arbiscan.io/address/0x035E38fd8b34486530A4Cd60cE9D840e1a0A124a",
-    "GovernanceModule":  "https://sepolia.arbiscan.io/address/0x8c987818dffcD00c000Fe161BFbbD414B0529341",
+    "LiquidationEngine": "https://sepolia.arbiscan.io/address/0x8E709e3DBc3A074B27C77c1C0247d3F1DDDc65bA",
+    "PositionManager":   "https://sepolia.arbiscan.io/address/0x5a8b09cc1EE6462fCc34311A08770336C2b05d31",
+    "GovernanceModule":  "https://sepolia.arbiscan.io/address/0xf342a5Af21772B663a1c70C7135275230C3F75c5",
     "BRKXToken":         "https://sepolia.arbiscan.io/address/0xD3f7E29cAC5b618fAB44Dd8a64C4CC335C154A32"
   },
   "brkx": {
@@ -49,30 +58,31 @@
     "revenueSplit": "50% InsuranceFund / 50% Treasury"
   },
   "smokeTest": {
-    "runAt": "2026-02-27",
-    "result": "ALL CHECKS PASSED (open-only E2E)",
-    "btcPrice": "66099 USD",
+    "runAt": "2026-03-05",
+    "result": "ALL CHECKS PASSED (Sessions 18-19 audit fix redeploy)",
+    "btcPrice": "72475 USD",
     "brkxBalance": "100000000 BRKX (tier3)",
     "feeBps": 25,
     "openFee": "750000 tUSDC-wei",
     "insuranceFundReceived": "375000 tUSDC-wei",
     "treasuryReceived": "375000 tUSDC-wei",
     "kappaRegime": 0,
-    "closeFee": "unit-tested (PositionManagerFee.t.sol 8/8)"
+    "closeFee": "unit-tested (PositionManagerFee.t.sol 8/8)",
+    "auditFixes": ["H-1 interval cap 720", "H-2 snapshotPrice onlyOwner", "H-5 quorum 4%", "H-6 lastPremiumAt += period", "C-2 entryPrice in LiqSnapshot", "C-3 payPnl via InsuranceFund"]
   },
-  "gasUsed": "~0.000395 ETH (initial) + ~0.00055 ETH (BRKX upgrade) + ~0.000312 ETH (redeploy+smoke)",
+  "gasUsed": "~0.000395 ETH (initial) + ~0.00055 ETH (BRKX upgrade) + ~0.000312 ETH (redeploy+smoke) + ~0.00045 ETH (audit-fix redeploy)",
   "productStack": {
-    "deployedAt": "2026-02-28",
-    "EverlastingOption": "0x977419b75182777c157E2192d4Ec2dC87413E006",
-    "TakafulPool":       "0xD53d34cC599CfadB5D1f77516E7Eb326a08bb0E4",
-    "PerpetualSukuk":    "0xd209f7B587c8301D5E4eC1691264deC1a560e48D",
-    "iCDS":              "0xc4E8907619C8C02AF90D146B710306aB042c16c5",
+    "deployedAt": "2026-03-05",
+    "EverlastingOption": "0x8B4580F3E169F7Fd9c404EC865aCDdecc2a5dEC8",
+    "TakafulPool":       "0x63865E7d3d8D9524df1051d291991ce51b391c91",
+    "PerpetualSukuk":    "0xB2c5EEdF519aca6F77E494154BCC9906fF7999B3",
+    "iCDS":              "0x7A027c8413e9cfCbE580d95C716d98D2b159b15F",
     "BTC_POOL_ID":       "0xa62553efe090534f3bd23505218dd898105cb8863d630a8e01fae4e40ab72647",
     "arbiscan": {
-      "EverlastingOption": "https://sepolia.arbiscan.io/address/0x977419b75182777c157E2192d4Ec2dC87413E006",
-      "TakafulPool":       "https://sepolia.arbiscan.io/address/0xD53d34cC599CfadB5D1f77516E7Eb326a08bb0E4",
-      "PerpetualSukuk":    "https://sepolia.arbiscan.io/address/0xd209f7B587c8301D5E4eC1691264deC1a560e48D",
-      "iCDS":              "https://sepolia.arbiscan.io/address/0xc4E8907619C8C02AF90D146B710306aB042c16c5"
+      "EverlastingOption": "https://sepolia.arbiscan.io/address/0x8B4580F3E169F7Fd9c404EC865aCDdecc2a5dEC8",
+      "TakafulPool":       "https://sepolia.arbiscan.io/address/0x63865E7d3d8D9524df1051d291991ce51b391c91",
+      "PerpetualSukuk":    "https://sepolia.arbiscan.io/address/0xB2c5EEdF519aca6F77E494154BCC9906fF7999B3",
+      "iCDS":              "https://sepolia.arbiscan.io/address/0x7A027c8413e9cfCbE580d95C716d98D2b159b15F"
     }
   }
 }

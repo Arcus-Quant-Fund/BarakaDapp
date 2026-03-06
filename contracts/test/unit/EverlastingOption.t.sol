@@ -3,6 +3,25 @@ pragma solidity ^0.8.24;
 
 import "forge-std/Test.sol";
 import "../../src/core/EverlastingOption.sol";
+import "../../src/interfaces/IOracleAdapter.sol";
+
+/// @dev Minimal oracle mock that returns a configurable positive kappa per second.
+contract MockOracleWithKappa is IOracleAdapter {
+    uint256 public indexPrice;
+    int256  public kappaPerSecVal;
+
+    function setIndexPrice(uint256 p)    external { indexPrice     = p; }
+    function setKappaPerSec(int256 k)    external { kappaPerSecVal = k; }
+
+    function getIndexPrice(address)      external view override returns (uint256) { return indexPrice; }
+    function getMarkPrice(address, uint256) external view override returns (uint256) { return indexPrice; }
+    function getPremium(address)         external view override returns (int256)  { return 0; }
+    function getKappaSignal(address) external view override
+        returns (int256 kappa, int256 premium, uint8 regime)
+    {
+        return (kappaPerSecVal, 0, 0);
+    }
+}
 
 /**
  * @title EverlastingOptionTest
@@ -330,6 +349,79 @@ contract EverlastingOptionTest is Test {
         eo.pause();
         vm.expectRevert();
         eo.quotePut(ASSET, X_AT_PAR, K_STRIKE);
+    }
+
+    // -------------------------------------------------------------
+    //  10. setOracle coverage tests
+    // -------------------------------------------------------------
+
+    function test_setOracle_updatesAddress() public {
+        address newOracle = address(new MockOracleWithKappa());
+        vm.prank(OWNER);
+        eo.setOracle(newOracle);
+        assertEq(address(eo.oracle()), newOracle, "oracle should be updated");
+    }
+
+    function test_setOracle_zeroAddressReverts() public {
+        vm.prank(OWNER);
+        vm.expectRevert("EO: zero oracle");
+        eo.setOracle(address(0));
+    }
+
+    function test_setOracle_emitsOracleUpdatedEvent() public {
+        address oldOracle = address(eo.oracle()); // read before prank (avoids consuming prank)
+        address newOracle = address(new MockOracleWithKappa());
+        vm.prank(OWNER);
+        vm.expectEmit(true, true, false, false);
+        emit EverlastingOption.OracleUpdated(oldOracle, newOracle);
+        eo.setOracle(newOracle);
+    }
+
+    // -------------------------------------------------------------
+    //  11. Oracle kappa live path (useOracleKappa = true)
+    // -------------------------------------------------------------
+
+    function test_useOracleKappa_livePath_usesOracleKappa() public {
+        // Deploy a real mock oracle that returns a positive kappa per second
+        MockOracleWithKappa liveOracle = new MockOracleWithKappa();
+        uint256 spot = 50_000 * WAD;
+        liveOracle.setIndexPrice(spot);
+        // kappa = 8%/year in per-second units: 0.08 / 31_536_000
+        // Use a simple round value: 2e9 per second → annualised ~ 0.063e18
+        int256  kappaPerSec = 2e9;
+        liveOracle.setKappaPerSec(kappaPerSec);
+
+        // Wire EverlastingOption to use the live oracle
+        vm.startPrank(OWNER);
+        eo.setOracle(address(liveOracle));
+        address assetLive = address(0xA1BE);
+        // useOracleKappa = true; fallback kappaAnnualWad = KAPPA (used when oracle returns ≤ 0)
+        eo.setMarket(assetLive, SIGMA2, KAPPA, true);
+        vm.stopPrank();
+
+        // The live path annualises kappaPerSec * SECS_PER_YEAR = 2e9 * 31_536_000 ~ 6.3e16
+        // This is < WAD so it won't be capped. It should produce valid option prices.
+        uint256 putPrice = eo.quotePut(assetLive, spot, K_STRIKE);
+        assertGt(putPrice, 0, "oracle-kappa live path: put price must be positive");
+    }
+
+    function test_useOracleKappa_fallbackToAdmin_whenKappaZero() public {
+        // MockOracleWithKappa with kappaPerSec = 0 → falls back to admin kappa
+        MockOracleWithKappa zeroOracle = new MockOracleWithKappa();
+        uint256 spot = 50_000 * WAD;
+        zeroOracle.setIndexPrice(spot);
+        zeroOracle.setKappaPerSec(0); // zero → falls back
+
+        vm.startPrank(OWNER);
+        eo.setOracle(address(zeroOracle));
+        address assetFallback = address(0xFA11);
+        eo.setMarket(assetFallback, SIGMA2, KAPPA, true);
+        vm.stopPrank();
+
+        // Should produce same result as admin kappa path (KAPPA = 8e16)
+        uint256 putLive  = eo.quotePut(assetFallback, spot, K_STRIKE);
+        uint256 putAdmin = eo.quotePut(ASSET, spot, K_STRIKE); // ASSET uses useOracleKappa=false, KAPPA=8e16
+        assertApproxEqRel(putLive, putAdmin, 1e15, "fallback path must match admin kappa price");
     }
 }
 

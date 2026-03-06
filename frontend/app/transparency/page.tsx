@@ -2,7 +2,7 @@ import TransparencyClient from './TransparencyClient'
 
 export const metadata = {
   title: 'Shariah Transparency | Baraka Protocol',
-  description: 'Live on-chain proof that Baraka funding rate satisfies ι=0 — no riba, no interest floor. Mathematical proof from Ackerer, Hugonnier & Jermann (2024).',
+  description: 'Live on-chain proof that Baraka funding rate satisfies ι=0 — no riba, no interest floor. Mathematical proof from Ackerer, Hugonnier & Jermann (2025, Mathematical Finance).',
 }
 
 export default function TransparencyPage() {

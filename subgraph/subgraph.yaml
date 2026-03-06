@@ -4,12 +4,12 @@ indexerHints:
 schema:
   file: ./schema.graphql
 dataSources:
-  # ── PositionManager (v3 — BRKX fee system, deployed 2026-02-27) ──────────
+  # ── PositionManager (v4 — payPnl via IF, redeployed 2026-03-05) ──────────
   - kind: ethereum
     name: PositionManager
     network: arbitrum-sepolia
     source:
-      address: "0x035E38fd8b34486530A4Cd60cE9D840e1a0A124a"
+      address: "0x5a8b09cc1EE6462fCc34311A08770336C2b05d31"
       abi: PositionManager
       startBlock: 0
     mapping:
@@ -34,12 +34,12 @@ dataSources:
           handler: handleFundingSettled
       file: ./src/position-manager.ts
 
-  # ── FundingEngine ────────────────────────────────────────────────
+  # ── FundingEngine (v2 — interval cap 720, redeployed 2026-03-05) ─
   - kind: ethereum
     name: FundingEngine
     network: arbitrum-sepolia
     source:
-      address: "0x459BE882BC8736e92AA4589D1b143e775b114b38"
+      address: "0x9aFD9fba678CBDCA695C7b59CF73F2477E18AfF4"
       abi: FundingEngine
       startBlock: 0
     mapping:
@@ -83,12 +83,12 @@ dataSources:
           handler: handleWithdrawn
       file: ./src/collateral-vault.ts
 
-  # ── LiquidationEngine (v2 — deployed 2026-02-27) ────────────────────────
+  # ── LiquidationEngine (v3 — oracle equity check, redeployed 2026-03-05) ──
   - kind: ethereum
     name: LiquidationEngine
     network: arbitrum-sepolia
     source:
-      address: "0x17D9399C7e17690bE23544E379907eC1AB6b7E07"
+      address: "0x8E709e3DBc3A074B27C77c1C0247d3F1DDDc65bA"
       abi: LiquidationEngine
       startBlock: 0
     mapping:
@@ -108,12 +108,12 @@ dataSources:
           handler: handleLiquidated
       file: ./src/liquidation-engine.ts
 
-  # ── TakafulPool (L3 — mutual Islamic insurance, deployed 2026-02-28) ──────
+  # ── TakafulPool (L3 — mutual Islamic insurance, redeployed 2026-03-05) ────
   - kind: ethereum
     name: TakafulPool
     network: arbitrum-sepolia
     source:
-      address: "0xD53d34cC599CfadB5D1f77516E7Eb326a08bb0E4"
+      address: "0x63865E7d3d8D9524df1051d291991ce51b391c91"
       abi: TakafulPool
       startBlock: 245800000
     mapping:
@@ -133,12 +133,12 @@ dataSources:
           handler: handleClaimPaid
       file: ./src/takaful-pool.ts
 
-  # ── PerpetualSukuk (L2 — Islamic capital markets, deployed 2026-02-28) ───
+  # ── PerpetualSukuk (L2 — Islamic capital markets, redeployed 2026-03-05) ──
   - kind: ethereum
     name: PerpetualSukuk
     network: arbitrum-sepolia
     source:
-      address: "0xd209f7B587c8301D5E4eC1691264deC1a560e48D"
+      address: "0xB2c5EEdF519aca6F77E494154BCC9906fF7999B3"
       abi: PerpetualSukuk
       startBlock: 245800000
     mapping:
@@ -160,12 +160,12 @@ dataSources:
           handler: handleRedeemed
       file: ./src/perpetual-sukuk.ts
 
-  # ── iCDS (L4 — Islamic Credit Default Swap, deployed 2026-02-28) ─────────
+  # ── iCDS (L4 — Islamic Credit Default Swap v2, redeployed 2026-03-05) ────
   - kind: ethereum
     name: iCDS
     network: arbitrum-sepolia
     source:
-      address: "0xc4E8907619C8C02AF90D146B710306aB042c16c5"
+      address: "0x7A027c8413e9cfCbE580d95C716d98D2b159b15F"
       abi: iCDS
       startBlock: 245800000
     mapping:

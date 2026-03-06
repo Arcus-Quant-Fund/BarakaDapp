@@ -1,16 +1,16 @@
 // Deployed contract addresses — Arbitrum Sepolia (chainId 421614)
 // Source: contracts/deployments/421614.json
-// v2/v3 redeployed 2026-02-27 (OracleAdapter v2, CollateralVault v2, LiquidationEngine v2, PositionManager v3)
+// v3/v4 redeployed 2026-03-05 (Sessions 18-19 audit fixes: H-1/H-2/H-5/H-6 + C-2/C-3)
 
 export const CONTRACTS = {
-  OracleAdapter:     '0x86C475d9943ABC61870C6F19A7e743B134e1b563', // v2: kappa signal
+  OracleAdapter:     '0x4f6C404aB37c202Dff0e40452b2541264Bd12999', // v3: snapshotPrice onlyOwner (H-2)
   ShariahGuard:      '0x26d4db76a95DBf945ac14127a23Cd4861DA42e69',
-  FundingEngine:     '0x459BE882BC8736e92AA4589D1b143e775b114b38',
+  FundingEngine:     '0x9aFD9fba678CBDCA695C7b59CF73F2477E18AfF4', // v2: interval cap 720 (H-1)
   InsuranceFund:     '0x7B440af63D5fa5592E53310ce914A21513C1a716',
-  CollateralVault:   '0x0e9e32e4e061Db57eE5d3309A986423A5ad3227E', // v2: chargeFromFree
-  LiquidationEngine: '0x17D9399C7e17690bE23544E379907eC1AB6b7E07', // v2
-  PositionManager:   '0x035E38fd8b34486530A4Cd60cE9D840e1a0A124a', // v3: BRKX fee system
-  GovernanceModule:  '0x8c987818dffcD00c000Fe161BFbbD414B0529341',
+  CollateralVault:   '0x0e9e32e4e061Db57eE5d3309A986423A5ad3227E',
+  LiquidationEngine: '0x8E709e3DBc3A074B27C77c1C0247d3F1DDDc65bA', // v3: oracle equity check (C-2)
+  PositionManager:   '0x5a8b09cc1EE6462fCc34311A08770336C2b05d31', // v4: payPnl via IF (C-3)
+  GovernanceModule:  '0xf342a5Af21772B663a1c70C7135275230C3F75c5', // v2: quorum 4% (H-5)
   BRKXToken:         '0xD3f7E29cAC5b618fAB44Dd8a64C4CC335C154A32',
 } as const
 
@@ -170,6 +170,7 @@ export const POSITION_MANAGER_ABI = [
           { name: 'asset',            type: 'address' },
           { name: 'collateralToken',  type: 'address' },
           { name: 'size',             type: 'uint256' },
+          { name: 'initialCollateral', type: 'uint256' },
           { name: 'collateral',       type: 'uint256' },
           { name: 'entryPrice',       type: 'uint256' },
           { name: 'fundingIndexAtOpen', type: 'int256' },
@@ -254,16 +255,16 @@ export const BRKX_TIERS = [
 ] as const
 
 // ─────────────────────────────────────────────────────────
-// Layer 2/3/4 Product Stack — deployed 2026-02-28
+// Layer 2/3/4 Product Stack — redeployed 2026-03-05 (audit fix cascade)
 // Source: contracts/deployments/421614.json
 // ─────────────────────────────────────────────────────────
 
-// Product stack deployed 2026-02-28 to Arbitrum Sepolia
+// Product stack redeployed 2026-03-05 (OracleAdapter v3 cascade)
 export const PRODUCT_CONTRACTS = {
-  EverlastingOption: '0x977419b75182777c157E2192d4Ec2dC87413E006' as `0x${string}`,
-  TakafulPool:       '0xD53d34cC599CfadB5D1f77516E7Eb326a08bb0E4' as `0x${string}`,
-  PerpetualSukuk:    '0xd209f7B587c8301D5E4eC1691264deC1a560e48D' as `0x${string}`,
-  iCDS:              '0xc4E8907619C8C02AF90D146B710306aB042c16c5' as `0x${string}`,
+  EverlastingOption: '0x8B4580F3E169F7Fd9c404EC865aCDdecc2a5dEC8' as `0x${string}`,
+  TakafulPool:       '0x63865E7d3d8D9524df1051d291991ce51b391c91' as `0x${string}`,
+  PerpetualSukuk:    '0xB2c5EEdF519aca6F77E494154BCC9906fF7999B3' as `0x${string}`,
+  iCDS:              '0x7A027c8413e9cfCbE580d95C716d98D2b159b15F' as `0x${string}`, // v2: lastPremiumAt += period (H-6)
 }
 
 // BTC Takaful pool ID: keccak256("BTC-40k-USDC")

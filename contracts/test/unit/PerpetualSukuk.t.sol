@@ -264,7 +264,85 @@ contract PerpetualSukukTest is Test {
         sukuk.redeem(sukukId);
     }
 
-    // ─── 5. Embedded call sensitivity ─────────────────────────────
+    // ─── 5. Cross-sukuk isolation (C-1 fix) ───────────────────────
+
+    /**
+     * @dev Demonstrates that sukuk A cannot drain sukuk B's principal.
+     *      Before the fix, redeem() used balanceOf(address(this)) which
+     *      could pull from any sukuk's funds. After the fix, each sukuk
+     *      has segregated reserves.
+     */
+    function test_crossSukuk_principalIsolated() public {
+        // Issue sukuk B (a second, different sukuk with a new issuer)
+        address ISSUER2   = address(0xBAAD);
+        address INVESTOR3 = address(0xBEE1);
+        uint256 parB      = 500_000e18;
+
+        token.mint(ISSUER2,   parB);
+        token.mint(INVESTOR3, parB);
+
+        vm.prank(ISSUER2);
+        token.approve(address(sukuk), parB);
+        vm.prank(INVESTOR3);
+        token.approve(address(sukuk), parB);
+
+        vm.prank(ISSUER2);
+        uint256 idB = sukuk.issue(ASSET, address(token), parB, PROFIT_RATE_WAD, MATURITY);
+
+        // INVESTOR3 subscribes to sukuk B
+        vm.prank(INVESTOR3);
+        sukuk.subscribe(idB, parB);
+
+        // INVESTOR subscribes to sukuk A (sukukId)
+        uint256 subA = 100_000e18;
+        vm.prank(INVESTOR);
+        sukuk.subscribe(sukukId, subA);
+
+        vm.warp(MATURITY);
+
+        // INVESTOR redeems sukuk A — must not touch sukuk B's principal
+        vm.prank(INVESTOR);
+        sukuk.redeem(sukukId);
+
+        // INVESTOR3 redeems sukuk B — must receive full parB back
+        uint256 investor3Before = token.balanceOf(INVESTOR3);
+        vm.prank(INVESTOR3);
+        sukuk.redeem(idB);
+        uint256 investor3Received = token.balanceOf(INVESTOR3) - investor3Before;
+
+        assertGe(investor3Received, parB, "sukuk B investor receives full principal despite sukuk A redemption");
+
+        // Reserve views should reflect zero after full redemption
+        assertEq(sukuk.investorPrincipal(idB), 0, "sukuk B investor principal drained to zero");
+    }
+
+    function test_crossSukuk_profitDoesNotLeakAcrossSukuks() public {
+        // Two sukuks, both issued. Claim profit on one should not affect the other's reserve.
+        address ISSUER2 = address(0xBAAD2);
+        token.mint(ISSUER2, PAR_VALUE);
+        vm.prank(ISSUER2);
+        token.approve(address(sukuk), PAR_VALUE);
+        vm.prank(ISSUER2);
+        uint256 idB = sukuk.issue(ASSET, address(token), PAR_VALUE, PROFIT_RATE_WAD, MATURITY);
+
+        uint256 reserveB_before = sukuk.issuerReserve(idB);
+        uint256 reserveA_before = sukuk.issuerReserve(sukukId);
+
+        // INVESTOR subscribes to A and claims profit
+        vm.prank(INVESTOR);
+        sukuk.subscribe(sukukId, 100_000e18);
+        vm.warp(block.timestamp + 180 days);
+        vm.prank(INVESTOR);
+        sukuk.claimProfit(sukukId);
+
+        uint256 reserveA_after = sukuk.issuerReserve(sukukId);
+        uint256 reserveB_after = sukuk.issuerReserve(idB);
+
+        assertLt(reserveA_after, reserveA_before, "sukuk A reserve decremented by profit");
+        assertEq(reserveB_after, reserveB_before, "sukuk B reserve unchanged");
+    }
+
+    // ─── 6. Embedded call sensitivity ─────────────────────────────
 
     function test_embeddedCallIncreases_withSpot() public {
         uint256 subAmount = 100_000e18;

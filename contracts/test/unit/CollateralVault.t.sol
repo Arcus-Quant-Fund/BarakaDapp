@@ -197,13 +197,23 @@ contract CollateralVaultTest is Test {
     }
 
     function test_withdraw_emergencyExitBypassesCooldown() public {
-        // Paused → cooldown not enforced (emergency exit)
+        // Paused + 72h elapsed → emergency exit allowed
         vm.prank(owner); vault.pause();
+        vm.warp(block.timestamp + 72 hours);
 
         uint256 amount = 500e6;
         vm.prank(user);
         vault.withdraw(address(usdc), amount);
         assertEq(vault.freeBalance(user, address(usdc)), DEPOSIT - amount);
+    }
+
+    function test_withdraw_emergencyExitTooSoonReverts() public {
+        // Paused but < 72h elapsed → emergency exit blocked
+        vm.prank(owner); vault.pause();
+
+        vm.prank(user);
+        vm.expectRevert("CollateralVault: emergency exit not yet available");
+        vault.withdraw(address(usdc), 500e6);
     }
 
     function test_withdraw_emitsEvent() public {

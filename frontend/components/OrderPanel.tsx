@@ -8,6 +8,7 @@ import { CONTRACTS, POSITION_MANAGER_ABI, BTC_ASSET_ADDRESS, USDC_ADDRESS } from
 import { useOraclePrices } from '@/hooks/useOraclePrices'
 import { useFundingRate } from '@/hooks/useFundingRate'
 import { useBrkxTier } from '@/hooks/useBrkxTier'
+import { useCollateralBalance } from '@/hooks/useCollateralBalance'
 
 const MAX_LEVERAGE = 5
 
@@ -20,6 +21,7 @@ export default function OrderPanel() {
   const { mark } = useOraclePrices()
   const { rateDisplay, isLong } = useFundingRate()
   const { tierName, feeBps, feeLabel, balanceDisplay, nextTierBrkx } = useBrkxTier()
+  const { free: vaultFree, freeDisplay: vaultFreeDisplay } = useCollateralBalance()
 
   const { writeContract, data: txHash, isPending } = useWriteContract()
   const { isLoading: isConfirming, isSuccess } = useWaitForTransactionReceipt({
@@ -29,6 +31,7 @@ export default function OrderPanel() {
   const collateralNum = parseFloat(collateral) || 0
   const size    = collateralNum * leverage
   const estFee  = size * feeBps / 100_000   // USDC, same decimals as size
+  const insufficientBalance = collateralNum > 0 && vaultFree !== null && collateralNum > vaultFree
   const estLiqPrice =
     mark && collateralNum > 0
       ? side === 'long'
@@ -100,9 +103,16 @@ export default function OrderPanel() {
       <div style={{ padding: '18px' }}>
         {/* Collateral input */}
         <div style={{ marginBottom: '16px' }}>
-          <label style={{ fontSize: '11px', color: 'var(--text-muted)', display: 'block', marginBottom: '6px' }}>
-            COLLATERAL (USDC)
-          </label>
+          <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '6px' }}>
+            <label style={{ fontSize: '11px', color: 'var(--text-muted)' }}>
+              COLLATERAL (USDC)
+            </label>
+            {isConnected && (
+              <span style={{ fontSize: '11px', color: insufficientBalance ? 'var(--red-lite)' : 'var(--text-muted)' }}>
+                Vault: {vaultFreeDisplay}
+              </span>
+            )}
+          </div>
           <div
             style={{
               display: 'flex',
@@ -247,6 +257,29 @@ export default function OrderPanel() {
           </div>
         )}
 
+        {/* Insufficient balance warning */}
+        {isConnected && insufficientBalance && (
+          <div
+            style={{
+              background: 'rgba(229,83,83,0.1)',
+              border: '1px solid rgba(229,83,83,0.3)',
+              borderRadius: '8px',
+              padding: '10px 12px',
+              marginBottom: '12px',
+              fontSize: '12px',
+              color: 'var(--red-lite)',
+              display: 'flex',
+              justifyContent: 'space-between',
+              alignItems: 'center',
+            }}
+          >
+            <span>Insufficient vault balance</span>
+            <span style={{ fontSize: '11px', color: 'var(--text-muted)' }}>
+              Need ${collateralNum.toFixed(2)} · Have {vaultFreeDisplay} → Deposit below ↓
+            </span>
+          </div>
+        )}
+
         {/* Action button */}
         {!isConnected ? (
           <div style={{ display: 'flex', justifyContent: 'center' }}>
@@ -255,7 +288,7 @@ export default function OrderPanel() {
         ) : (
           <button
             onClick={handleOpen}
-            disabled={!collateralNum || isPending || isConfirming}
+            disabled={!collateralNum || insufficientBalance || isPending || isConfirming}
             style={{
               width: '100%',
               padding: '13px',
@@ -263,15 +296,15 @@ export default function OrderPanel() {
               fontSize: '14px',
               border: 'none',
               borderRadius: '8px',
-              cursor: !collateralNum || isPending || isConfirming ? 'not-allowed' : 'pointer',
+              cursor: !collateralNum || insufficientBalance || isPending || isConfirming ? 'not-allowed' : 'pointer',
               background:
-                !collateralNum || isPending || isConfirming
+                !collateralNum || insufficientBalance || isPending || isConfirming
                   ? 'var(--bg-card)'
                   : side === 'long'
                   ? 'var(--green-mid)'
                   : 'var(--red)',
               color:
-                !collateralNum || isPending || isConfirming
+                !collateralNum || insufficientBalance || isPending || isConfirming
                   ? 'var(--text-muted)'
                   : 'white',
               transition: 'all 0.15s',
@@ -283,6 +316,8 @@ export default function OrderPanel() {
               ? 'Confirming on-chain...'
               : isSuccess
               ? 'Position opened!'
+              : insufficientBalance
+              ? 'Insufficient vault balance'
               : `${side === 'long' ? '▲ Open Long' : '▼ Open Short'} ${leverage}×`}
           </button>
         )}
