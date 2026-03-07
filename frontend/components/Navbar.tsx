@@ -1,6 +1,7 @@
 'use client'
 
 import Link from 'next/link'
+import Image from 'next/image'
 import { usePathname } from 'next/navigation'
 import { ConnectButton } from '@rainbow-me/rainbowkit'
 
@@ -28,12 +29,13 @@ export default function Navbar() {
       <div className="max-w-7xl mx-auto px-4 h-14 flex items-center justify-between">
         {/* Logo */}
         <Link href="/" className="flex items-center gap-2 no-underline">
-          <span
-            style={{ color: 'var(--gold)', fontFamily: 'var(--font-geist-mono)' }}
-            className="text-lg font-bold tracking-wider"
-          >
-            ب
-          </span>
+          <Image
+            src="/baraka-logo.png"
+            alt="Baraka"
+            width={32}
+            height={32}
+            className="rounded-sm"
+          />
           <span style={{ color: 'var(--text-main)' }} className="font-semibold text-sm">
             BARAKA
           </span>

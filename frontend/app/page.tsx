@@ -1,4 +1,5 @@
 import Link from 'next/link'
+import Image from 'next/image'
 
 const STATS = [
   { label: 'Interest Parameter (ι)', value: '0', sub: 'Proven — Ackerer et al. (2025, Math. Finance)' },
@@ -152,6 +153,14 @@ export default function HomePage() {
             />
             Testnet Live — Arbitrum Sepolia
           </div>
+
+          <Image
+            src="/baraka-logo.png"
+            alt="Baraka"
+            width={140}
+            height={140}
+            style={{ margin: '0 auto 24px', display: 'block' }}
+          />
 
           <h1
             style={{ fontSize: 'clamp(2rem, 5vw, 3.5rem)', fontWeight: 700, lineHeight: 1.1, color: 'var(--text-main)', marginBottom: '20px' }}
