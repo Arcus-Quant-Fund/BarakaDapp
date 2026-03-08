@@ -1,0 +1,6 @@
+[submodule "contracts/lib/solady"]
+	path = contracts/lib/solady
+	url = https://github.com/Vectorized/solady
+[submodule "baraka-v2/contracts/lib/solady"]
+	path = baraka-v2/contracts/lib/solady
+	url = https://github.com/vectorized/solady
