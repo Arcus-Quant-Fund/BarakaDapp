@@ -136,6 +136,14 @@ contract FeeEngine is IFeeEngine, Ownable2Step {
 
     function setTier(uint256 index, uint256 minBRKX, uint256 takerBps, uint256 makerBps) external onlyOwner {
         require(index < _tiers.length, "FE: invalid tier");
+        /// AUDIT FIX (P14-VAL-1): Base tier (index 0) must always have minBRKX = 0.
+        /// Without this check, a single-tier deployment (or updating index 0 when it is the only tier)
+        /// skips the ordering check entirely, allowing the base threshold to be set non-zero.
+        /// _getTier() falls back to _tiers[0] unconditionally, so even if minBRKX > 0 the base tier
+        /// is still applied — but a non-zero base threshold is misleading and wrong by definition.
+        if (index == 0) {
+            require(minBRKX == 0, "FE: base tier must have zero threshold");
+        }
         /// AUDIT FIX (L1B-L-1): Validate tier ordering — thresholds must be strictly increasing
         if (index > 0) {
             require(minBRKX > _tiers[index - 1].minBRKX, "FE: tier threshold not increasing");

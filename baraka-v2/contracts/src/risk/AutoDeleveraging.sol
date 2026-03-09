@@ -84,14 +84,22 @@ contract AutoDeleveraging is IAutoDeleveraging, Ownable2Step, ReentrancyGuard {
     // Admin
     // ─────────────────────────────────────────────────────
 
+    /// AUDIT FIX (P14-ADL-1): Add missing admin events for observability (P13 scope missed ADL).
+    event AuthorisedSet(address indexed caller, bool status);
+    event FundingEngineSet(address indexed fundingEngine);
+    /// AUDIT FIX (P14-ADL-2): Event for participant list compaction.
+    event ParticipantsCompacted(bytes32 indexed marketId, uint256 removed);
+
     function setAuthorised(address caller, bool status) external onlyOwner {
         authorised[caller] = status;
+        emit AuthorisedSet(caller, status);
     }
 
     /// AUDIT FIX (P5-M-21): Set FundingEngine for pre-ADL funding normalization.
     function setFundingEngine(address _fundingEngine) external onlyOwner {
         require(_fundingEngine != address(0), "ADL: zero FE");
         fundingEngine = IFundingEngine(_fundingEngine);
+        emit FundingEngineSet(_fundingEngine);
     }
 
     /// AUDIT FIX (P2-HIGH-8): Prevent ownership renouncement — ADL requires owner for authorization management.
@@ -256,6 +264,34 @@ contract AutoDeleveraging is IAutoDeleveraging, Ownable2Step, ReentrancyGuard {
 
     /// @dev INFO (L3-I-3): Participant list cleanup implemented via removeParticipant below.
     /// @dev INFO (L3-I-7): setADL zero-address check implemented in LiquidationEngine.setADL (L3-L-1).
+
+    /// AUDIT FIX (P14-ADL-2): Public keeper function to compact stale participants.
+    /// Although MarginEngine auto-calls removeParticipant() via _cleanupPosition() (P9-H-3),
+    /// entries can remain stale if: (a) adl.setAuthorised(marginEngine) was not yet set, or
+    /// (b) the try/catch in _cleanupPosition silently swallowed an error.
+    /// Anyone can call this to sweep zero-size entries — no auth required, no funds at risk.
+    /// @param marketId Market to compact.
+    /// @param maxSweep Maximum entries to remove in this call (caps gas).
+    function compactParticipants(bytes32 marketId, uint256 maxSweep) external {
+        bytes32[] storage participants = marketParticipants[marketId];
+        uint256 removed = 0;
+        uint256 i = 0;
+        while (i < participants.length && removed < maxSweep) {
+            bytes32 sub = participants[i];
+            IMarginEngine.Position memory pos = marginEngine.getPosition(sub, marketId);
+            if (pos.size == 0 && isParticipant[marketId][sub]) {
+                // swap-and-pop
+                isParticipant[marketId][sub] = false;
+                participants[i] = participants[participants.length - 1];
+                participants.pop();
+                removed++;
+                // don't increment i — re-check swapped entry
+            } else {
+                i++;
+            }
+        }
+        if (removed > 0) emit ParticipantsCompacted(marketId, removed);
+    }
 
     /// AUDIT FIX (L3-L-5): Allow cleanup of participants with zero positions
     function removeParticipant(bytes32 marketId, bytes32 subaccount) external {

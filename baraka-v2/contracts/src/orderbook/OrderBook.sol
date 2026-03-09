@@ -178,6 +178,9 @@ contract OrderBook is IOrderBook, Ownable2Step, Pausable, ReentrancyGuard {
         if (orderType == OrderType.Limit) {
             require(price % MIN_TICK == 0, "OB: price not on tick");
         }
+        /// NOTE (P14-VAL-2): Market orders intentionally skip the MIN_TICK check. Market orders
+        /// execute at existing resting-limit prices, which were already tick-validated when placed.
+        /// The `price` field for a market order is a worst-case slippage bound, not a fill price.
 
         // PostOnly check: reject if order would cross the book
         if (tif == TimeInForce.PostOnly) {
