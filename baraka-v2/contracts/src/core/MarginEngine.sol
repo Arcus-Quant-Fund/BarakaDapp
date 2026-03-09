@@ -134,6 +134,10 @@ contract MarginEngine is IMarginEngine, Ownable2Step, Pausable, ReentrancyGuard 
         // Compute scale factor: 10^(18 - tokenDecimals)
         // e.g. USDC (6 dec) → scale = 1e12, so 50_000e6 * 1e12 = 50_000e18
         uint8 dec = _getDecimals(_collateralToken);
+        /// AUDIT FIX (P14-INT-1): Explicit dec <= 18 check matching LiquidationEngine (line 126).
+        /// Without this, a token with >18 decimals would cause arithmetic underflow in 10^(18-dec),
+        /// producing a cryptic revert instead of a clear error message.
+        require(dec <= 18, "ME: decimals > 18");
         collateralScale = 10 ** (18 - dec);
     }
 
@@ -278,6 +282,14 @@ contract MarginEngine is IMarginEngine, Ownable2Step, Pausable, ReentrancyGuard 
     ///   updatePosition(A, long 1) → settlePnL → token.transfer → REENTER updatePosition(A, long 1)
     ///   → position books A as long 2, outer call completes → A's position is now long 2 + 1 = 3
     ///   but margin was only checked for 1 — A can hold 3× the OI their collateral supports.
+    ///
+    /// NOTE (P14-REEN-1): The settlement calls (_settleFundingForPosition, _settleAndCoverShortfall)
+    /// occur before pos.size is updated in the increasing/reducing branches. This ordering is
+    /// intentional: funding is settled against the OLD position size before increasing it, and PnL
+    /// is settled against the OLD entry price before the close. This is NOT a CEI violation because:
+    /// (1) Both nonReentrant guards (here + vault.settlePnL) prevent re-entry of state-modifying functions;
+    /// (2) The settlement interactions operate exclusively on old state — no new state is readable
+    ///     by the external call that is not already committed by the time the call is made.
     function updatePosition(
         bytes32 subaccount,
         bytes32 marketId,

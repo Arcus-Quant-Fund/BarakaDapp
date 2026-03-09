@@ -239,7 +239,10 @@ contract FeeEngine is IFeeEngine, Ownable2Step {
             takerFeeTokens = takerBal;
             // Proportionally reduce maker rebate
             if (takerFeeTokens == 0) return;
-            makerRebateTokens = makerRebateTokens * takerFeeTokens / (takerFee / collateralScale);
+            /// AUDIT FIX (P14-MATH-1): Use Math.mulDiv to avoid precision loss when proportionally
+            /// reducing the maker rebate. The denominator (takerFee/collateralScale) is non-zero here
+            /// because takerFeeTokens == 0 was already checked at line 234.
+            makerRebateTokens = Math.mulDiv(makerRebateTokens, takerFeeTokens, takerFee / collateralScale);
         }
 
         // Cap rebate at taker fee — can never rebate more than collected
