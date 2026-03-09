@@ -32,4 +32,8 @@ contract MockOracleAdapter is IOracleAdapter {
     function updateMarkPrice(bytes32 marketId, uint256 tradePrice) external override {
         markPrices[marketId] = tradePrice;
     }
+
+    function getLastUpdateTime(bytes32 /* marketId */) external pure override returns (uint256) {
+        return 0; // Default: no oracle recovery scenario in unit tests
+    }
 }

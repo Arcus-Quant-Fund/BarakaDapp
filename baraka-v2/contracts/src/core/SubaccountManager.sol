@@ -27,6 +27,9 @@ contract SubaccountManager is ISubaccountManager, ReentrancyGuard {
     // State
     // ─────────────────────────────────────────────────────
 
+    /// AUDIT FIX (P16-AC-H1): Owner for access control on orderbook management.
+    address public owner;
+
     /// @notice subaccountId → owner address
     mapping(bytes32 => address) private _owners;
 
@@ -40,12 +43,33 @@ contract SubaccountManager is ISubaccountManager, ReentrancyGuard {
     address[] private _registeredOrderBooks;
 
     // ─────────────────────────────────────────────────────
+    // Errors & Modifiers
+    // ─────────────────────────────────────────────────────
+
+    /// AUDIT FIX (P16-AC-H1): Restrict orderbook management to deployer.
+    modifier onlyOwner() {
+        require(msg.sender == owner, "SAM: not contract owner");
+        _;
+    }
+
+    // ─────────────────────────────────────────────────────
+    // Constructor
+    // ─────────────────────────────────────────────────────
+
+    /// AUDIT FIX (P16-AC-H1): Set deployer as owner for orderbook access control.
+    constructor() {
+        owner = msg.sender;
+    }
+
+    // ─────────────────────────────────────────────────────
     // Events
     // ─────────────────────────────────────────────────────
 
     event SubaccountCreated(address indexed owner, uint8 index, bytes32 indexed subaccountId);
     event SubaccountClosed(address indexed owner, uint8 index, bytes32 indexed subaccountId);
     event OrderBookRegistered(address indexed orderBook);
+    /// AUDIT FIX (P16-AC-H1)
+    event OrderBookRemoved(address indexed orderBook);
 
     // ─────────────────────────────────────────────────────
     // Core
@@ -87,20 +111,33 @@ contract SubaccountManager is ISubaccountManager, ReentrancyGuard {
     }
 
     /// AUDIT FIX (P10-H-7): Register an orderbook for resting-order cancellation on subaccount close.
-    /// Permissionless — any contract can self-register. Malicious registrations are harmless:
-    /// cancelAllOrders() in the try/catch silently fails if the caller lacks permission or
-    /// the subaccount has no orders. Duplicate registration is deduplicated inline.
-    function registerOrderBook(address ob) external {
+    /// AUDIT FIX (P16-AC-H1): Restricted to owner — previously permissionless, allowing anyone
+    /// to fill all 32 orderbook slots with dummy addresses, bricking removeOrderBook management
+    /// and wasting gas in closeSubaccount's iteration loop.
+    function registerOrderBook(address ob) external onlyOwner {
         require(ob != address(0), "SAM: zero orderbook");
         /// AUDIT FIX (P12-SAM-1): Cap array length to prevent gas exhaustion in closeSubaccount().
-        /// An adversary registering hundreds of dummy addresses would cause closeSubaccount() to
-        /// iterate the full array, potentially consuming block gas limit via the try/catch loop.
         require(_registeredOrderBooks.length < 32, "SAM: too many orderbooks");
         for (uint256 i = 0; i < _registeredOrderBooks.length; i++) {
             if (_registeredOrderBooks[i] == ob) return;
         }
         _registeredOrderBooks.push(ob);
         emit OrderBookRegistered(ob);
+    }
+
+    /// AUDIT FIX (P16-AC-H1): Remove an orderbook from the registered list.
+    /// Swap-and-pop for O(1) removal. Order doesn't matter — closeSubaccount iterates all.
+    function removeOrderBook(address ob) external onlyOwner {
+        uint256 len = _registeredOrderBooks.length;
+        for (uint256 i = 0; i < len; i++) {
+            if (_registeredOrderBooks[i] == ob) {
+                _registeredOrderBooks[i] = _registeredOrderBooks[len - 1];
+                _registeredOrderBooks.pop();
+                emit OrderBookRemoved(ob);
+                return;
+            }
+        }
+        revert("SAM: orderbook not found");
     }
 
     // ─────────────────────────────────────────────────────
@@ -110,7 +147,7 @@ contract SubaccountManager is ISubaccountManager, ReentrancyGuard {
     /// @notice Deterministic subaccount ID from owner + index.
     /// @dev INFO (L0-I-6): abi.encodePacked is safe here — (address, uint8) is a fixed-size
     ///      tuple with no collision risk (address=20 bytes, uint8=1 byte, no variable-length data).
-    /// @dev INFO (L1-I-4): SubaccountManager is intentionally ownerless — minimal, immutable by design.
+    /// @dev INFO (L1-I-4): Owner added per AUDIT FIX (P16-AC-H1) for orderbook management access control.
     function getSubaccountId(address owner, uint8 index) public pure override returns (bytes32) {
         return keccak256(abi.encodePacked(owner, index));
     }

@@ -31,13 +31,17 @@ contract BatchSettlement is Ownable2Step, ReentrancyGuard {
     /// AUDIT FIX (L0-M-5): Cap batch size to prevent gas DoS
     uint256 public constant MAX_BATCH_SIZE = 100;
 
+    /// AUDIT FIX (P16-UP-C2): Timelocked dependency update to prevent brick risk
+    uint256 constant DEPENDENCY_TIMELOCK = 48 hours;
+
     // ─────────────────────────────────────────────────────
     // Dependencies
     // ─────────────────────────────────────────────────────
 
-    IMarginEngine    public immutable marginEngine;
+    /// AUDIT FIX (P16-UP-C2): Removed immutable from marginEngine and oracle to allow timelocked updates
+    IMarginEngine    public marginEngine;
     IFeeEngine       public feeEngine;
-    IOracleAdapter   public immutable oracle;
+    IOracleAdapter   public oracle;
     /// AUDIT FIX (P4-A4-11): Optional Shariah registry — if set, respects emergency halt in _settleOne().
     /// Without this, an authorized operator can bypass a Shariah board halt by submitting via BatchSettlement.
     IShariahRegistry public shariahRegistry;
@@ -50,6 +54,12 @@ contract BatchSettlement is Ownable2Step, ReentrancyGuard {
     /// AUDIT FIX (P8-L-1): SubaccountManager for existence checks — prevents closed subaccounts
     /// from receiving positions through BatchSettlement, consistent with MatchingEngine enforcement.
     ISubaccountManager public subaccountManager;
+
+    /// AUDIT FIX (P16-UP-C2): Timelocked dependency update state
+    address public pendingOracle;
+    uint256 public pendingOracleTimestamp;
+    address public pendingMarginEngine;
+    uint256 public pendingMarginEngineTimestamp;
 
     /// @notice Authorised callers (MatchingEngine)
     mapping(address => bool) public authorised;
@@ -104,6 +114,12 @@ contract BatchSettlement is Ownable2Step, ReentrancyGuard {
     event ADLUpdated(address indexed adl);
     event SubaccountManagerUpdated(address indexed subaccountManager);
 
+    /// AUDIT FIX (P16-UP-C2): Timelocked dependency update events
+    event OracleUpdateInitiated(address indexed newOracle, uint256 effectiveAt);
+    event OracleUpdated(address indexed newOracle);
+    event MarginEngineUpdateInitiated(address indexed newMarginEngine, uint256 effectiveAt);
+    event MarginEngineUpdated(address indexed newMarginEngine);
+
     function setAuthorised(address caller, bool status) external onlyOwner {
         require(caller != address(0), "BS: zero address");
         authorised[caller] = status;
@@ -139,6 +155,40 @@ contract BatchSettlement is Ownable2Step, ReentrancyGuard {
     /// AUDIT FIX (P5-H-3): Prevent ownership renouncement — contract requires owner for admin operations.
     function renounceOwnership() public view override onlyOwner {
         revert("BS: renounce disabled");
+    }
+
+    /// AUDIT FIX (P16-UP-C2): Timelocked oracle update to prevent brick risk
+    function initiateOracleUpdate(address newOracle) external onlyOwner {
+        require(newOracle != address(0), "BS: zero address");
+        pendingOracle = newOracle;
+        pendingOracleTimestamp = block.timestamp;
+        emit OracleUpdateInitiated(newOracle, block.timestamp + DEPENDENCY_TIMELOCK);
+    }
+
+    function applyOracleUpdate() external onlyOwner {
+        require(pendingOracle != address(0), "BS: no pending update");
+        require(block.timestamp >= pendingOracleTimestamp + DEPENDENCY_TIMELOCK, "BS: timelock active");
+        oracle = IOracleAdapter(pendingOracle);
+        emit OracleUpdated(pendingOracle);
+        pendingOracle = address(0);
+        pendingOracleTimestamp = 0;
+    }
+
+    /// AUDIT FIX (P16-UP-C2): Timelocked marginEngine update to prevent brick risk
+    function initiateMarginEngineUpdate(address newMarginEngine) external onlyOwner {
+        require(newMarginEngine != address(0), "BS: zero address");
+        pendingMarginEngine = newMarginEngine;
+        pendingMarginEngineTimestamp = block.timestamp;
+        emit MarginEngineUpdateInitiated(newMarginEngine, block.timestamp + DEPENDENCY_TIMELOCK);
+    }
+
+    function applyMarginEngineUpdate() external onlyOwner {
+        require(pendingMarginEngine != address(0), "BS: no pending update");
+        require(block.timestamp >= pendingMarginEngineTimestamp + DEPENDENCY_TIMELOCK, "BS: timelock active");
+        marginEngine = IMarginEngine(pendingMarginEngine);
+        emit MarginEngineUpdated(pendingMarginEngine);
+        pendingMarginEngine = address(0);
+        pendingMarginEngineTimestamp = 0;
     }
 
     // ─────────────────────────────────────────────────────
@@ -194,6 +244,14 @@ contract BatchSettlement is Ownable2Step, ReentrancyGuard {
         require(item.price > 0, "BS: zero price");
         /// AUDIT FIX (L0-L-4): Self-trade prevention
         require(item.takerSubaccount != item.makerSubaccount, "BS: self-trade");
+        /// AUDIT FIX (P16-AC-M4): Cross-account self-trade prevention — different subaccounts
+        /// owned by the same address must not trade against each other (wash trading).
+        if (address(subaccountManager) != address(0)) {
+            require(
+                subaccountManager.getOwner(item.takerSubaccount) != subaccountManager.getOwner(item.makerSubaccount),
+                "BS: same-owner self-trade"
+            );
+        }
         /// AUDIT FIX (P4-A4-11): Respect Shariah board emergency halt if registry is configured.
         /// Without this check, an authorised operator can submit settlements after the Shariah
         /// board has halted the protocol, bypassing the emergency stop entirely.

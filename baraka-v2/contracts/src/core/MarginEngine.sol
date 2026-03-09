@@ -51,8 +51,9 @@ contract MarginEngine is IMarginEngine, Ownable2Step, Pausable, ReentrancyGuard 
 
     IVault              public immutable vault;
     ISubaccountManager  public immutable subaccountManager;
-    IOracleAdapter      public immutable oracle;
-    IFundingEngine      public immutable fundingEngine;
+    /// AUDIT FIX (P16-UP-C2): oracle and fundingEngine are mutable with timelocked updates
+    IOracleAdapter      public oracle;
+    IFundingEngine      public fundingEngine;
 
     // ─────────────────────────────────────────────────────
     // State
@@ -97,6 +98,10 @@ contract MarginEngine is IMarginEngine, Ownable2Step, Pausable, ReentrancyGuard 
     event MarketUpdated(bytes32 indexed marketId, uint256 imr, uint256 mmr);
     event PositionUpdated(bytes32 indexed subaccount, bytes32 indexed marketId, int256 newSize, uint256 entryPrice);
     event AuthorisedSet(address indexed caller, bool status);
+    /// AUDIT FIX (P15-H-5): Emitted when InsuranceFund cannot cover a PnL settlement shortfall.
+    /// Previously, IF coverage failures were silently swallowed by try-catch. This event surfaces
+    /// the shortfall so monitoring can trigger ADL or admin intervention.
+    event InsuranceFundCoverageFailed(bytes32 indexed subaccount, address indexed token, uint256 shortfall);
 
     // ─────────────────────────────────────────────────────
     // Modifiers
@@ -210,6 +215,52 @@ contract MarginEngine is IMarginEngine, Ownable2Step, Pausable, ReentrancyGuard 
         insuranceFund = IInsuranceFund(_if);
     }
 
+    // ─── AUDIT FIX (P16-UP-C2): Timelocked dependency updates ───
+
+    uint256 constant DEPENDENCY_TIMELOCK = 48 hours;
+
+    address public pendingOracle;
+    uint256 public pendingOracleTimestamp;
+    address public pendingFundingEngine;
+    uint256 public pendingFundingEngineTimestamp;
+
+    event OracleUpdateInitiated(address indexed newOracle, uint256 effectiveAt);
+    event OracleUpdated(address indexed newOracle);
+    event FundingEngineUpdateInitiated(address indexed newFE, uint256 effectiveAt);
+    event FundingEngineUpdated(address indexed newFE);
+
+    function initiateOracleUpdate(address newOracle) external onlyOwner {
+        require(newOracle != address(0), "ME: zero address");
+        pendingOracle = newOracle;
+        pendingOracleTimestamp = block.timestamp;
+        emit OracleUpdateInitiated(newOracle, block.timestamp + DEPENDENCY_TIMELOCK);
+    }
+
+    function applyOracleUpdate() external onlyOwner {
+        require(pendingOracle != address(0), "ME: no pending update");
+        require(block.timestamp >= pendingOracleTimestamp + DEPENDENCY_TIMELOCK, "ME: timelock active");
+        oracle = IOracleAdapter(pendingOracle);
+        emit OracleUpdated(pendingOracle);
+        pendingOracle = address(0);
+        pendingOracleTimestamp = 0;
+    }
+
+    function initiateFundingEngineUpdate(address newFE) external onlyOwner {
+        require(newFE != address(0), "ME: zero address");
+        pendingFundingEngine = newFE;
+        pendingFundingEngineTimestamp = block.timestamp;
+        emit FundingEngineUpdateInitiated(newFE, block.timestamp + DEPENDENCY_TIMELOCK);
+    }
+
+    function applyFundingEngineUpdate() external onlyOwner {
+        require(pendingFundingEngine != address(0), "ME: no pending update");
+        require(block.timestamp >= pendingFundingEngineTimestamp + DEPENDENCY_TIMELOCK, "ME: timelock active");
+        fundingEngine = IFundingEngine(pendingFundingEngine);
+        emit FundingEngineUpdated(pendingFundingEngine);
+        pendingFundingEngine = address(0);
+        pendingFundingEngineTimestamp = 0;
+    }
+
     /// @notice Update market margin parameters.
     function updateMarket(bytes32 marketId, uint256 imr, uint256 mmr) external onlyOwner {
         require(_marketParams[marketId].active, "ME: market not active");
@@ -246,6 +297,8 @@ contract MarginEngine is IMarginEngine, Ownable2Step, Pausable, ReentrancyGuard 
         require(amount > 0, "ME: zero amount");
 
         // Check free collateral allows withdrawal (normalize amount to WAD)
+        /// AUDIT FIX (P16-AR-H1): Prevent overflow on large balances
+        require(amount <= uint256(type(int256).max) / collateralScale, "ME: balance overflow");
         int256 freeCol = _computeWithdrawableFreeCollateral(subaccount);
         require(freeCol >= int256(amount * collateralScale), "ME: insufficient free collateral");
 
@@ -260,6 +313,8 @@ contract MarginEngine is IMarginEngine, Ownable2Step, Pausable, ReentrancyGuard 
         require(amount > 0, "ME: zero amount");
 
         // Check source has sufficient free collateral (normalize to WAD)
+        /// AUDIT FIX (P16-AR-H1): Prevent overflow on large balances
+        require(amount <= uint256(type(int256).max) / collateralScale, "ME: balance overflow");
         int256 freeCol = _computeWithdrawableFreeCollateral(from);
         require(freeCol >= int256(amount * collateralScale), "ME: insufficient free collateral");
 
@@ -440,16 +495,25 @@ contract MarginEngine is IMarginEngine, Ownable2Step, Pausable, ReentrancyGuard 
         // Only debits can produce shortfalls (credits always succeed)
         if (tokenAmount < 0 && actualSettled > tokenAmount) {
             uint256 shortfall = uint256(actualSettled - tokenAmount);
+            uint256 totalCovered = 0;
             if (address(insuranceFund) != address(0)) {
                 try insuranceFund.fundBalance(collateralToken) returns (uint256 ifBalance) {
                     uint256 covered = shortfall > ifBalance ? ifBalance : shortfall;
                     if (covered > 0) {
                         /// Mirror LiquidationEngine pattern: IF sends to MarginEngine, ME forwards to Vault.
-                        try insuranceFund.coverShortfall(collateralToken, covered) {
-                            IERC20(collateralToken).safeTransfer(address(vault), covered);
+                        /// AUDIT FIX (P15-M-14): Use returned actualCovered — IF may cap at 50% of pool.
+                        try insuranceFund.coverShortfall(collateralToken, covered) returns (uint256 actualCovered) {
+                            IERC20(collateralToken).safeTransfer(address(vault), actualCovered);
+                            totalCovered = actualCovered;
                         } catch {}
                     }
                 } catch {}
+            }
+            /// AUDIT FIX (P15-H-5): Emit event when shortfall is not fully covered.
+            /// Previously, IF coverage failures were silently swallowed. Uncovered shortfalls
+            /// indicate the protocol is heading toward insolvency and ADL should be triggered.
+            if (totalCovered < shortfall) {
+                emit InsuranceFundCoverageFailed(subaccount, collateralToken, shortfall - totalCovered);
             }
         }
     }
@@ -519,6 +583,8 @@ contract MarginEngine is IMarginEngine, Ownable2Step, Pausable, ReentrancyGuard 
 
     function _computeEquity(bytes32 subaccount) internal view returns (int256) {
         uint256 bal = vault.balance(subaccount, collateralToken);
+        /// AUDIT FIX (P16-AR-H1): Prevent overflow on large balances
+        require(bal <= uint256(type(int256).max) / collateralScale, "ME: balance overflow");
         // Normalize to WAD scale (e.g. 50_000e6 USDC → 50_000e18)
         int256 equity = int256(bal * collateralScale);
 
@@ -556,6 +622,8 @@ contract MarginEngine is IMarginEngine, Ownable2Step, Pausable, ReentrancyGuard 
     /// then let positions go underwater, forcing insurance fund losses.
     function _computeWithdrawableFreeCollateral(bytes32 subaccount) internal view returns (int256) {
         uint256 bal = vault.balance(subaccount, collateralToken);
+        /// AUDIT FIX (P16-AR-H1): Prevent overflow on large balances
+        require(bal <= uint256(type(int256).max) / collateralScale, "ME: balance overflow");
         int256 equity = int256(bal * collateralScale);
 
         bytes32[] storage mktList = _subaccountMarkets[subaccount];
@@ -656,6 +724,65 @@ contract MarginEngine is IMarginEngine, Ownable2Step, Pausable, ReentrancyGuard 
         require(x != type(int256).min, "ME: int256 min overflow");
         return x >= 0 ? uint256(x) : uint256(-x);
     }
+
+    // ─────────────────────────────────────────────────────
+    // Emergency migration — AUDIT FIX (P16-UP-C1)
+    // ─────────────────────────────────────────────────────
+
+    /// AUDIT FIX (P16-UP-C1): Emergency position export — emits all positions for off-chain reconstruction.
+    /// @param subaccounts Array of subaccounts to export
+    function exportPositions(bytes32[] calldata subaccounts) external onlyOwner whenPaused {
+        for (uint256 i = 0; i < subaccounts.length; i++) {
+            bytes32[] storage mktList = _subaccountMarkets[subaccounts[i]];
+            for (uint256 j = 0; j < mktList.length; j++) {
+                Position storage pos = _positions[subaccounts[i]][mktList[j]];
+                if (pos.size != 0) {
+                    emit PositionSnapshot(
+                        subaccounts[i], mktList[j],
+                        pos.size, pos.entryPrice, pos.entryFundingIndex
+                    );
+                }
+            }
+        }
+    }
+
+    /// AUDIT FIX (P16-UP-C1): Emergency position import — restores positions from a previous export.
+    /// @dev Only callable when paused. Used during migration to a redeployed MarginEngine.
+    function importPositions(
+        bytes32[] calldata subaccounts,
+        bytes32[] calldata marketIds,
+        int256[] calldata sizes,
+        uint256[] calldata entryPrices,
+        int256[] calldata fundingIndices
+    ) external onlyOwner whenPaused {
+        require(
+            subaccounts.length == marketIds.length &&
+            marketIds.length == sizes.length &&
+            sizes.length == entryPrices.length &&
+            entryPrices.length == fundingIndices.length,
+            "ME: array length mismatch"
+        );
+        for (uint256 i = 0; i < subaccounts.length; i++) {
+            Position storage pos = _positions[subaccounts[i]][marketIds[i]];
+            pos.size = sizes[i];
+            pos.entryPrice = entryPrices[i];
+            pos.entryFundingIndex = fundingIndices[i];
+            pos.marketId = marketIds[i];
+            // Track market in subaccount's market list if new (mirrors updatePosition logic)
+            if (sizes[i] != 0 && !_hasPosition[subaccounts[i]][marketIds[i]]) {
+                require(_subaccountMarkets[subaccounts[i]].length < 20, "ME: max 20 markets per subaccount");
+                _hasPosition[subaccounts[i]][marketIds[i]] = true;
+                _subaccountMarkets[subaccounts[i]].push(marketIds[i]);
+            }
+            emit PositionSnapshot(subaccounts[i], marketIds[i], sizes[i], entryPrices[i], fundingIndices[i]);
+        }
+    }
+
+    /// AUDIT FIX (P16-UP-C1): Emitted per position during exportPositions / importPositions.
+    event PositionSnapshot(
+        bytes32 indexed subaccount, bytes32 indexed marketId,
+        int256 size, uint256 entryPrice, int256 entryFundingIndex
+    );
 
     /// @notice Override to prevent ownership renouncement — protocol requires an owner for admin ops.
     /// AUDIT FIX (P2-HIGH-8): Renouncing ownership on MarginEngine bricks market creation permanently.

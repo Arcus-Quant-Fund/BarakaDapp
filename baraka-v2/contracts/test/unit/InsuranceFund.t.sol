@@ -30,6 +30,7 @@ contract InsuranceFundTest is Test {
     event PnlUnderpaid(address indexed token, uint256 requested, uint256 paid, address indexed recipient);
     event SurplusDistributed(address indexed token, uint256 amount, address indexed recipient);
     event AuthorisedSet(address indexed caller, bool status);
+    event ExcessLossNotCovered(address indexed token, uint256 excess);
 
     function setUp() public {
         vm.startPrank(owner);
@@ -43,6 +44,9 @@ contract InsuranceFundTest is Test {
 
         // Approve the surplus recipient
         fund.setSurplusRecipient(recipient, true);
+
+        /// AUDIT FIX (P16-UP-M2): Drawdown limit must be configured before coverShortfall() works
+        fund.setDrawdownLimit(type(uint256).max, 1 hours);
 
         vm.stopPrank();
 
@@ -124,7 +128,7 @@ contract InsuranceFundTest is Test {
 
     function test_coverShortfall_happyPath() public {
         uint256 deposit = 10_000 * USDC_UNIT;
-        uint256 shortfall = 3_000 * USDC_UNIT;
+        uint256 shortfall = 1_000 * USDC_UNIT; // 10% of deposit — at cap
 
         vm.prank(authorisedCaller);
         fund.receive_(address(usdc), deposit);
@@ -132,8 +136,9 @@ contract InsuranceFundTest is Test {
         uint256 callerBefore = usdc.balanceOf(authorisedCaller);
 
         vm.prank(authorisedCaller);
-        fund.coverShortfall(address(usdc), shortfall);
+        uint256 covered = fund.coverShortfall(address(usdc), shortfall);
 
+        assertEq(covered, shortfall);
         assertEq(fund.fundBalance(address(usdc)), deposit - shortfall);
         assertEq(usdc.balanceOf(authorisedCaller), callerBefore + shortfall);
     }
@@ -177,15 +182,25 @@ contract InsuranceFundTest is Test {
         fund.coverShortfall(address(usdc), 0);
     }
 
-    function test_coverShortfall_revertsInsufficientReserves() public {
+    /// AUDIT FIX (P15-M-14): With the 10% per-event cap, requesting more than balance
+    /// no longer reverts — it caps at 10% and emits ExcessLossNotCovered for the remainder.
+    function test_coverShortfall_capsAtMaxLossPercent() public {
         uint256 deposit = 1_000 * USDC_UNIT;
 
         vm.prank(authorisedCaller);
         fund.receive_(address(usdc), deposit);
 
+        uint256 requested = deposit + 1;
+        uint256 maxLoss = (deposit * fund.MAX_LOSS_PERCENT()) / 1e18; // 10% = 100 USDC
+
+        vm.expectEmit(true, true, true, true);
+        emit ExcessLossNotCovered(address(usdc), requested - maxLoss);
+
         vm.prank(authorisedCaller);
-        vm.expectRevert("IF: insufficient reserves");
-        fund.coverShortfall(address(usdc), deposit + 1);
+        uint256 covered = fund.coverShortfall(address(usdc), requested);
+
+        assertEq(covered, maxLoss);
+        assertEq(fund.fundBalance(address(usdc)), deposit - maxLoss);
     }
 
     /// P3-LIQ-5 FIX: coverShortfall() no longer blocked by pause — liquidation shortfall coverage
@@ -433,17 +448,28 @@ contract InsuranceFundTest is Test {
     }
 
     function test_distributeSurplus_revertsNoSurplus() public {
-        // Deposit a small amount, then claim most of it so floor > balance
+        // Deposit a small amount, then make multiple claims (each capped at 10%) to
+        // build up weeklyClaims so that floor > balance -> no surplus.
         uint256 deposit = 10_000 * USDC_UNIT;
 
         vm.prank(authorisedCaller);
         fund.receive_(address(usdc), deposit);
 
-        // Claim 8000 -> weeklyClaims = 8000, balance = 2000
-        // floor = max(2*8000, 20%*2000) = max(16000, 400) = 16000
-        // 2000 > 16000 is false -> no surplus
-        vm.prank(authorisedCaller);
-        fund.coverShortfall(address(usdc), 8_000 * USDC_UNIT);
+        // Each coverShortfall capped at 10% of current balance. Make multiple claims
+        // to accumulate weeklyClaims high enough that claimsFloor dominates balance.
+        // Claim 1: 10% of 10_000 = 1_000, balance -> 9_000, weekly = 1_000
+        // Claim 2: 10% of  9_000 =   900, balance -> 8_100, weekly = 1_900
+        // Claim 3: 10% of  8_100 =   810, balance -> 7_290, weekly = 2_710
+        // Claim 4: 10% of  7_290 =   729, balance -> 6_561, weekly = 3_439
+        // Claim 5: 10% of  6_561 =   656, balance -> 5_905, weekly = 4_095 (approx)
+        // floor = max(2*4095, 20%*5905) = max(8190, 1181) = 8190 > 5905 -> no surplus
+        vm.startPrank(authorisedCaller);
+        for (uint256 i = 0; i < 5; i++) {
+            uint256 bal = usdc.balanceOf(address(fund));
+            uint256 maxClaim = (bal * fund.MAX_LOSS_PERCENT()) / 1e18;
+            fund.coverShortfall(address(usdc), maxClaim);
+        }
+        vm.stopPrank();
 
         // Warp past 24h cooldown (coverShortfall sets lastClaimReset)
         vm.warp(block.timestamp + 24 hours);
@@ -471,7 +497,7 @@ contract InsuranceFundTest is Test {
     // ═══════════════════════════════════════════════════════
 
     function test_surplusCalc_claimsFloorDominates() public {
-        // balance = 100_000, weeklyClaims = 30_000
+        // Build weeklyClaims = 30_000 via multiple 10%-capped claims, then top up to 100_000.
         // claimsFloor = 60_000, reserveFloor = 20_000 -> floor = 60_000
         // surplus = 40_000
         uint256 deposit = 100_000 * USDC_UNIT;
@@ -479,13 +505,16 @@ contract InsuranceFundTest is Test {
         vm.prank(authorisedCaller);
         fund.receive_(address(usdc), deposit);
 
-        vm.prank(authorisedCaller);
-        fund.coverShortfall(address(usdc), 30_000 * USDC_UNIT);
-        // balance now 70_000, weeklyClaims = 30_000
-
-        // Top up back to 100_000
-        vm.prank(authorisedCaller);
-        fund.receive_(address(usdc), 30_000 * USDC_UNIT);
+        // Make 3 claims of exactly 10_000 each (10% of 100k, 10% of 90k=9k, etc.)
+        // To accumulate 30_000, claim 10_000 three times with top-ups in between.
+        vm.startPrank(authorisedCaller);
+        fund.coverShortfall(address(usdc), 10_000 * USDC_UNIT); // 10% of 100k
+        fund.receive_(address(usdc), 10_000 * USDC_UNIT);       // back to 100k
+        fund.coverShortfall(address(usdc), 10_000 * USDC_UNIT); // 10% of 100k
+        fund.receive_(address(usdc), 10_000 * USDC_UNIT);       // back to 100k
+        fund.coverShortfall(address(usdc), 10_000 * USDC_UNIT); // 10% of 100k
+        fund.receive_(address(usdc), 10_000 * USDC_UNIT);       // back to 100k
+        vm.stopPrank();
         // balance = 100_000, weeklyClaims = 30_000
 
         // Warp past 24h cooldown (coverShortfall sets lastClaimReset)
@@ -919,37 +948,41 @@ contract InsuranceFundTest is Test {
         fund.receive_(address(usdc), 200_000 * USDC_UNIT);
         fund.receive_(address(weth), 200 * WAD);
 
-        fund.coverShortfall(address(usdc), 20_000 * USDC_UNIT);
-        fund.coverShortfall(address(weth), 40 * WAD);
+        fund.coverShortfall(address(usdc), 20_000 * USDC_UNIT); // 10% of 200k
+        fund.coverShortfall(address(weth), 20 * WAD);            // 10% of 200
         vm.stopPrank();
 
         // Warp 7 days
         vm.warp(block.timestamp + 7 days);
 
-        // Trigger decay only for USDC
+        // Trigger decay only for USDC (10% of remaining 180k = 18k, request 1k which is under cap)
         vm.prank(authorisedCaller);
         fund.coverShortfall(address(usdc), 1_000 * USDC_UNIT);
 
         // USDC decayed: 20_000 / 2 + 1_000 = 11_000
         assertEq(fund.weeklyClaimsSum(address(usdc)), 11_000 * USDC_UNIT);
         // WETH not yet decayed (no claim triggered)
-        assertEq(fund.weeklyClaimsSum(address(weth)), 40 * WAD);
+        assertEq(fund.weeklyClaimsSum(address(weth)), 20 * WAD);
     }
 
     // ═══════════════════════════════════════════════════════
     //  Edge cases
     // ═══════════════════════════════════════════════════════
 
-    function test_coverShortfall_exactBalance() public {
+    /// AUDIT FIX (P15-M-14): With 10% cap, requesting full balance only covers 10%.
+    function test_coverShortfall_cappedAtTenPercent() public {
         uint256 deposit = 5_000 * USDC_UNIT;
 
         vm.prank(authorisedCaller);
         fund.receive_(address(usdc), deposit);
 
-        vm.prank(authorisedCaller);
-        fund.coverShortfall(address(usdc), deposit);
+        uint256 maxLoss = (deposit * fund.MAX_LOSS_PERCENT()) / 1e18; // 500 USDC
 
-        assertEq(fund.fundBalance(address(usdc)), 0);
+        vm.prank(authorisedCaller);
+        uint256 covered = fund.coverShortfall(address(usdc), deposit);
+
+        assertEq(covered, maxLoss);
+        assertEq(fund.fundBalance(address(usdc)), deposit - maxLoss);
     }
 
     function test_payPnl_exactBalance() public {

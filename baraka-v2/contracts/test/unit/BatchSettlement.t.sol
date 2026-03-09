@@ -395,4 +395,83 @@ contract BatchSettlementTest is Test {
 
         batchSettlement.settleBatch(batch);
     }
+
+    // ═══════════════════════════════════════════════════════
+    // 11. P16-AC-M4: Cross-account self-trade prevention
+    // ═══════════════════════════════════════════════════════
+
+    /// @notice Same-owner subaccounts must not trade against each other (wash trading).
+    function test_settleOne_crossAccountSelfTrade_reverts() public {
+        // Wire SubaccountManager so the cross-account check is active
+        vm.prank(owner);
+        batchSettlement.setSubaccountManager(address(sam));
+
+        // Create a second subaccount for Alice (same owner, different index)
+        vm.prank(alice);
+        bytes32 aliceSub2 = sam.createSubaccount(1);
+
+        // Fund the second subaccount
+        vm.startPrank(alice);
+        usdc.approve(address(marginEngine), 50_000e6);
+        marginEngine.deposit(aliceSub2, 50_000e6);
+        vm.stopPrank();
+
+        // Attempt: Alice sub0 buys from Alice sub1 — same owner, should revert
+        BatchSettlement.SettlementItem[] memory batch = _singleItemBatch(
+            _makeItem(BTC_MARKET, aliceSub, aliceSub2, 0, 50_000e18, 1e18)
+        );
+
+        // The try/catch in settleBatch swallows the revert but emits SettlementFailed
+        vm.expectEmit(true, true, false, false);
+        emit BatchSettlement.SettlementFailed(0, BTC_MARKET);
+        batchSettlement.settleBatch(batch);
+
+        // Verify no positions were created (settlement was rejected)
+        IMarginEngine.Position memory pos1 = marginEngine.getPosition(aliceSub, BTC_MARKET);
+        IMarginEngine.Position memory pos2 = marginEngine.getPosition(aliceSub2, BTC_MARKET);
+        assertEq(pos1.size, 0, "Alice sub0 should have no position");
+        assertEq(pos2.size, 0, "Alice sub1 should have no position");
+    }
+
+    /// @notice Cross-account check is skipped when SubaccountManager is not set.
+    function test_settleOne_crossAccountSelfTrade_noManagerBypass() public {
+        // SubaccountManager NOT set on batchSettlement — check is skipped
+
+        // Create a second subaccount for Alice
+        vm.prank(alice);
+        bytes32 aliceSub2 = sam.createSubaccount(1);
+
+        // Fund it
+        vm.startPrank(alice);
+        usdc.approve(address(marginEngine), 50_000e6);
+        marginEngine.deposit(aliceSub2, 50_000e6);
+        vm.stopPrank();
+
+        // Without SubaccountManager, same-owner trade succeeds (graceful degradation)
+        BatchSettlement.SettlementItem[] memory batch = _singleItemBatch(
+            _makeItem(BTC_MARKET, aliceSub, aliceSub2, 0, 50_000e18, 1e18)
+        );
+
+        batchSettlement.settleBatch(batch);
+
+        IMarginEngine.Position memory pos1 = marginEngine.getPosition(aliceSub, BTC_MARKET);
+        assertEq(pos1.size, int256(1e18), "Trade should succeed without SubaccountManager");
+    }
+
+    /// @notice Different owners should settle normally even with SubaccountManager set.
+    function test_settleOne_differentOwners_succeedsWithManager() public {
+        // Wire SubaccountManager
+        vm.prank(owner);
+        batchSettlement.setSubaccountManager(address(sam));
+
+        // Alice buys from Bob — different owners, should succeed
+        BatchSettlement.SettlementItem[] memory batch = _singleItemBatch(
+            _makeItem(BTC_MARKET, aliceSub, bobSub, 0, 50_000e18, 1e18)
+        );
+
+        batchSettlement.settleBatch(batch);
+
+        IMarginEngine.Position memory alicePos = marginEngine.getPosition(aliceSub, BTC_MARKET);
+        assertEq(alicePos.size, int256(1e18), "Alice should be long 1 BTC");
+    }
 }

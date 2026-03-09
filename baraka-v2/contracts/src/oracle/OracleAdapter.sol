@@ -132,9 +132,11 @@ contract OracleAdapter is IOracleAdapter, Ownable2Step {
         emit SequencerUptimeFeedSet(feed);
     }
 
-    /// @notice P9-H-2: Set circuit breaker max price deviation (WAD). 0 = disabled.
-    /// @param deviation Max deviation in WAD (e.g. 0.15e18 = 15%). Capped at 50%.
+    /// @notice P9-H-2: Set circuit breaker max price deviation (WAD).
+    /// @param deviation Max deviation in WAD (e.g. 0.15e18 = 15%). Range: [1%, 50%].
+    /// AUDIT FIX (P15-M-3): Enforce minimum 1% — deviation=0 fully disables the circuit breaker.
     function setMaxPriceDeviation(uint256 deviation) external onlyOwner {
+        require(deviation >= 0.01e18, "OA: deviation < 1% (min floor)");
         require(deviation <= 0.50e18, "OA: deviation > 50%");
         maxPriceDeviation = deviation;
         emit MaxPriceDeviationSet(deviation);
@@ -149,6 +151,9 @@ contract OracleAdapter is IOracleAdapter, Ownable2Step {
     function updateIndexPrice(bytes32 marketId) external {
         MarketOracle storage mo = marketOracles[marketId];
         require(mo.active, "OA: market not active");
+
+        /// AUDIT FIX (P16-UP-M1): Fail loud if circuit breaker not configured
+        require(maxPriceDeviation > 0, "OA: circuit breaker not configured");
 
         /// AUDIT FIX (P5-H-5): Check Arbitrum L2 Sequencer Uptime Feed.
         /// After sequencer recovery, enforce grace period before accepting new prices.
@@ -293,6 +298,11 @@ contract OracleAdapter is IOracleAdapter, Ownable2Step {
         uint256 price = mark > 0 ? mark : marketOracles[marketId].lastIndexPrice;
         require(price > 0, "OA: mark price not initialised");
         return price;
+    }
+
+    /// AUDIT FIX (P15-H-6): Expose lastUpdateTime for oracle recovery detection.
+    function getLastUpdateTime(bytes32 marketId) external view override returns (uint256) {
+        return marketOracles[marketId].lastUpdateTime;
     }
 
     /// AUDIT FIX (L1B-M-2): Use 1x heartbeat consistently

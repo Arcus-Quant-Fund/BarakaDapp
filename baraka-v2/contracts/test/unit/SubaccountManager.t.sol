@@ -199,4 +199,76 @@ contract SubaccountManagerTest is Test {
         assertEq(sam.subaccountCount(alice), 0);
         vm.stopPrank();
     }
+
+    // ═══════════════════════════════════════════════════════
+    // 7. AUDIT FIX (P16-AC-H1): Access control on orderbook mgmt
+    // ═══════════════════════════════════════════════════════
+
+    function test_owner_setAtDeploy() public view {
+        // setUp deploys via `new SubaccountManager()`, so owner = address(this)
+        assertEq(sam.owner(), address(this));
+    }
+
+    function test_registerOrderBook_onlyOwner() public {
+        // Owner (this contract) can register
+        sam.registerOrderBook(address(0xBEEF));
+
+        // Non-owner reverts
+        vm.expectRevert("SAM: not contract owner");
+        vm.prank(alice);
+        sam.registerOrderBook(address(0xCAFE));
+    }
+
+    function test_removeOrderBook_basic() public {
+        sam.registerOrderBook(address(0xBEEF));
+        sam.removeOrderBook(address(0xBEEF));
+
+        // Re-registering should work (slot freed)
+        sam.registerOrderBook(address(0xBEEF));
+    }
+
+    function test_removeOrderBook_onlyOwner() public {
+        sam.registerOrderBook(address(0xBEEF));
+
+        vm.expectRevert("SAM: not contract owner");
+        vm.prank(alice);
+        sam.removeOrderBook(address(0xBEEF));
+    }
+
+    function test_removeOrderBook_revert_notFound() public {
+        vm.expectRevert("SAM: orderbook not found");
+        sam.removeOrderBook(address(0xDEAD));
+    }
+
+    function test_removeOrderBook_swapAndPop_preservesOthers() public {
+        address ob1 = address(0x1);
+        address ob2 = address(0x2);
+        address ob3 = address(0x3);
+
+        sam.registerOrderBook(ob1);
+        sam.registerOrderBook(ob2);
+        sam.registerOrderBook(ob3);
+
+        // Remove the middle one — ob3 should swap into its slot
+        sam.removeOrderBook(ob2);
+
+        // ob1 and ob3 should still be registerable (dedup returns early if found)
+        // Removing ob2 again should fail
+        vm.expectRevert("SAM: orderbook not found");
+        sam.removeOrderBook(ob2);
+
+        // ob1 and ob3 still removable
+        sam.removeOrderBook(ob1);
+        sam.removeOrderBook(ob3);
+    }
+
+    function test_removeOrderBook_emitsEvent() public {
+        address ob = address(0xBEEF);
+        sam.registerOrderBook(ob);
+
+        vm.expectEmit(true, true, true, true);
+        emit SubaccountManager.OrderBookRemoved(ob);
+
+        sam.removeOrderBook(ob);
+    }
 }

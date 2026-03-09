@@ -239,8 +239,23 @@ contract MatchingEngine is Ownable2Step, Pausable, ReentrancyGuard {
 
         // Pre-trade margin check: ensure subaccount has enough free collateral
         // for the worst case (full fill at limit price)
-        int256 freeCol = marginEngine.getFreeCollateral(subaccount);
-        require(freeCol >= 0 || _isReducingPosition(subaccount, marketId, side), "MaE: insufficient margin");
+        /// AUDIT FIX (P15-H-1): Compute required initial margin for this specific order,
+        /// not just check freeCol >= 0. Previously, $1 free collateral could place a $1M order.
+        /// AUDIT FIX (P15-H-3): Require price > 0 for MEV/slippage protection on market orders.
+        /// Market orders with price=0 fill at any price — fully exposed to sandwich attacks.
+        require(price > 0, "MaE: price required for slippage protection");
+        if (!_isReducingPosition(subaccount, marketId, side, size)) {
+            int256 freeCol = marginEngine.getFreeCollateral(subaccount);
+            require(freeCol >= 0, "MaE: insufficient margin");
+            // P15-H-1: Check that free collateral covers required initial margin for this order
+            IMarginEngine.MarketParams memory mktParams = marginEngine.getMarketParams(marketId);
+            uint256 requiredMargin = Math.mulDiv(
+                Math.mulDiv(size, price, 1e18),
+                mktParams.initialMarginRate,
+                1e18
+            );
+            require(freeCol >= int256(requiredMargin), "MaE: insufficient margin for order size");
+        }
 
         // Place on orderbook
         IOrderBook.Fill[] memory fills;
@@ -313,8 +328,19 @@ contract MatchingEngine is Ownable2Step, Pausable, ReentrancyGuard {
 
         // AUDIT FIX (L1-H-1): Add margin check to revealOrder (was missing — could open
         // unbacked positions via commit-reveal path)
-        int256 freeCol = marginEngine.getFreeCollateral(subaccount);
-        require(freeCol >= 0 || _isReducingPosition(subaccount, marketId, side), "MaE: insufficient margin");
+        // AUDIT FIX (P15-H-1 + P15-H-3): Same pre-trade margin checks as placeOrder
+        require(price > 0, "MaE: price required for slippage protection");
+        if (!_isReducingPosition(subaccount, marketId, side, size)) {
+            int256 freeCol = marginEngine.getFreeCollateral(subaccount);
+            require(freeCol >= 0, "MaE: insufficient margin");
+            IMarginEngine.MarketParams memory mktParams2 = marginEngine.getMarketParams(marketId);
+            uint256 requiredMargin = Math.mulDiv(
+                Math.mulDiv(size, price, 1e18),
+                mktParams2.initialMarginRate,
+                1e18
+            );
+            require(freeCol >= int256(requiredMargin), "MaE: insufficient margin for order size");
+        }
 
         // Place on orderbook
         IOrderBook.Fill[] memory fills;
@@ -360,6 +386,11 @@ contract MatchingEngine is Ownable2Step, Pausable, ReentrancyGuard {
         if (address(complianceOracle) != address(0)) {
             require(complianceOracle.isCompliant(marketId), "ME: market not compliant");
         }
+
+        /// AUDIT FIX (P15-M-7): Block self-trade — same subaccount on both sides.
+        /// Prevents wash-trading, volume manipulation, and mark price manipulation
+        /// when a user's own resting order matches their incoming order.
+        require(fill.makerSubaccount != fill.takerSubaccount, "MaE: self-trade");
 
         /// AUDIT FIX (P9-M-1): Block self-trading (same owner on both sides).
         /// Prevents cross-account opposing position attacks where an attacker opens
@@ -411,13 +442,11 @@ contract MatchingEngine is Ownable2Step, Pausable, ReentrancyGuard {
             try marginEngine.updatePosition(fill.takerSubaccount, marketId, -takerDelta, fill.price) {
                 reversed = true;
             } catch {}
-            /// AUDIT FIX (P10-C-1): Emit TakerReversalFailed when taker unwind also fails.
-            /// This is an extreme edge case (taker went insolvent between fill dispatch and reversal)
-            /// but must be surfaced so the protocol can be manually reconciled rather than silently
-            /// accumulating un-backed open interest.
-            if (!reversed) {
-                emit TakerReversalFailed(marketId, fill.takerSubaccount, takerDelta);
-            }
+            /// AUDIT FIX (P15-C-1): Revert if taker reversal fails — unbacked OI breaks solvency.
+            /// Previously (P10-C-1) emitted TakerReversalFailed event and continued, creating
+            /// asymmetric open interest. Both sides must commit or neither — atomic settlement
+            /// is non-negotiable. If this reverts, the entire fill is rolled back.
+            require(reversed, "MaE: atomic fill failure - taker reversal impossible");
             IOrderBook ob = orderBooks[marketId];
             try ob.cancelOrder(fill.makerOrderId) {} catch {}
             emit MakerCancelledInsolvent(marketId, fill.makerOrderId, fill.makerSubaccount);
@@ -447,16 +476,20 @@ contract MatchingEngine is Ownable2Step, Pausable, ReentrancyGuard {
         }
     }
 
+    /// AUDIT FIX (P15-H-4): Check both direction AND size — prevents disguising position-opening
+    /// orders as reducing trades. Previously, a user with 1 BTC long could place a 100 BTC short
+    /// "reducing" order, bypassing initial margin checks for the 99 BTC net short position.
     function _isReducingPosition(
         bytes32 subaccount,
         bytes32 marketId,
-        IOrderBook.Side side
+        IOrderBook.Side side,
+        uint256 orderSize
     ) internal view returns (bool) {
         IMarginEngine.Position memory pos = marginEngine.getPosition(subaccount, marketId);
         if (pos.size == 0) return false;
-        // Reducing = selling when long, buying when short
-        if (pos.size > 0 && side == IOrderBook.Side.Sell) return true;
-        if (pos.size < 0 && side == IOrderBook.Side.Buy) return true;
+        // Reducing = opposite direction AND order size <= position size
+        if (pos.size > 0 && side == IOrderBook.Side.Sell) return orderSize <= uint256(pos.size);
+        if (pos.size < 0 && side == IOrderBook.Side.Buy) return orderSize <= uint256(-pos.size);
         return false;
     }
 }

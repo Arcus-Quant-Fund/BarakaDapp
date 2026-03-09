@@ -52,6 +52,10 @@ contract TakafulPool is Ownable2Step, Pausable, ReentrancyGuard {
     mapping(bytes32 => uint256) public poolBalance;
     mapping(bytes32 => mapping(address => Member)) public members;
     mapping(bytes32 => uint256) public totalClaimsPaid;
+    /// AUDIT FIX (P15-M-4): Per-period accumulators that reset each surplus distribution cycle.
+    /// Prevents monotonically-increasing totalClaimsPaid from permanently blocking surplus.
+    mapping(bytes32 => uint256) public periodClaimsPaid;
+    mapping(bytes32 => uint256) public periodPremiums;
     mapping(address => bool) public authorisedKeepers;
     mapping(bytes32 => uint256) public lastSurplusDistribution;
     /// AUDIT FIX (TP-M-2): Approved surplus recipients per pool
@@ -155,6 +159,8 @@ contract TakafulPool is Ownable2Step, Pausable, ReentrancyGuard {
         uint256 wakala = (tabarruGross * WAKALA_FEE_BPS) / 10_000;
         if (tabarruGross > 0 && wakala == 0) wakala = 1; // TP-M-5 fix
         uint256 tabarru = tabarruGross - wakala;
+        /// AUDIT FIX (P16-AR-L1): Prevent zero-tabarru contributions that create free coverage
+        require(tabarru > 0, "TP: contribution too small");
 
         uint256 balBefore = IERC20(p.token).balanceOf(address(this));
         IERC20(p.token).safeTransferFrom(msg.sender, address(this), tabarruGross);
@@ -168,6 +174,8 @@ contract TakafulPool is Ownable2Step, Pausable, ReentrancyGuard {
         /// AUDIT FIX (P4-A3-5): Uses block.timestamp (reliable on L2) instead of block.number.
         m.lastContributeTime = block.timestamp;
         poolBalance[poolId] += tabarru;
+        /// AUDIT FIX (P15-M-4): Track per-period premiums for surplus calculation.
+        periodPremiums[poolId] += tabarru;
 
         emit ContributionMade(poolId, msg.sender, coverageAmount, tabarru, wakala);
     }
@@ -216,6 +224,8 @@ contract TakafulPool is Ownable2Step, Pausable, ReentrancyGuard {
 
         poolBalance[poolId] -= payout;
         totalClaimsPaid[poolId] += payout;
+        /// AUDIT FIX (P15-M-4): Track per-period claims for surplus calculation.
+        periodClaimsPaid[poolId] += payout;
         /// AUDIT FIX (TP-M-1): Reduce member's totalCoverage — prevents unlimited repeated claims
         /// AUDIT FIX (P5-H-11): Deduct requested amount, not capped payout. Previously, when
         /// maxClaimRatioWad caps payout to 10% of pool, coverage only decreased by the capped
@@ -225,6 +235,14 @@ contract TakafulPool is Ownable2Step, Pausable, ReentrancyGuard {
         IERC20(p.token).safeTransfer(beneficiary, payout);
         emit ClaimPaid(poolId, beneficiary, payout);
     }
+
+    /// AUDIT FIX (P16-UP-H5): Emergency token recovery when contract is paused
+    function emergencyRecoverTokens(address token, address to, uint256 amount) external onlyOwner whenPaused {
+        require(to != address(0), "TP: zero recipient");
+        IERC20(token).safeTransfer(to, amount);
+        emit EmergencyRecovery(token, to, amount);
+    }
+    event EmergencyRecovery(address indexed token, address indexed to, uint256 amount);
 
     function distributeSurplus(bytes32 poolId, address recipient) external onlyOwner nonReentrant whenNotPaused {
         Pool storage p = pools[poolId];
@@ -238,7 +256,10 @@ contract TakafulPool is Ownable2Step, Pausable, ReentrancyGuard {
         );
 
         uint256 balance_ = poolBalance[poolId];
-        uint256 claimsReserve = 2 * totalClaimsPaid[poolId];
+        /// AUDIT FIX (P15-M-4): Use per-period claims instead of monotonically-increasing
+        /// totalClaimsPaid. The old formula `2 * totalClaimsPaid` grew without bound,
+        /// eventually exceeding balance_ and permanently blocking surplus distribution.
+        uint256 claimsReserve = 2 * periodClaimsPaid[poolId];
         uint256 pctReserve = (balance_ * MIN_RESERVE_BPS) / 10_000;
         uint256 reserve = claimsReserve > pctReserve ? claimsReserve : pctReserve;
         require(balance_ > reserve, "TP: no surplus");
@@ -246,6 +267,9 @@ contract TakafulPool is Ownable2Step, Pausable, ReentrancyGuard {
         uint256 surplus = balance_ - reserve;
         poolBalance[poolId] -= surplus;
         lastSurplusDistribution[poolId] = block.timestamp;
+        /// AUDIT FIX (P15-M-4): Reset per-period accumulators after distribution.
+        periodClaimsPaid[poolId] = 0;
+        periodPremiums[poolId] = 0;
 
         IERC20(p.token).safeTransfer(recipient, surplus);
         emit SurplusDistributed(poolId, recipient, surplus);

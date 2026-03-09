@@ -43,15 +43,25 @@ contract AutoDeleveraging is IAutoDeleveraging, Ownable2Step, ReentrancyGuard {
     /// position-reduction operations toward the MAX_ADL_ITERATIONS processing cap.
     uint256 public constant MAX_ADL_SCAN = 200;
 
+    /// AUDIT FIX (P16-UP-C2): Timelocked dependency update to prevent brick risk
+    uint256 constant DEPENDENCY_TIMELOCK = 48 hours;
+
     // ─────────────────────────────────────────────────────
     // Dependencies
     // ─────────────────────────────────────────────────────
 
-    IMarginEngine     public immutable marginEngine;
-    IOracleAdapter    public immutable oracle;
+    /// AUDIT FIX (P16-UP-C2): Removed immutable from marginEngine and oracle to allow timelocked updates
+    IMarginEngine     public marginEngine;
+    IOracleAdapter    public oracle;
     ISubaccountManager public immutable subaccountManager;
     /// AUDIT FIX (P5-M-21): FundingEngine reference for pre-ADL funding normalization.
     IFundingEngine    public fundingEngine;
+
+    /// AUDIT FIX (P16-UP-C2): Timelocked dependency update state
+    address public pendingOracle;
+    uint256 public pendingOracleTimestamp;
+    address public pendingMarginEngine;
+    uint256 public pendingMarginEngineTimestamp;
 
     /// @notice Authorised callers (LiquidationEngine only)
     mapping(address => bool) public authorised;
@@ -90,7 +100,15 @@ contract AutoDeleveraging is IAutoDeleveraging, Ownable2Step, ReentrancyGuard {
     /// AUDIT FIX (P14-ADL-2): Event for participant list compaction.
     event ParticipantsCompacted(bytes32 indexed marketId, uint256 removed);
 
+    /// AUDIT FIX (P16-UP-C2): Timelocked dependency update events
+    event OracleUpdateInitiated(address indexed newOracle, uint256 effectiveAt);
+    event OracleUpdated(address indexed newOracle);
+    event MarginEngineUpdateInitiated(address indexed newMarginEngine, uint256 effectiveAt);
+    event MarginEngineUpdated(address indexed newMarginEngine);
+
+    /// AUDIT FIX (P16-AC-M2): Zero-address check — prevents accidentally authorising address(0)
     function setAuthorised(address caller, bool status) external onlyOwner {
+        require(caller != address(0), "ADL: zero address");
         authorised[caller] = status;
         emit AuthorisedSet(caller, status);
     }
@@ -105,6 +123,40 @@ contract AutoDeleveraging is IAutoDeleveraging, Ownable2Step, ReentrancyGuard {
     /// AUDIT FIX (P2-HIGH-8): Prevent ownership renouncement — ADL requires owner for authorization management.
     function renounceOwnership() public view override onlyOwner {
         revert("ADL: renounce disabled");
+    }
+
+    /// AUDIT FIX (P16-UP-C2): Timelocked oracle update to prevent brick risk
+    function initiateOracleUpdate(address newOracle) external onlyOwner {
+        require(newOracle != address(0), "ADL: zero address");
+        pendingOracle = newOracle;
+        pendingOracleTimestamp = block.timestamp;
+        emit OracleUpdateInitiated(newOracle, block.timestamp + DEPENDENCY_TIMELOCK);
+    }
+
+    function applyOracleUpdate() external onlyOwner {
+        require(pendingOracle != address(0), "ADL: no pending update");
+        require(block.timestamp >= pendingOracleTimestamp + DEPENDENCY_TIMELOCK, "ADL: timelock active");
+        oracle = IOracleAdapter(pendingOracle);
+        emit OracleUpdated(pendingOracle);
+        pendingOracle = address(0);
+        pendingOracleTimestamp = 0;
+    }
+
+    /// AUDIT FIX (P16-UP-C2): Timelocked marginEngine update to prevent brick risk
+    function initiateMarginEngineUpdate(address newMarginEngine) external onlyOwner {
+        require(newMarginEngine != address(0), "ADL: zero address");
+        pendingMarginEngine = newMarginEngine;
+        pendingMarginEngineTimestamp = block.timestamp;
+        emit MarginEngineUpdateInitiated(newMarginEngine, block.timestamp + DEPENDENCY_TIMELOCK);
+    }
+
+    function applyMarginEngineUpdate() external onlyOwner {
+        require(pendingMarginEngine != address(0), "ADL: no pending update");
+        require(block.timestamp >= pendingMarginEngineTimestamp + DEPENDENCY_TIMELOCK, "ADL: timelock active");
+        marginEngine = IMarginEngine(pendingMarginEngine);
+        emit MarginEngineUpdated(pendingMarginEngine);
+        pendingMarginEngine = address(0);
+        pendingMarginEngineTimestamp = 0;
     }
 
     // ─────────────────────────────────────────────────────
@@ -258,6 +310,28 @@ contract AutoDeleveraging is IAutoDeleveraging, Ownable2Step, ReentrancyGuard {
             remaining = settledValue >= remaining ? 0 : remaining - settledValue;
 
             emit ADLExecuted(marketId, bankruptSubaccount, counterparty, closeSize, indexPrice);
+
+            /// AUDIT FIX (P15-M-9): Enforce profitable-only deleveraging and emit transparency data.
+            /// require guards against any future code path that might bypass the candidate filter.
+            /// Event includes raw PnL, PnL ratio, and rank so off-chain watchers can verify
+            /// the most profitable counterparties were deleveraged first (dYdX/BitMEX model).
+            require(unrealizedPnl > 0, "ADL: counterparty not profitable");
+            {
+                uint256 positionNotional = absCSize * indexPrice / WAD;
+                int256 pnlRatio = positionNotional > 0
+                    ? int256((unrealizedPnl * WAD) / positionNotional)
+                    : int256(0);
+                emit CounterpartyDeleveraged(
+                    bankruptSubaccount,
+                    counterparty,
+                    marketId,
+                    unrealizedPnl,
+                    pnlRatio,
+                    i + 1,          // rank: 1-indexed position in PnL-descending order
+                    closeSize
+                );
+            }
+
             processed++;
         }
     }

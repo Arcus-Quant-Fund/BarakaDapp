@@ -321,6 +321,9 @@ contract MarginEngineTest is Test {
     // ═══════════════════════════════════════════════════════
 
     function test_updatePosition_partialCloseLong_profit() public {
+        // P15-C-2: PnL credits require backing tokens — simulate counterparty collateral
+        usdc.mint(address(vault), 10_000e6);
+
         vm.prank(matcher);
         marginEngine.updatePosition(aliceSub, BTC, 1e18, 50_000e18);
 
@@ -350,6 +353,9 @@ contract MarginEngineTest is Test {
     }
 
     function test_updatePosition_partialCloseShort_profit() public {
+        // P15-C-2: PnL credits require backing tokens — simulate counterparty collateral
+        usdc.mint(address(vault), 10_000e6);
+
         vm.prank(matcher);
         marginEngine.updatePosition(aliceSub, BTC, -1e18, 50_000e18);
 
@@ -367,6 +373,9 @@ contract MarginEngineTest is Test {
     // ═══════════════════════════════════════════════════════
 
     function test_updatePosition_flipLongToShort() public {
+        // P15-C-2: PnL credits require backing tokens — simulate counterparty collateral
+        usdc.mint(address(vault), 10_000e6);
+
         vm.prank(matcher);
         marginEngine.updatePosition(aliceSub, BTC, 0.5e18, 50_000e18);
 

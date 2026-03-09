@@ -5,6 +5,8 @@ import "@openzeppelin/contracts/access/Ownable2Step.sol";
 import "@openzeppelin/contracts/token/ERC20/extensions/IERC20Metadata.sol";
 import "@openzeppelin/contracts/governance/utils/IVotes.sol";
 import "@openzeppelin/contracts/utils/math/Math.sol";
+/// AUDIT FIX (P16-RE-M1): Import ReentrancyGuard to protect state-changing fee functions.
+import "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
 import "../interfaces/IFeeEngine.sol";
 import "../interfaces/IVault.sol";
 import "../interfaces/ISubaccountManager.sol";
@@ -24,7 +26,8 @@ import "../interfaces/ISubaccountManager.sol";
  *         Uses ERC20Votes.getPastVotes() for flash-loan resistance:
  *         BRKX balance for tier lookup is from previous block.
  */
-contract FeeEngine is IFeeEngine, Ownable2Step {
+/// AUDIT FIX (P16-RE-M1): Inherit ReentrancyGuard to prevent reentrancy on fee functions.
+contract FeeEngine is IFeeEngine, Ownable2Step, ReentrancyGuard {
 
     uint256 constant WAD = 1e18;
     uint256 constant BPS = 1e14; // 1 basis point in WAD scale
@@ -166,7 +169,8 @@ contract FeeEngine is IFeeEngine, Ownable2Step {
 
     function computeTakerFee(bytes32 subaccount, uint256 notional) external view override returns (uint256) {
         FeeTier memory tier = _getTier(subaccount);
-        return notional * tier.takerFeeBps / WAD;
+        /// AUDIT FIX (P16-AR-M2): mulDiv prevents overflow on extreme notionals
+        return Math.mulDiv(notional, tier.takerFeeBps, WAD);
     }
 
     function computeMakerRebate(bytes32 subaccount, uint256 notional) external view override returns (uint256) {
@@ -178,8 +182,12 @@ contract FeeEngine is IFeeEngine, Ownable2Step {
     // Core — fee charging (called by MatchingEngine)
     // ─────────────────────────────────────────────────────
 
-    function chargeTakerFee(bytes32 subaccount, uint256 notional) external override returns (uint256 fee) {
+    /// AUDIT FIX (P16-RE-M1): Add nonReentrant modifier.
+    function chargeTakerFee(bytes32 subaccount, uint256 notional) external override nonReentrant returns (uint256 fee) {
         require(authorised[msg.sender], "FE: not authorised");
+
+        /// AUDIT FIX (P16-UP-M3): Fail loud if fee recipients not configured
+        require(treasury != address(0), "FE: treasury not set");
 
         FeeTier memory tier = _getTier(subaccount);
         fee = Math.mulDiv(notional, tier.takerFeeBps, WAD);
@@ -221,12 +229,16 @@ contract FeeEngine is IFeeEngine, Ownable2Step {
     /// @notice Process trade fees atomically: charge taker fee, pay maker rebate from collected fees.
     /// AUDIT FIX (L1B-H-3): Maker rebate funded from taker fee via vault.transferInternal
     /// (no phantom balance creation — real tokens back every credit).
+    /// AUDIT FIX (P16-RE-M1): Add nonReentrant modifier.
     function processTradeFees(
         bytes32 takerSubaccount,
         bytes32 makerSubaccount,
         uint256 notional
-    ) external override {
+    ) external override nonReentrant {
         require(authorised[msg.sender], "FE: not authorised");
+
+        /// AUDIT FIX (P16-UP-M3): Fail loud if fee recipients not configured
+        require(treasury != address(0), "FE: treasury not set");
 
         FeeTier memory tier = _getTier(takerSubaccount);
         /// AUDIT FIX (P10-L-4): Use Math.mulDiv to prevent overflow on extreme notionals.

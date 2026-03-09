@@ -182,6 +182,8 @@ contract VaultTest is Test {
 
     function test_settlePnL_credit() public {
         _deposit(aliceSub, 1000e6);
+        // P15-C-2: Credit requires backing tokens — simulate counterparty debit or IF coverage
+        usdc.mint(address(vault), 500e6);
         vm.prank(owner);
         int256 settled = vault.settlePnL(aliceSub, address(usdc), 500e6);
         assertEq(settled, 500e6);
@@ -215,6 +217,8 @@ contract VaultTest is Test {
 
     function test_settlePnL_worksWhenPaused() public {
         _deposit(aliceSub, 100e6);
+        // P15-C-2: Credit requires backing tokens
+        usdc.mint(address(vault), 50e6);
         vm.prank(owner);
         vault.pause();
         // settlePnL must work during pause (liquidation path)

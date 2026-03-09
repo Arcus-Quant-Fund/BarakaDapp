@@ -28,6 +28,12 @@ contract Vault is IVault, Ownable2Step, Pausable, ReentrancyGuard {
     /// @notice subaccount → token → balance
     mapping(bytes32 => mapping(address => uint256)) private _balances;
 
+    /// AUDIT FIX (P15-C-2): Running sum of all internal balances per token.
+    /// Enforces solvency invariant: totalTrackedBalance[token] <= token.balanceOf(vault).
+    /// Without this, settlePnL credits can create unbacked internal balances when the losing
+    /// counterparty has insufficient balance and InsuranceFund cannot cover the shortfall.
+    mapping(address => uint256) public totalTrackedBalance;
+
     /// @notice Approved collateral tokens
     mapping(address => bool) public approvedTokens;
 
@@ -126,12 +132,16 @@ contract Vault is IVault, Ownable2Step, Pausable, ReentrancyGuard {
         require(received == amount, "Vault: fee-on-transfer not supported");
 
         _balances[subaccount][token] += amount;
+        totalTrackedBalance[token] += amount; // P15-C-2
 
         emit Deposited(subaccount, token, amount);
     }
 
     /// @notice Withdraw collateral from a subaccount to an external address.
     ///         Only authorised (MarginEngine checks free collateral before calling).
+    /// AUDIT NOTE (P15-M-12): Withdrawal race condition mitigated — MarginEngine.withdraw()
+    /// checks freeCollateral >= amount before calling vault.withdraw(). Direct vault.withdraw()
+    /// is restricted to authorised callers only.
     function withdraw(bytes32 subaccount, address token, uint256 amount, address to)
         external
         override
@@ -144,6 +154,7 @@ contract Vault is IVault, Ownable2Step, Pausable, ReentrancyGuard {
         require(_balances[subaccount][token] >= amount, "Vault: insufficient balance");
 
         _balances[subaccount][token] -= amount;
+        totalTrackedBalance[token] -= amount; // P15-C-2
         IERC20(token).safeTransfer(to, amount);
 
         emit Withdrawn(subaccount, token, amount, to);
@@ -192,8 +203,21 @@ contract Vault is IVault, Ownable2Step, Pausable, ReentrancyGuard {
         returns (int256 actualSettled)
     {
         if (amount > 0) {
-            _balances[subaccount][token] += uint256(amount);
-            actualSettled = amount;
+            uint256 credit = uint256(amount);
+            /// AUDIT FIX (P15-C-2): Enforce solvency invariant — only credit what's backed by tokens.
+            /// Without this, settlePnL credits can create unbacked balances when the losing
+            /// counterparty has insufficient balance and InsuranceFund cannot cover the shortfall.
+            /// AUDIT FIX (P16-AR-M3): Prevent underflow if totalTrackedBalance > balanceOf
+            /// (possible with rebasing tokens or fee-on-transfer edge cases)
+            uint256 actual = IERC20(token).balanceOf(address(this));
+            uint256 tracked = totalTrackedBalance[token];
+            uint256 maxCredit = actual > tracked ? actual - tracked : 0;
+            if (credit > maxCredit) {
+                credit = maxCredit;
+            }
+            _balances[subaccount][token] += credit;
+            totalTrackedBalance[token] += credit; // P15-C-2
+            actualSettled = int256(credit);
         } else if (amount < 0) {
             uint256 debit = uint256(-amount);
             uint256 bal = _balances[subaccount][token];
@@ -202,6 +226,7 @@ contract Vault is IVault, Ownable2Step, Pausable, ReentrancyGuard {
                 debit = bal;
             }
             _balances[subaccount][token] -= debit;
+            totalTrackedBalance[token] -= debit; // P15-C-2
             actualSettled = -int256(debit);
         }
 
@@ -229,6 +254,7 @@ contract Vault is IVault, Ownable2Step, Pausable, ReentrancyGuard {
         if (charged == 0) return 0;
 
         _balances[subaccount][token] -= charged;
+        totalTrackedBalance[token] -= charged; // P15-C-2
         IERC20(token).safeTransfer(recipient, charged);
 
         emit FeeCharged(subaccount, token, charged, recipient);
@@ -255,6 +281,41 @@ contract Vault is IVault, Ownable2Step, Pausable, ReentrancyGuard {
     receive() external payable {
         revert("Vault: no ETH");
     }
+
+    // ─────────────────────────────────────────────────────
+    // Emergency migration — AUDIT FIX (P16-UP-C1)
+    // ─────────────────────────────────────────────────────
+
+    /// AUDIT FIX (P16-UP-C1): Emergency state migration when contract is paused.
+    /// @notice Emits balance snapshots for off-chain reconstruction, then transfers
+    ///         all tokens of a given type to a new vault.
+    /// @param newVault The replacement vault contract
+    /// @param token The token to migrate
+    /// @param subaccounts Array of subaccounts to snapshot and migrate
+    function emergencyMigrate(
+        address newVault,
+        address token,
+        bytes32[] calldata subaccounts
+    ) external onlyOwner whenPaused {
+        require(newVault != address(0), "Vault: zero address");
+        for (uint256 i = 0; i < subaccounts.length; i++) {
+            uint256 bal = _balances[subaccounts[i]][token];
+            if (bal > 0) {
+                emit BalanceSnapshot(subaccounts[i], token, bal);
+            }
+        }
+        // Transfer all token balance to the new vault
+        uint256 total = IERC20(token).balanceOf(address(this));
+        if (total > 0) {
+            IERC20(token).safeTransfer(newVault, total);
+        }
+        emit EmergencyMigration(newVault, token, total);
+    }
+
+    /// AUDIT FIX (P16-UP-C1): Emitted per subaccount during emergencyMigrate for off-chain reconstruction.
+    event BalanceSnapshot(bytes32 indexed subaccount, address indexed token, uint256 balance);
+    /// AUDIT FIX (P16-UP-C1): Emitted once per emergencyMigrate call after token transfer.
+    event EmergencyMigration(address indexed newVault, address indexed token, uint256 totalTransferred);
 
     /// @dev INFO (L0-I-1): deposit follows CEI — state updated after transfer check (by design).
     /// @dev INFO (L0-I-2): PnLSettled event emits actualSettled, not requested amount (implemented).

@@ -6,6 +6,7 @@ import "@openzeppelin/contracts/utils/Pausable.sol";
 import "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
+import "@openzeppelin/contracts/utils/math/Math.sol";
 import "../interfaces/ILiquidationEngine.sol";
 import "../interfaces/IMarginEngine.sol";
 import "../interfaces/IVault.sol";
@@ -42,13 +43,22 @@ contract LiquidationEngine is ILiquidationEngine, Ownable2Step, Pausable, Reentr
 
     uint256 constant WAD = 1e18;
 
+    /// AUDIT FIX (P15-M-13): Minimum viable position size — prevents dust positions
+    /// that are too small to be economically liquidated again but still consume
+    /// storage and margin accounting overhead.
+    uint256 constant MIN_POSITION_SIZE = 0.001e18;
+
+    /// AUDIT FIX (P16-UP-C2): Timelocked dependency update to prevent brick risk
+    uint256 constant DEPENDENCY_TIMELOCK = 48 hours;
+
     // ─────────────────────────────────────────────────────
     // Dependencies
     // ─────────────────────────────────────────────────────
 
-    IMarginEngine      public immutable marginEngine;
+    /// AUDIT FIX (P16-UP-C2): Removed immutable from marginEngine and oracle to allow timelocked updates
+    IMarginEngine      public marginEngine;
     IVault             public immutable vault;
-    IOracleAdapter     public immutable oracle;
+    IOracleAdapter     public oracle;
     /// AUDIT FIX (P3-LIQ-3): SubaccountManager ref for self-liquidation guard
     ISubaccountManager public immutable subaccountManager;
 
@@ -62,6 +72,12 @@ contract LiquidationEngine is ILiquidationEngine, Ownable2Step, Pausable, Reentr
 
     /// AUDIT FIX (P7-L-1): FundingEngine reference for funding-aware shortfall computation.
     IFundingEngine     public fundingEngine;
+
+    /// AUDIT FIX (P16-UP-C2): Timelocked dependency update state
+    address public pendingOracle;
+    uint256 public pendingOracleTimestamp;
+    address public pendingMarginEngine;
+    uint256 public pendingMarginEngineTimestamp;
 
     // ─────────────────────────────────────────────────────
     // Parameters
@@ -91,6 +107,12 @@ contract LiquidationEngine is ILiquidationEngine, Ownable2Step, Pausable, Reentr
     event ADLTriggered(bytes32 indexed subaccount, bytes32 indexed marketId, uint256 shortfall);
     /// AUDIT FIX (L3-M-6): Emitted when account is still liquidatable after single-market close
     event SubaccountStillLiquidatable(bytes32 indexed subaccount);
+
+    /// AUDIT FIX (P16-UP-C2): Timelocked dependency update events
+    event OracleUpdateInitiated(address indexed newOracle, uint256 effectiveAt);
+    event OracleUpdated(address indexed newOracle);
+    event MarginEngineUpdateInitiated(address indexed newMarginEngine, uint256 effectiveAt);
+    event MarginEngineUpdated(address indexed newMarginEngine);
 
     // ─────────────────────────────────────────────────────
     // Constructor
@@ -159,7 +181,9 @@ contract LiquidationEngine is ILiquidationEngine, Ownable2Step, Pausable, Reentr
         liquidatorShareRate = rate;
     }
 
+    /// AUDIT FIX (P16-AC-M1): Zero-address check — prevents accidentally authorising address(0)
     function setAuthorised(address caller, bool status) external onlyOwner {
+        require(caller != address(0), "LE: zero address");
         authorised[caller] = status;
     }
 
@@ -169,6 +193,40 @@ contract LiquidationEngine is ILiquidationEngine, Ownable2Step, Pausable, Reentr
     /// AUDIT FIX (P2-HIGH-8): Prevent ownership renouncement — protocol requires owner for param updates.
     function renounceOwnership() public view override onlyOwner {
         revert("LE: renounce disabled");
+    }
+
+    /// AUDIT FIX (P16-UP-C2): Timelocked oracle update to prevent brick risk
+    function initiateOracleUpdate(address newOracle) external onlyOwner {
+        require(newOracle != address(0), "LE: zero address");
+        pendingOracle = newOracle;
+        pendingOracleTimestamp = block.timestamp;
+        emit OracleUpdateInitiated(newOracle, block.timestamp + DEPENDENCY_TIMELOCK);
+    }
+
+    function applyOracleUpdate() external onlyOwner {
+        require(pendingOracle != address(0), "LE: no pending update");
+        require(block.timestamp >= pendingOracleTimestamp + DEPENDENCY_TIMELOCK, "LE: timelock active");
+        oracle = IOracleAdapter(pendingOracle);
+        emit OracleUpdated(pendingOracle);
+        pendingOracle = address(0);
+        pendingOracleTimestamp = 0;
+    }
+
+    /// AUDIT FIX (P16-UP-C2): Timelocked marginEngine update to prevent brick risk
+    function initiateMarginEngineUpdate(address newMarginEngine) external onlyOwner {
+        require(newMarginEngine != address(0), "LE: zero address");
+        pendingMarginEngine = newMarginEngine;
+        pendingMarginEngineTimestamp = block.timestamp;
+        emit MarginEngineUpdateInitiated(newMarginEngine, block.timestamp + DEPENDENCY_TIMELOCK);
+    }
+
+    function applyMarginEngineUpdate() external onlyOwner {
+        require(pendingMarginEngine != address(0), "LE: no pending update");
+        require(block.timestamp >= pendingMarginEngineTimestamp + DEPENDENCY_TIMELOCK, "LE: timelock active");
+        marginEngine = IMarginEngine(pendingMarginEngine);
+        emit MarginEngineUpdated(pendingMarginEngine);
+        pendingMarginEngine = address(0);
+        pendingMarginEngineTimestamp = 0;
     }
 
     // ─────────────────────────────────────────────────────
@@ -204,6 +262,15 @@ contract LiquidationEngine is ILiquidationEngine, Ownable2Step, Pausable, Reentr
         // Tier 1: Try partial liquidation — close enough to restore MMR
         uint256 closeSize = _computePartialClose(subaccount, marketId, absSize, indexPrice);
 
+        /// AUDIT FIX (P15-M-13): If partial liquidation would leave a dust position
+        /// (below MIN_POSITION_SIZE), liquidate the full position instead.
+        if (closeSize > 0 && closeSize < absSize) {
+            uint256 remaining = absSize - closeSize;
+            if (remaining > 0 && remaining < MIN_POSITION_SIZE) {
+                closeSize = absSize; // full liquidation to avoid dust
+            }
+        }
+
         if (closeSize == 0) {
             // Tier 2: Full liquidation
             closeSize = absSize;
@@ -235,7 +302,12 @@ contract LiquidationEngine is ILiquidationEngine, Ownable2Step, Pausable, Reentr
 
         // Compute penalty
         uint256 notional = closeSize * indexPrice / WAD;
-        uint256 penalty = notional * liquidationPenaltyRate / WAD;
+        /// AUDIT FIX (P16-AR-M1): Combined mulDiv reduces truncation from sequential divisions
+        uint256 penalty = Math.mulDiv(
+            Math.mulDiv(closeSize, indexPrice, WAD),
+            liquidationPenaltyRate,
+            WAD
+        );
         uint256 penaltyTokens = penalty / collateralScale;
         /// AUDIT FIX (L3-M-10): Minimum 1 token penalty — prevents zero incentive on micro-positions
         if (penaltyTokens == 0 && notional > 0) penaltyTokens = 1;
@@ -300,12 +372,13 @@ contract LiquidationEngine is ILiquidationEngine, Ownable2Step, Pausable, Reentr
                     try IInsuranceFund(insuranceFund).fundBalance(collateralToken) returns (uint256 ifBalance) {
                         uint256 covered = shortfallTokens > ifBalance ? ifBalance : shortfallTokens;
                         if (covered > 0) {
-                            IInsuranceFund(insuranceFund).coverShortfall(collateralToken, covered);
+                            /// AUDIT FIX (P15-M-14): Use returned actualCovered — IF may cap at 10% of pool.
+                            uint256 actualCovered = IInsuranceFund(insuranceFund).coverShortfall(collateralToken, covered);
                             /// AUDIT FIX (P2-HIGH-9): Forward IF payout to Vault to back winner's
                             /// phantom settlePnL credit. Without this, tokens sit in LiquidationEngine
                             /// and Vault's actual token balance stays below sum of internal balances.
-                            IERC20(collateralToken).safeTransfer(address(vault), covered);
-                            shortfallTokens -= covered;
+                            IERC20(collateralToken).safeTransfer(address(vault), actualCovered);
+                            shortfallTokens -= actualCovered;
                         }
                     } catch {
                         // InsuranceFund not available — proceed to ADL
@@ -387,7 +460,8 @@ contract LiquidationEngine is ILiquidationEngine, Ownable2Step, Pausable, Reentr
         int256 netFreePerUnit = int256(marginPerUnit) - (lossPerUnit > 0 ? lossPerUnit : int256(0));
         if (netFreePerUnit <= 0) return 0; // partial won't help → full liquidation
 
-        uint256 unitsToClose = (uint256(deficit) * WAD + uint256(netFreePerUnit) - 1) / uint256(netFreePerUnit); // ceil division
+        /// AUDIT FIX (P16-AR-M4): mulDiv prevents deficit * WAD overflow
+        uint256 unitsToClose = Math.mulDiv(uint256(deficit), WAD, uint256(netFreePerUnit), Math.Rounding.Ceil);
 
         // Cap at full position size, minimum 1
         if (unitsToClose > absSize) return 0; // need full liquidation

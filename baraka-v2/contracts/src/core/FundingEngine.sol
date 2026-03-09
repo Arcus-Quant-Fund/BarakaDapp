@@ -27,12 +27,17 @@ contract FundingEngine is IFundingEngine, Ownable2Step, Pausable {
 
     uint256 constant WAD = 1e18;
     uint256 constant FUNDING_PERIOD = 8 hours;
+    /// AUDIT FIX (P16-UP-C2): Timelocked dependency update to prevent brick risk
+    uint256 constant DEPENDENCY_TIMELOCK = 48 hours;
+    /// AUDIT FIX (P15-M-11): Minimum interval between funding accruals to prevent
+    /// precision-loss accumulation from very short elapsed periods (rate * 1 / 28800 truncates).
+    uint256 constant MIN_FUNDING_INTERVAL = 1 hours;
 
     // ─────────────────────────────────────────────────────
     // Dependencies
     // ─────────────────────────────────────────────────────
 
-    IOracleAdapter public immutable oracle;
+    IOracleAdapter public oracle;
 
     // ─────────────────────────────────────────────────────
     // State
@@ -57,12 +62,20 @@ contract FundingEngine is IFundingEngine, Ownable2Step, Pausable {
     /// AUDIT FIX (P6-I-2): Removed dead `authorised` mapping and `setAuthorised()` — updateFunding()
     /// is intentionally permissionless (any keeper can accrue). The mapping was never checked.
 
+    /// AUDIT FIX (P16-UP-C2): Timelocked oracle update state
+    address public pendingOracle;
+    uint256 public pendingOracleTimestamp;
+
     // ─────────────────────────────────────────────────────
     // Events
     // ─────────────────────────────────────────────────────
 
     event FundingUpdated(bytes32 indexed marketId, int256 rate, int256 cumulativeIndex, uint256 elapsed);
     event ClampRateSet(bytes32 indexed marketId, uint256 clampRate);
+
+    /// AUDIT FIX (P16-UP-C2): Timelocked oracle update to prevent brick risk
+    event OracleUpdateInitiated(address indexed newOracle, uint256 effectiveAt);
+    event OracleUpdated(address indexed newOracle);
 
     // ─────────────────────────────────────────────────────
     // Constructor
@@ -94,6 +107,23 @@ contract FundingEngine is IFundingEngine, Ownable2Step, Pausable {
         revert("FE: renounce disabled");
     }
 
+    /// AUDIT FIX (P16-UP-C2): Timelocked oracle update to prevent brick risk
+    function initiateOracleUpdate(address newOracle) external onlyOwner {
+        require(newOracle != address(0), "FE: zero address");
+        pendingOracle = newOracle;
+        pendingOracleTimestamp = block.timestamp;
+        emit OracleUpdateInitiated(newOracle, block.timestamp + DEPENDENCY_TIMELOCK);
+    }
+
+    function applyOracleUpdate() external onlyOwner {
+        require(pendingOracle != address(0), "FE: no pending update");
+        require(block.timestamp >= pendingOracleTimestamp + DEPENDENCY_TIMELOCK, "FE: timelock active");
+        oracle = IOracleAdapter(pendingOracle);
+        emit OracleUpdated(pendingOracle);
+        pendingOracle = address(0);
+        pendingOracleTimestamp = 0;
+    }
+
     function pause() external onlyOwner { _pause(); }
     function unpause() external onlyOwner { _unpause(); }
 
@@ -116,6 +146,11 @@ contract FundingEngine is IFundingEngine, Ownable2Step, Pausable {
 
         uint256 elapsed = block.timestamp - state.lastUpdateTime;
         if (elapsed == 0) return state.cumulativeIndex;
+
+        /// AUDIT FIX (P15-M-11): Enforce minimum interval between funding accruals.
+        /// With very short intervals, integer division in (rate * elapsed / FUNDING_PERIOD)
+        /// truncates toward zero, and precision loss accumulates over many calls.
+        require(elapsed >= MIN_FUNDING_INTERVAL, "FE: funding too frequent");
 
         /// AUDIT FIX (P6-M-1): Do NOT advance clock during oracle staleness.
         /// _computePremiumRate returns 0 when stale (P5-M-7), but if we advance lastUpdateTime,
@@ -190,17 +225,27 @@ contract FundingEngine is IFundingEngine, Ownable2Step, Pausable {
         /// AUDIT FIX (L1B-L-5): Guard against uninitialized market (lastUpdateTime == 0)
         uint256 lastUpdate = fundingState[marketId].lastUpdateTime;
         if (lastUpdate == 0) return 0;
-        uint256 elapsed = block.timestamp - lastUpdate;
-        /// AUDIT FIX (L1B-M-7): Cap elapsed time in view too
-        if (elapsed > FUNDING_PERIOD) elapsed = FUNDING_PERIOD;
-        if (elapsed > 0) {
-            int256 rate = _computePremiumRate(marketId);
-            uint256 clamp = clampRate[marketId];
-            if (clamp > 0) {
-                if (rate > int256(clamp)) rate = int256(clamp);
-                if (rate < -int256(clamp)) rate = -int256(clamp);
+
+        /// AUDIT FIX (P15-M-5): Replicate oracle-recovery logic from updateFunding().
+        /// Previously, getPendingFunding did not account for stale oracle or recovery reset,
+        /// returning inflated values to frontends and margin calculations. Now matches updateFunding:
+        /// - If oracle is stale: no pending accrual (clock is frozen)
+        /// - If oracle just recovered (_wasStaleOnLastCall): no pending accrual (clock resets)
+        if (oracle.isStale(marketId) || _wasStaleOnLastCall[marketId]) {
+            // No pending accrual during staleness or on recovery boundary
+        } else {
+            uint256 elapsed = block.timestamp - lastUpdate;
+            /// AUDIT FIX (L1B-M-7): Cap elapsed time in view too
+            if (elapsed > FUNDING_PERIOD) elapsed = FUNDING_PERIOD;
+            if (elapsed > 0) {
+                int256 rate = _computePremiumRate(marketId);
+                uint256 clamp = clampRate[marketId];
+                if (clamp > 0) {
+                    if (rate > int256(clamp)) rate = int256(clamp);
+                    if (rate < -int256(clamp)) rate = -int256(clamp);
+                }
+                currentIndex += rate * int256(elapsed) / int256(FUNDING_PERIOD);
             }
-            currentIndex += rate * int256(elapsed) / int256(FUNDING_PERIOD);
         }
 
         int256 indexDelta = currentIndex - entryFundingIndex;

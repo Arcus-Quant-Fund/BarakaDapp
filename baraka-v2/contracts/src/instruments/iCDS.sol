@@ -241,6 +241,22 @@ contract iCDS is Ownable2Step, Pausable, ReentrancyGuard {
 
         /// AUDIT FIX (ICDS-M-1): Require fresh oracle — seller cannot terminate during oracle outage
         require(!oracle.isStale(prot.refAsset), "iCDS: oracle stale");
+
+        /// AUDIT FIX (P15-H-6): After oracle recovery, grant buyer additional GRACE_PERIOD to pay.
+        /// If oracle was updated (recovered) after premium was due, the buyer couldn't pay during
+        /// the outage. Oracle outages often coincide with high volatility — revoking protection
+        /// exactly when the buyer needs it most is unacceptable. The seller must wait GRACE_PERIOD
+        /// after oracle recovery before terminating.
+        {
+            uint256 oracleUpdatedAt = oracle.getLastUpdateTime(prot.refAsset);
+            uint256 premiumDueAt = prot.lastPremiumAt + PREMIUM_PERIOD;
+            if (oracleUpdatedAt > premiumDueAt) {
+                require(
+                    block.timestamp > oracleUpdatedAt + GRACE_PERIOD,
+                    "iCDS: grace extended after oracle recovery"
+                );
+            }
+        }
         uint256 spotWad = oracle.getIndexPrice(prot.refAsset);
         require(spotWad > 0, "iCDS: zero spot");
         require(spotWad > prot.recoveryFloorWad, "iCDS: credit event active, cannot terminate");
@@ -262,6 +278,14 @@ contract iCDS is Ownable2Step, Pausable, ReentrancyGuard {
         IERC20(prot.token).safeTransfer(prot.seller, prot.notional);
         emit TriggerExpired(id, msg.sender, prot.seller, prot.notional);
     }
+
+    /// AUDIT FIX (P16-UP-H5): Emergency token recovery when contract is paused
+    function emergencyRecoverTokens(address token, address to, uint256 amount) external onlyOwner whenPaused {
+        require(to != address(0), "iCDS: zero recipient");
+        IERC20(token).safeTransfer(to, amount);
+        emit EmergencyRecovery(token, to, amount);
+    }
+    event EmergencyRecovery(address indexed token, address indexed to, uint256 amount);
 
     function computePremium(uint256 id) external view returns (uint256) {
         return _computePremium(protections[id]);

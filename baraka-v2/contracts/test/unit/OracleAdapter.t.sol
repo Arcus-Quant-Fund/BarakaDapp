@@ -34,6 +34,8 @@ contract OracleAdapterTest is Test {
         // Setup BTC market: 8-decimal feed, 1h heartbeat
         oracle.setMarketOracle(BTC, address(btcFeed), 3600, 8);
         oracle.setAuthorised(matcher, true);
+        /// AUDIT FIX (P16-UP-M1): Circuit breaker must be configured before updateIndexPrice() works
+        oracle.setMaxPriceDeviation(0.15e18); // 15%
         vm.stopPrank();
 
         // Set valid Chainlink round data: BTC = $50,000 (8 decimals)
@@ -235,11 +237,12 @@ contract OracleAdapterTest is Test {
         oracle.updateIndexPrice(BTC); // ref = 50000e18
 
         // Within bounds (ref/2 = 25000, ref*2 = 100000)
+        // Use 55_000 (within 15% circuit breaker) so subsequent updateIndexPrice doesn't trip
         vm.prank(owner);
-        oracle.setIndexPrice(BTC, 75_000e18);
-        assertEq(oracle.getIndexPrice(BTC), 75_000e18);
+        oracle.setIndexPrice(BTC, 55_000e18);
+        assertEq(oracle.getIndexPrice(BTC), 55_000e18);
 
-        // Update ref first to reset
+        // Update ref first to reset (circuit breaker: |55k - 50k|/55k = 9% < 15%)
         btcFeed.setRoundData(2, 50000e8, block.timestamp, block.timestamp, 2);
         oracle.updateIndexPrice(BTC);
 

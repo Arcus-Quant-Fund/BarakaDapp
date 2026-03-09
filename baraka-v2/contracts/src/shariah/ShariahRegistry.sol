@@ -148,8 +148,10 @@ contract ShariahRegistry is IShariahRegistry, Ownable2Step {
         emit CollateralApproved(token, approved);
     }
 
+    /// AUDIT FIX (P15-M-2): Cap at 5x (not 10x) — matches Baraka whitepaper Shariah design.
+    /// Individual markets can be set lower (e.g. 3x for volatile assets).
     function setMaxLeverage(bytes32 marketId, uint256 maxLev) external onlyShariahBoard {
-        require(maxLev >= 1 && maxLev <= 10, "SR: leverage 1-10");
+        require(maxLev >= 1 && maxLev <= 5, "SR: leverage 1-5 (Shariah cap)");
         _maxLeverage[marketId] = maxLev;
         emit MaxLeverageSet(marketId, maxLev);
     }

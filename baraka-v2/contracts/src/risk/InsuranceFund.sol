@@ -38,6 +38,8 @@ contract InsuranceFund is IInsuranceFund, Ownable2Step, Pausable, ReentrancyGuar
 
     uint256 public constant MIN_RESERVE_BPS = 2000; // 20% minimum reserve
     uint256 public constant DISTRIBUTION_COOLDOWN = 24 hours;
+    /// AUDIT FIX (P15-M-14): Per-event loss cap — 10% of fund balance
+    uint256 public constant MAX_LOSS_PERCENT = 0.10e18; // 10% in WAD
 
     // ─────────────────────────────────────────────────────
     // State
@@ -66,6 +68,8 @@ contract InsuranceFund is IInsuranceFund, Ownable2Step, Pausable, ReentrancyGuar
     event PnlUnderpaid(address indexed token, uint256 requested, uint256 paid, address indexed recipient);
     event SurplusDistributed(address indexed token, uint256 amount, address indexed recipient);
     event AuthorisedSet(address indexed caller, bool status);
+    /// AUDIT FIX (P15-M-14): Emitted when a loss exceeds per-event cap; excess must route to ADL
+    event ExcessLossNotCovered(address indexed token, uint256 excess);
 
     // ─────────────────────────────────────────────────────
     // Constructor
@@ -143,24 +147,44 @@ contract InsuranceFund is IInsuranceFund, Ownable2Step, Pausable, ReentrancyGuar
     /// calling receive_(), so _fundBalance understates reality. Without this fix,
     /// LiquidationEngine reads fundBalance() (actual=high), tries coverShortfall(amount),
     /// but the _fundBalance check reverts → unnecessary ADL against profitable counterparties.
+    /// AUDIT FIX (P15-M-14): Returns actual amount socialized (may be less than requested due to
+    /// per-event 10% cap). Caller routes excess to ADL.
     function coverShortfall(address token, uint256 amount)
         external
         override
         nonReentrant
+        returns (uint256 actualCovered)
     {
         require(authorised[msg.sender], "IF: not authorised");
         require(amount > 0, "IF: zero amount");
+
+        /// AUDIT FIX (P16-UP-M2): Fail loud if drawdown limit not configured
+        require(maxDrawdownPerEpoch > 0, "IF: drawdown limit not configured");
+
         uint256 actual = IERC20(token).balanceOf(address(this));
-        require(actual >= amount, "IF: insufficient reserves");
+
+        /// AUDIT FIX (P15-M-14): Cap single-event socialized loss at MAX_LOSS_PERCENT of pool.
+        /// A single large loss event cannot wipe out the entire fund in one transaction.
+        uint256 maxLoss = (actual * MAX_LOSS_PERCENT) / 1e18;
+        uint256 capped = amount > maxLoss ? maxLoss : amount;
+
+        // After capping, verify fund has enough to cover the (possibly capped) amount
+        require(actual >= capped, "IF: insufficient reserves");
+
+        if (capped < amount) {
+            emit ExcessLossNotCovered(token, amount - capped);
+        }
 
         /// AUDIT FIX (P9-H-1): Enforce epochal drawdown limit
-        _checkDrawdownLimit(token, amount);
+        _checkDrawdownLimit(token, capped);
 
-        _updateWeeklyClaims(token, amount);
-        IERC20(token).safeTransfer(msg.sender, amount);
+        _updateWeeklyClaims(token, capped);
+        IERC20(token).safeTransfer(msg.sender, capped);
         // Sync tracked balance to actual after transfer
         _fundBalance[token] = IERC20(token).balanceOf(address(this));
-        emit ShortfallCovered(token, amount, msg.sender);
+        emit ShortfallCovered(token, capped, msg.sender);
+
+        return capped;
     }
 
     /// @notice Pay PnL profit. Caps at available balance (never reverts on undercapitalization).

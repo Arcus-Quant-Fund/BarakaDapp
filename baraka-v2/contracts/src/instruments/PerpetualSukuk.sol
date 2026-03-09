@@ -7,6 +7,7 @@ import "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
 import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "@openzeppelin/contracts/token/ERC20/extensions/IERC20Metadata.sol";
+import "@openzeppelin/contracts/utils/math/Math.sol";
 import "../interfaces/IEverlastingOption.sol";
 import "../interfaces/IOracleAdapter.sol";
 
@@ -138,7 +139,14 @@ contract PerpetualSukuk is Ownable2Step, Pausable, ReentrancyGuard {
         // PS-H-1 fix: auto-claim before resetting lastProfitAt
         if (sub.amount > 0 && sub.lastProfitAt > 0) {
             uint256 elapsed = block.timestamp - sub.lastProfitAt;
-            uint256 profit = (sub.amount * s.profitRateWad * elapsed) / (WAD * SECS_PER_YEAR);
+            /// AUDIT FIX (P15-M-10): round up so small positions never truncate to zero coupon
+            /// AUDIT FIX (P16-AR-H2): Nested mulDiv prevents sub.amount * profitRateWad overflow
+            uint256 profit = Math.mulDiv(
+                Math.mulDiv(sub.amount, s.profitRateWad, WAD),
+                elapsed,
+                SECS_PER_YEAR,
+                Math.Rounding.Ceil
+            );
             uint256 avail = _issuerReserve[id];
             if (profit > avail) profit = avail;
             if (profit > 0) {
@@ -164,7 +172,14 @@ contract PerpetualSukuk is Ownable2Step, Pausable, ReentrancyGuard {
         if (sub.amount == 0 || sub.redeemed) return;
 
         uint256 elapsed = block.timestamp - sub.lastProfitAt;
-        uint256 profit = (sub.amount * s.profitRateWad * elapsed) / (WAD * SECS_PER_YEAR);
+        /// AUDIT FIX (P15-M-10): round up so small positions never truncate to zero coupon
+        /// AUDIT FIX (P16-AR-H2): Nested mulDiv prevents sub.amount * profitRateWad overflow
+        uint256 profit = Math.mulDiv(
+            Math.mulDiv(sub.amount, s.profitRateWad, WAD),
+            elapsed,
+            SECS_PER_YEAR,
+            Math.Rounding.Ceil
+        );
         if (profit == 0) return;
 
         uint256 available = _issuerReserve[id];
@@ -188,7 +203,14 @@ contract PerpetualSukuk is Ownable2Step, Pausable, ReentrancyGuard {
         // PS-M-4 fix: auto-claim accrued profit
         {
             uint256 elapsed = block.timestamp - sub.lastProfitAt;
-            uint256 profit = (sub.amount * s.profitRateWad * elapsed) / (WAD * SECS_PER_YEAR);
+            /// AUDIT FIX (P15-M-10): round up so small positions never truncate to zero coupon
+            /// AUDIT FIX (P16-AR-H2): Nested mulDiv prevents sub.amount * profitRateWad overflow
+            uint256 profit = Math.mulDiv(
+                Math.mulDiv(sub.amount, s.profitRateWad, WAD),
+                elapsed,
+                SECS_PER_YEAR,
+                Math.Rounding.Ceil
+            );
             uint256 avail = _issuerReserve[id];
             if (profit > avail) profit = avail;
             if (profit > 0) {
@@ -230,6 +252,14 @@ contract PerpetualSukuk is Ownable2Step, Pausable, ReentrancyGuard {
         emit Redeemed(id, msg.sender, principal, actualCall);
     }
 
+    /// AUDIT FIX (P16-UP-H5): Emergency token recovery when contract is paused
+    function emergencyRecoverTokens(address token, address to, uint256 amount) external onlyOwner whenPaused {
+        require(to != address(0), "PS: zero recipient");
+        IERC20(token).safeTransfer(to, amount);
+        emit EmergencyRecovery(token, to, amount);
+    }
+    event EmergencyRecovery(address indexed token, address indexed to, uint256 amount);
+
     /// AUDIT FIX (PS-M-1): Allow issuer to top up reserve for profit distribution + call upside
     function topUpReserve(uint256 id, uint256 amount) external nonReentrant whenNotPaused {
         SukukInfo storage s = sukuks[id];
@@ -260,7 +290,14 @@ contract PerpetualSukuk is Ownable2Step, Pausable, ReentrancyGuard {
         Subscription storage sub = subscriptions[id][investor];
         if (sub.amount == 0 || sub.redeemed) return 0;
         uint256 elapsed = block.timestamp - sub.lastProfitAt;
-        accrued = (sub.amount * s.profitRateWad * elapsed) / (WAD * SECS_PER_YEAR);
+        /// AUDIT FIX (P15-M-10): round up so small positions never truncate to zero coupon
+        /// AUDIT FIX (P16-AR-H2): Nested mulDiv prevents sub.amount * profitRateWad overflow
+        accrued = Math.mulDiv(
+            Math.mulDiv(sub.amount, s.profitRateWad, WAD),
+            elapsed,
+            SECS_PER_YEAR,
+            Math.Rounding.Ceil
+        );
         if (accrued > _issuerReserve[id]) accrued = _issuerReserve[id];
     }
 

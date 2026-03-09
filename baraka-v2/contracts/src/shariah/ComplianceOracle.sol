@@ -208,6 +208,9 @@ contract ComplianceOracle is Ownable2Step {
         Attestation storage att = attestations[attestationId];
         require(att.timestamp > 0, "CO: no such attestation");
         require(!att.executed, "CO: already executed");
+        /// AUDIT FIX (P15-M-1): Enforce ATTESTATION_TTL in execute — previously only checked in hasQuorum().
+        /// An attestation approved 2 years ago with expired TTL could still be executed.
+        require(block.timestamp <= att.timestamp + ATTESTATION_TTL, "CO: attestation expired");
         /// AUDIT FIX (L2-M-7): Recount valid signatures (removed members don't count)
         require(_countValidSignatures(attestationId) >= quorum, "CO: quorum not met");
 
@@ -229,6 +232,8 @@ contract ComplianceOracle is Ownable2Step {
         Attestation storage att = attestations[attestationId];
         require(att.timestamp > 0, "CO: no such attestation");
         require(!att.executed, "CO: already executed");
+        /// AUDIT FIX (P15-M-1): Enforce ATTESTATION_TTL in execute — same as executeAssetCompliance.
+        require(block.timestamp <= att.timestamp + ATTESTATION_TTL, "CO: attestation expired");
         /// AUDIT FIX (L2-M-7): Recount valid signatures (removed members don't count)
         require(_countValidSignatures(attestationId) >= quorum, "CO: quorum not met");
 

@@ -20,6 +20,19 @@ interface IAutoDeleveraging {
     /// indexers and keepers maintain stale participant counts, making ADL coverage estimates wrong.
     event ParticipantRemoved(bytes32 indexed marketId, bytes32 indexed subaccount);
 
+    /// AUDIT FIX (P15-M-9): Transparency event for off-chain verification of ADL fairness.
+    /// Emits raw PnL, PnL-to-notional ratio, and rank in the sorted candidate list so
+    /// anyone can verify the most profitable counterparties were deleveraged first.
+    event CounterpartyDeleveraged(
+        bytes32 indexed subaccount,
+        bytes32 indexed counterparty,
+        bytes32 indexed marketId,
+        uint256 counterpartyPnL,
+        int256 counterpartyPnlRatio,
+        uint256 counterpartyRank,
+        uint256 size
+    );
+
     /// @notice Execute ADL for a bankrupt subaccount. Called by LiquidationEngine.
     /// @param bankruptSubaccount The subaccount that went bankrupt.
     /// @param marketId The market with the bankrupt position.

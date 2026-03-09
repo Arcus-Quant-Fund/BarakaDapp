@@ -12,4 +12,7 @@ interface IOracleAdapter {
     function isStale(bytes32 marketId) external view returns (bool);
     /// @notice Update EWMA mark price with a fill price. Called by MatchingEngine after each trade.
     function updateMarkPrice(bytes32 marketId, uint256 tradePrice) external;
+    /// AUDIT FIX (P15-H-6): Expose lastUpdateTime for oracle recovery detection.
+    /// Used by iCDS to extend grace period after oracle outage.
+    function getLastUpdateTime(bytes32 marketId) external view returns (uint256);
 }
