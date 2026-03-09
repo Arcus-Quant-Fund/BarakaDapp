@@ -696,6 +696,11 @@ contract OrderBook is IOrderBook, Ownable2Step, Pausable, ReentrancyGuard {
     }
 
     /// AUDIT FIX (L1-M-2): Compact entire array — remove all empty levels, not just front
+    /// AUDIT FIX (P10-M-1): Zero headOrderId and tailOrderId when removing an empty level.
+    /// Previously, only `exists = false` was set, leaving headOrderId/tailOrderId pointing at
+    /// stale order IDs. When the same price level was re-added later, the new level inherited
+    /// the old head/tail pointers, causing the linked-list traversal to start mid-chain or
+    /// re-process already-filled/cancelled orders — resulting in phantom fills or skipped orders.
     function _cleanBidPrices() internal {
         uint256 write = 0;
         for (uint256 read = 0; read < _bidPrices.length; read++) {
@@ -703,7 +708,10 @@ contract OrderBook is IOrderBook, Ownable2Step, Pausable, ReentrancyGuard {
                 if (write != read) _bidPrices[write] = _bidPrices[read];
                 write++;
             } else {
-                bidLevels[_bidPrices[read]].exists = false;
+                uint256 price = _bidPrices[read];
+                bidLevels[price].exists = false;
+                bidLevels[price].headOrderId = bytes32(0);
+                bidLevels[price].tailOrderId = bytes32(0);
             }
         }
         while (_bidPrices.length > write) _bidPrices.pop();
@@ -711,6 +719,7 @@ contract OrderBook is IOrderBook, Ownable2Step, Pausable, ReentrancyGuard {
     }
 
     /// AUDIT FIX (L1-M-2): Compact entire array — remove all empty levels, not just front
+    /// AUDIT FIX (P10-M-1): Zero headOrderId and tailOrderId when removing an empty level.
     function _cleanAskPrices() internal {
         uint256 write = 0;
         for (uint256 read = 0; read < _askPrices.length; read++) {
@@ -718,7 +727,10 @@ contract OrderBook is IOrderBook, Ownable2Step, Pausable, ReentrancyGuard {
                 if (write != read) _askPrices[write] = _askPrices[read];
                 write++;
             } else {
-                askLevels[_askPrices[read]].exists = false;
+                uint256 price = _askPrices[read];
+                askLevels[price].exists = false;
+                askLevels[price].headOrderId = bytes32(0);
+                askLevels[price].tailOrderId = bytes32(0);
             }
         }
         while (_askPrices.length > write) _askPrices.pop();

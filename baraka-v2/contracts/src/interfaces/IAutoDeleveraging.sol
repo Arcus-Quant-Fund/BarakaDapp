@@ -15,6 +15,11 @@ interface IAutoDeleveraging {
         uint256 price
     );
 
+    /// AUDIT FIX (P10-L-1): Emit event when participant is removed from ADL list.
+    /// Without this, off-chain monitoring has no way to know the participant list changed —
+    /// indexers and keepers maintain stale participant counts, making ADL coverage estimates wrong.
+    event ParticipantRemoved(bytes32 indexed marketId, bytes32 indexed subaccount);
+
     /// @notice Execute ADL for a bankrupt subaccount. Called by LiquidationEngine.
     /// @param bankruptSubaccount The subaccount that went bankrupt.
     /// @param marketId The market with the bankrupt position.
@@ -32,4 +37,8 @@ interface IAutoDeleveraging {
     /// AUDIT FIX (P7-M-2): Register a subaccount as a market participant for ADL ranking.
     /// Called by MatchingEngine after successful fills.
     function registerParticipant(bytes32 marketId, bytes32 subaccount) external;
+
+    /// AUDIT FIX (P9-H-3): Remove a subaccount from ADL participant list.
+    /// Called by MarginEngine when position closes to zero (auto-cleanup).
+    function removeParticipant(bytes32 marketId, bytes32 subaccount) external;
 }

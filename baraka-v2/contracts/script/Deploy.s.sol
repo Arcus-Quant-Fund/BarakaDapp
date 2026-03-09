@@ -256,6 +256,10 @@ contract Deploy is Script {
         // --- OrderBooks ---
         btcOrderBook.setAuthorised(address(matchingEngine), true);
         ethOrderBook.setAuthorised(address(matchingEngine), true);
+        /// AUDIT FIX (P10-H-7): Register orderbooks in SubaccountManager so closeSubaccount()
+        /// cancels all resting orders before marking the subaccount as closed.
+        sam.registerOrderBook(address(btcOrderBook));
+        sam.registerOrderBook(address(ethOrderBook));
 
         // --- MatchingEngine ---
         matchingEngine.setOrderBook(BTC_MARKET, address(btcOrderBook));
@@ -263,10 +267,21 @@ contract Deploy is Script {
         matchingEngine.setFeeEngine(address(feeEngine));
         matchingEngine.setOracle(address(oracleAdapter));
         matchingEngine.setADL(address(adl));
+        /// AUDIT FIX (P10-H-8): Wire ComplianceOracle into MatchingEngine.
+        /// Without this, the ComplianceOracle.isCompliant() check in _processFill is
+        /// bypassed (address(complianceOracle) == address(0) skips it), meaning fills
+        /// can execute on newly-delisted or Shariah-suspended markets indefinitely.
+        matchingEngine.setComplianceOracle(address(complianceOracle));
 
         // --- BatchSettlement ---
         batchSettlement.setADL(address(adl));
         batchSettlement.setSubaccountManager(address(sam));
+        /// AUDIT FIX (P10-H-8): Wire BatchSettlement ↔ FeeEngine and ShariahRegistry.
+        /// Without this, batch settlement skips fee charging (fees are lost) and Shariah
+        /// compliance checks (settlement proceeds even on halted markets).
+        batchSettlement.setFeeEngine(address(feeEngine));
+        feeEngine.setAuthorised(address(batchSettlement), true);
+        batchSettlement.setShariahRegistry(address(shariahRegistry));
 
         // --- OracleAdapter ---
         oracleAdapter.setAuthorised(address(matchingEngine), true);
@@ -284,17 +299,35 @@ contract Deploy is Script {
         fundingEngine.setClampRate(ETH_MARKET, 0.045e18);
 
         // --- MarginEngine markets ---
-        // BTC: 10% IMR, 5% MMR, 100 BTC max position (~$5M at $50k)
-        marginEngine.createMarket(BTC_MARKET, 0.10e18, 0.05e18, 100e18);
-        // ETH: 10% IMR, 5% MMR, 1000 ETH max position (~$3M at $3k)
-        marginEngine.createMarket(ETH_MARKET, 0.10e18, 0.05e18, 1000e18);
+        // NOTE: maxPositionSize and maxOpenInterest are NOTIONAL values in WAD (1e18 = $1).
+        // absNotional = mulDiv(positionSize, indexPrice, WAD) is compared against maxPositionSize.
+        // BTC: 10% IMR, 5% MMR, max single position = 100 BTC notional (100 × $50k = $5M)
+        //      max open interest = 1,000 BTC notional (~$50M)
+        marginEngine.createMarket(BTC_MARKET, 0.10e18, 0.05e18, 5_000_000e18, 50_000_000e18);
+        // ETH: 10% IMR, 5% MMR, max single position = 1,000 ETH notional (1,000 × $3k = $3M)
+        //      max open interest = 10,000 ETH notional (~$30M)
+        marginEngine.createMarket(ETH_MARKET, 0.10e18, 0.05e18, 3_000_000e18, 30_000_000e18);
 
         // --- InsuranceFund ---
         insuranceFund.setAuthorised(address(liquidationEngine), true);
+        /// AUDIT FIX (P10-C-2): Authorise MarginEngine to call coverShortfall on InsuranceFund
+        /// and wire the reference back so MarginEngine can route PnL settlement shortfalls.
+        insuranceFund.setAuthorised(address(marginEngine), true);
+        marginEngine.setInsuranceFund(address(insuranceFund));
 
         // --- LiquidationEngine ---
         liquidationEngine.setInsuranceFund(address(insuranceFund));
         liquidationEngine.setADL(address(adl));
+        /// AUDIT FIX (P10-H-8): Wire LiquidationEngine and ADL to FundingEngine.
+        /// Without this, funding settlement is skipped during liquidation/ADL — the bankrupt
+        /// position's accrued funding is neither charged nor distributed, creating a permanent
+        /// funding imbalance that grows with every subsequent liquidation.
+        liquidationEngine.setFundingEngine(address(fundingEngine));
+        adl.setFundingEngine(address(fundingEngine));
+
+        // --- P9-H-3: Wire MarginEngine ↔ ADL for auto-cleanup of stale participants ---
+        marginEngine.setADL(address(adl));
+        adl.setAuthorised(address(marginEngine), true);
 
         // --- ShariahRegistry ---
         // Transfer board role if a separate multisig is provided

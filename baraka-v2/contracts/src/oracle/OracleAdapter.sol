@@ -56,6 +56,12 @@ contract OracleAdapter is IOracleAdapter, Ownable2Step {
     address public sequencerUptimeFeed;
     uint256 public constant SEQUENCER_GRACE_PERIOD = 1 hours;
 
+    /// @notice P9-H-2: Circuit breaker — max allowed price deviation per update (WAD).
+    /// E.g. 0.15e18 = 15%. If new price deviates more than this from the last, revert.
+    /// Prevents oracle manipulation via compromised feed or flash crash relay.
+    /// 0 = disabled (no circuit breaker).
+    uint256 public maxPriceDeviation;
+
     // ─────────────────────────────────────────────────────
     // Events
     // ─────────────────────────────────────────────────────
@@ -118,6 +124,13 @@ contract OracleAdapter is IOracleAdapter, Ownable2Step {
         sequencerUptimeFeed = feed;
     }
 
+    /// @notice P9-H-2: Set circuit breaker max price deviation (WAD). 0 = disabled.
+    /// @param deviation Max deviation in WAD (e.g. 0.15e18 = 15%). Capped at 50%.
+    function setMaxPriceDeviation(uint256 deviation) external onlyOwner {
+        require(deviation <= 0.50e18, "OA: deviation > 50%");
+        maxPriceDeviation = deviation;
+    }
+
     // ─────────────────────────────────────────────────────
     // Price updates
     // ─────────────────────────────────────────────────────
@@ -147,6 +160,24 @@ contract OracleAdapter is IOracleAdapter, Ownable2Step {
 
         // Normalize to WAD (1e18)
         uint256 price = uint256(answer) * WAD / (10 ** mo.feedDecimals);
+
+        /// AUDIT FIX (P9-H-2): Circuit breaker — revert if price deviates too much from last known.
+        /// Prevents oracle manipulation via compromised Chainlink feed or flash crash relay.
+        /// Real-world ref: KiloEx $7.5M oracle manipulation (2024).
+        /// AUDIT FIX (P10-H-4): Use chainlinkReferencePrice as fallback on first update.
+        /// Previously `mo.lastIndexPrice == 0` skipped the check entirely on market init, allowing
+        /// a compromised feed to anchor the circuit breaker at an arbitrary baseline. Now the check
+        /// fires against the existing chainlinkReferencePrice (set by setMarketOracle) when no
+        /// lastIndexPrice is available yet.
+        if (maxPriceDeviation > 0) {
+            uint256 refPrice = mo.lastIndexPrice > 0
+                ? mo.lastIndexPrice
+                : chainlinkReferencePrice[marketId];  // use Chainlink anchor on first update
+            if (refPrice > 0) {
+                uint256 diff = price > refPrice ? price - refPrice : refPrice - price;
+                require(diff * WAD / refPrice <= maxPriceDeviation, "OA: circuit breaker - price deviation too large");
+            }
+        }
 
         mo.lastIndexPrice = price;
         mo.lastUpdateTime = block.timestamp;
@@ -245,11 +276,14 @@ contract OracleAdapter is IOracleAdapter, Ownable2Step {
         return price;
     }
 
-    /// @dev INFO (L1B-I-5): Falls back to indexPrice when markPrice is 0 (first update).
-    ///      This is intentional — before any trade occurs, mark should equal index.
+    /// AUDIT FIX (P10-L-5): Revert on uninitialized market — consistent with getIndexPrice.
+    /// Previously returned 0 silently when both lastMarkPrice and lastIndexPrice are 0,
+    /// causing callers to treat the position as zero notional (margin bypass for new markets).
     function getMarkPrice(bytes32 marketId) external view override returns (uint256) {
         uint256 mark = marketOracles[marketId].lastMarkPrice;
-        return mark > 0 ? mark : marketOracles[marketId].lastIndexPrice;
+        uint256 price = mark > 0 ? mark : marketOracles[marketId].lastIndexPrice;
+        require(price > 0, "OA: mark price not initialised");
+        return price;
     }
 
     /// AUDIT FIX (L1B-M-2): Use 1x heartbeat consistently

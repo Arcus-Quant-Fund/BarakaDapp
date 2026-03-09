@@ -50,6 +50,10 @@ contract FundingEngine is IFundingEngine, Ownable2Step, Pausable {
     /// @notice Per-market clamp rate: (IMR - MMR) × 0.9 per 8h period
     mapping(bytes32 => uint256) public clampRate;
 
+    /// AUDIT FIX (P10-M-7): Track whether the previous updateFunding call saw a stale oracle.
+    /// Used to detect oracle recovery so the clock can be reset without a retroactive accrual spike.
+    mapping(bytes32 => bool) private _wasStaleOnLastCall;
+
     /// AUDIT FIX (P6-I-2): Removed dead `authorised` mapping and `setAuthorised()` — updateFunding()
     /// is intentionally permissionless (any keeper can accrue). The mapping was never checked.
 
@@ -119,7 +123,22 @@ contract FundingEngine is IFundingEngine, Ownable2Step, Pausable {
         /// A griefer calling updateFunding() every block during an oracle outage would
         /// zero out all accrual for that period. By freezing the clock, funding resumes
         /// retroactively when the oracle comes back online (capped at FUNDING_PERIOD).
-        if (oracle.isStale(marketId)) return state.cumulativeIndex;
+        if (oracle.isStale(marketId)) {
+            /// AUDIT FIX (P10-M-7): Record staleness so oracle recovery can be detected on next call.
+            _wasStaleOnLastCall[marketId] = true;
+            return state.cumulativeIndex;
+        }
+
+        /// AUDIT FIX (P10-M-7): Oracle recovery — reset clock without accruing.
+        /// When the oracle just recovered from a stale period, elapsed equals the entire
+        /// outage duration. Applying FUNDING_PERIOD retroactively at the post-recovery rate
+        /// can produce a sharp spike that extracts significant value from one side (e.g. if
+        /// mark/index basis blew out during the outage). Reset the clock clean from now.
+        if (_wasStaleOnLastCall[marketId]) {
+            _wasStaleOnLastCall[marketId] = false;
+            state.lastUpdateTime = block.timestamp;
+            return state.cumulativeIndex;
+        }
 
         /// AUDIT FIX (L1B-M-7): Cap elapsed time — prevent stale rate applied retroactively
         if (elapsed > FUNDING_PERIOD) elapsed = FUNDING_PERIOD;

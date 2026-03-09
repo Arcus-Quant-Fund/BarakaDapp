@@ -12,6 +12,8 @@ import "../interfaces/IVault.sol";
 import "../interfaces/ISubaccountManager.sol";
 import "../interfaces/IOracleAdapter.sol";
 import "../interfaces/IFundingEngine.sol";
+import "../interfaces/IAutoDeleveraging.sol";
+import "../interfaces/IInsuranceFund.sol";
 
 /**
  * @title MarginEngine
@@ -74,11 +76,24 @@ contract MarginEngine is IMarginEngine, Ownable2Step, Pausable, ReentrancyGuard 
     /// @notice All registered market IDs (for enumeration)
     bytes32[] public markets;
 
+    /// @notice P9-C-1: Global open interest tracking per market (size units, WAD)
+    mapping(bytes32 => uint256) public totalLongOI;
+    mapping(bytes32 => uint256) public totalShortOI;
+
+    /// @notice P9-H-3: ADL contract for participant auto-cleanup on position close
+    IAutoDeleveraging public adl;
+
+    /// @notice P10-C-2: InsuranceFund — covers PnL settlement shortfalls when losers are undercollateralized
+    IInsuranceFund public insuranceFund;
+
     // ─────────────────────────────────────────────────────
     // Events
     // ─────────────────────────────────────────────────────
 
-    event MarketCreated(bytes32 indexed marketId, uint256 imr, uint256 mmr, uint256 maxPositionSize);
+    /// AUDIT FIX (P10-M-5): Include maxOpenInterest in MarketCreated event.
+    event MarketCreated(bytes32 indexed marketId, uint256 imr, uint256 mmr, uint256 maxPositionSize, uint256 maxOpenInterest);
+    /// AUDIT FIX (P10-M-5): Emit when OI cap is updated so indexers can track risk parameter changes.
+    event MaxOpenInterestUpdated(bytes32 indexed marketId, uint256 oldMaxOI, uint256 newMaxOI);
     event MarketUpdated(bytes32 indexed marketId, uint256 imr, uint256 mmr);
     event PositionUpdated(bytes32 indexed subaccount, bytes32 indexed marketId, int256 newSize, uint256 entryPrice);
     event AuthorisedSet(address indexed caller, bool status);
@@ -142,27 +157,53 @@ contract MarginEngine is IMarginEngine, Ownable2Step, Pausable, ReentrancyGuard 
     function unpause() external onlyOwner { _unpause(); }
 
     /// @notice Create a new perpetual market.
+    /// AUDIT FIX (P9-C-1): Added maxOpenInterest parameter for global OI cap.
     function createMarket(
         bytes32 marketId,
         uint256 initialMarginRate,
         uint256 maintenanceMarginRate,
-        uint256 maxPositionSize
+        uint256 maxPositionSize,
+        uint256 maxOpenInterest
     ) external onlyOwner {
         require(!_marketParams[marketId].active, "ME: market exists");
         require(initialMarginRate > maintenanceMarginRate, "ME: IMR <= MMR");
         require(maintenanceMarginRate > 0, "ME: zero MMR");
         require(initialMarginRate <= WAD, "ME: IMR > 100%");
         require(maxPositionSize > 0, "ME: zero max size");
+        require(maxOpenInterest > 0, "ME: zero max OI");
 
         _marketParams[marketId] = MarketParams({
             initialMarginRate:     initialMarginRate,
             maintenanceMarginRate: maintenanceMarginRate,
             maxPositionSize:       maxPositionSize,
+            maxOpenInterest:       maxOpenInterest,
             active:                true
         });
         markets.push(marketId);
 
-        emit MarketCreated(marketId, initialMarginRate, maintenanceMarginRate, maxPositionSize);
+        emit MarketCreated(marketId, initialMarginRate, maintenanceMarginRate, maxPositionSize, maxOpenInterest);
+    }
+
+    /// @notice P9-C-1: Update global OI cap for a market.
+    function setMaxOpenInterest(bytes32 marketId, uint256 maxOI) external onlyOwner {
+        require(_marketParams[marketId].active, "ME: market not active");
+        require(maxOI > 0, "ME: zero max OI");
+        uint256 oldMaxOI = _marketParams[marketId].maxOpenInterest;
+        _marketParams[marketId].maxOpenInterest = maxOI;
+        /// AUDIT FIX (P10-M-5): Emit event so governance/monitoring can track OI cap changes.
+        emit MaxOpenInterestUpdated(marketId, oldMaxOI, maxOI);
+    }
+
+    /// @notice P9-H-3: Set ADL contract for auto-cleanup of participant list on position close.
+    function setADL(address _adl) external onlyOwner {
+        require(_adl != address(0), "ME: zero ADL");
+        adl = IAutoDeleveraging(_adl);
+    }
+
+    /// @notice P10-C-2: Set InsuranceFund for PnL settlement shortfall coverage.
+    function setInsuranceFund(address _if) external onlyOwner {
+        require(_if != address(0), "ME: zero IF");
+        insuranceFund = IInsuranceFund(_if);
     }
 
     /// @notice Update market margin parameters.
@@ -195,25 +236,27 @@ contract MarginEngine is IMarginEngine, Ownable2Step, Pausable, ReentrancyGuard 
     }
 
     /// @notice Withdraw collateral from a subaccount (if free collateral allows).
+    /// AUDIT FIX (P9-C-2): Uses withdrawable free collateral (excludes unrealized PnL gains).
     function withdraw(bytes32 subaccount, uint256 amount) external nonReentrant whenNotPaused {
         require(subaccountManager.getOwner(subaccount) == msg.sender, "ME: not owner");
         require(amount > 0, "ME: zero amount");
 
         // Check free collateral allows withdrawal (normalize amount to WAD)
-        int256 freeCol = _computeFreeCollateral(subaccount);
+        int256 freeCol = _computeWithdrawableFreeCollateral(subaccount);
         require(freeCol >= int256(amount * collateralScale), "ME: insufficient free collateral");
 
         vault.withdraw(subaccount, collateralToken, amount, msg.sender);
     }
 
     /// @notice Transfer collateral between own subaccounts.
+    /// AUDIT FIX (P9-C-2): Uses withdrawable free collateral (excludes unrealized PnL gains).
     function transferBetweenSubaccounts(bytes32 from, bytes32 to, uint256 amount) external nonReentrant whenNotPaused {
         require(subaccountManager.getOwner(from) == msg.sender, "ME: not owner of source");
         require(subaccountManager.getOwner(to) == msg.sender, "ME: not owner of dest");
         require(amount > 0, "ME: zero amount");
 
         // Check source has sufficient free collateral (normalize to WAD)
-        int256 freeCol = _computeFreeCollateral(from);
+        int256 freeCol = _computeWithdrawableFreeCollateral(from);
         require(freeCol >= int256(amount * collateralScale), "ME: insufficient free collateral");
 
         vault.transferInternal(from, to, collateralToken, amount);
@@ -228,12 +271,19 @@ contract MarginEngine is IMarginEngine, Ownable2Step, Pausable, ReentrancyGuard 
     /// AUDIT FIX (P3-LIQ-1): Removed whenNotPaused — LiquidationEngine.liquidate() and
     /// AutoDeleveraging.executeADL() call updatePosition() during the liquidation cascade.
     /// MarginEngine pause must not block liquidations (same rationale as P2-CRIT-3 / P2-HIGH-4).
+    /// AUDIT FIX (P10-H-2): Add nonReentrant to updatePosition.
+    /// MarginEngine.updatePosition() calls vault.settlePnL() which makes an ERC20 transfer.
+    /// Without reentrancy protection, a malicious collateral token can re-enter updatePosition
+    /// through a second ADL/liquidation callback chain, double-updating a position:
+    ///   updatePosition(A, long 1) → settlePnL → token.transfer → REENTER updatePosition(A, long 1)
+    ///   → position books A as long 2, outer call completes → A's position is now long 2 + 1 = 3
+    ///   but margin was only checked for 1 — A can hold 3× the OI their collateral supports.
     function updatePosition(
         bytes32 subaccount,
         bytes32 marketId,
         int256  sizeDelta,   // positive = buy, negative = sell
         uint256 fillPrice
-    ) external onlyAuthorised {
+    ) external onlyAuthorised nonReentrant {
         require(_marketParams[marketId].active, "ME: market not active");
         require(sizeDelta != 0, "ME: zero delta");
 
@@ -250,6 +300,10 @@ contract MarginEngine is IMarginEngine, Ownable2Step, Pausable, ReentrancyGuard 
 
         int256 oldSize = pos.size;
         int256 newSize = oldSize + sizeDelta;
+
+        // P9-C-1: Record old OI contributions before position modification
+        uint256 oldLongContrib = oldSize > 0 ? _abs(oldSize) : 0;
+        uint256 oldShortContrib = oldSize < 0 ? _abs(oldSize) : 0;
 
         if (oldSize == 0) {
             // New position
@@ -281,7 +335,8 @@ contract MarginEngine is IMarginEngine, Ownable2Step, Pausable, ReentrancyGuard 
                 int256 pnl = _computePositionPnl(oldSize, pos.entryPrice, _abs(sizeDelta), fillPrice);
                 // Convert WAD PnL to token decimals for vault settlement
                 /// AUDIT FIX (P5-H-9): Use protocol-favorable rounding for PnL settlement
-                vault.settlePnL(subaccount, collateralToken, _wadToTokens(pnl));
+                /// AUDIT FIX (P10-C-2): Route shortfalls to InsuranceFund via helper
+                _settleAndCoverShortfall(subaccount, _wadToTokens(pnl));
                 pos.size = newSize;
                 if (newSize == 0) {
                     _cleanupPosition(subaccount, marketId);
@@ -290,7 +345,8 @@ contract MarginEngine is IMarginEngine, Ownable2Step, Pausable, ReentrancyGuard 
                 // Flip — close entire old position, open new in opposite direction
                 int256 closePnl = _computePositionPnl(oldSize, pos.entryPrice, _abs(oldSize), fillPrice);
                 /// AUDIT FIX (P5-H-9): Use protocol-favorable rounding for PnL settlement
-                vault.settlePnL(subaccount, collateralToken, _wadToTokens(closePnl));
+                /// AUDIT FIX (P10-C-2): Route shortfalls to InsuranceFund via helper
+                _settleAndCoverShortfall(subaccount, _wadToTokens(closePnl));
                 int256 remaining = newSize; // what's left after closing old
                 pos.size = remaining;
                 pos.entryPrice = fillPrice;
@@ -301,13 +357,49 @@ contract MarginEngine is IMarginEngine, Ownable2Step, Pausable, ReentrancyGuard 
         // Validate margin after update
         if (newSize != 0) {
             // Check position size limit
-            uint256 absNotional = _abs(newSize) * oracle.getIndexPrice(marketId) / WAD;
+            /// AUDIT FIX (P10-M-3): Use Math.mulDiv to prevent intermediate overflow.
+            /// Plain multiplication _abs(newSize) * price can overflow uint256 when size is near
+            /// max (e.g. 1M BTC in WAD = 1e24) and price is $100k (1e23 WAD) → product ~1e47, overflows.
+            uint256 absNotional = Math.mulDiv(_abs(newSize), oracle.getIndexPrice(marketId), WAD);
             require(absNotional <= _marketParams[marketId].maxPositionSize, "ME: exceeds max position");
 
-            // If position increased, check initial margin
-            if (_abs(newSize) > _abs(oldSize)) {
+            /// AUDIT FIX (P10-H-3): IMR check must also fire when direction flips (position reversal).
+            /// Previously `_abs(newSize) > _abs(oldSize)` is true for increases but also for flips
+            /// where the new side is larger — BUT it silently passes when a flip results in a
+            /// smaller absolute size than the old side. Example: short 10 BTC → flip to long 3 BTC:
+            ///   oldSize = -10, newSize = +3, _abs(3) < _abs(10) → IMR check SKIPPED.
+            /// The trader just changed direction (short→long) with no margin check. Fix: also
+            /// check IMR whenever the sign changed, regardless of size comparison.
+            bool directionChanged = (oldSize > 0 && newSize < 0) || (oldSize < 0 && newSize > 0);
+            // If position increased in absolute terms OR direction changed, check initial margin
+            if (_abs(newSize) > _abs(oldSize) || directionChanged) {
                 int256 freeCol = _computeFreeCollateral(subaccount);
                 require(freeCol >= 0, "ME: insufficient margin");
+            }
+        }
+
+        // P9-C-1: Update global OI tracking
+        {
+            uint256 newLongContrib = newSize > 0 ? _abs(newSize) : 0;
+            uint256 newShortContrib = newSize < 0 ? _abs(newSize) : 0;
+
+            if (newLongContrib > oldLongContrib) {
+                totalLongOI[marketId] += newLongContrib - oldLongContrib;
+            } else if (oldLongContrib > newLongContrib) {
+                totalLongOI[marketId] -= oldLongContrib - newLongContrib;
+            }
+
+            if (newShortContrib > oldShortContrib) {
+                totalShortOI[marketId] += newShortContrib - oldShortContrib;
+            } else if (oldShortContrib > newShortContrib) {
+                totalShortOI[marketId] -= oldShortContrib - newShortContrib;
+            }
+
+            // P9-C-1: Enforce global OI cap (only on increases)
+            if (newLongContrib > oldLongContrib || newShortContrib > oldShortContrib) {
+                uint256 maxOI = _marketParams[marketId].maxOpenInterest;
+                require(totalLongOI[marketId] <= maxOI, "ME: global long OI cap exceeded");
+                require(totalShortOI[marketId] <= maxOI, "ME: global short OI cap exceeded");
             }
         }
 
@@ -326,6 +418,30 @@ contract MarginEngine is IMarginEngine, Ownable2Step, Pausable, ReentrancyGuard 
         }
     }
 
+    /// @notice P10-C-2: Settle PnL and route any shortfall to InsuranceFund.
+    /// Vault.settlePnL() caps debits at available balance — if a loser is undercollateralized,
+    /// the requested debit is partially settled and the remainder is a shortfall (phantom money).
+    /// The InsuranceFund covers this gap by transferring tokens directly to the Vault,
+    /// restoring the invariant: sum(internal balances) <= vault.token.balanceOf(vault).
+    function _settleAndCoverShortfall(bytes32 subaccount, int256 tokenAmount) internal {
+        int256 actualSettled = vault.settlePnL(subaccount, collateralToken, tokenAmount);
+        // Only debits can produce shortfalls (credits always succeed)
+        if (tokenAmount < 0 && actualSettled > tokenAmount) {
+            uint256 shortfall = uint256(actualSettled - tokenAmount);
+            if (address(insuranceFund) != address(0)) {
+                try insuranceFund.fundBalance(collateralToken) returns (uint256 ifBalance) {
+                    uint256 covered = shortfall > ifBalance ? ifBalance : shortfall;
+                    if (covered > 0) {
+                        /// Mirror LiquidationEngine pattern: IF sends to MarginEngine, ME forwards to Vault.
+                        try insuranceFund.coverShortfall(collateralToken, covered) {
+                            IERC20(collateralToken).safeTransfer(address(vault), covered);
+                        } catch {}
+                    }
+                } catch {}
+            }
+        }
+    }
+
     function _settleFundingForPosition(bytes32 subaccount, bytes32 marketId) internal {
         Position storage pos = _positions[subaccount][marketId];
         if (pos.size == 0) return;
@@ -335,7 +451,8 @@ contract MarginEngine is IMarginEngine, Ownable2Step, Pausable, ReentrancyGuard 
 
         if (funding != 0) {
             /// AUDIT FIX (P5-H-9): Use protocol-favorable rounding for funding settlement
-            vault.settlePnL(subaccount, collateralToken, _wadToTokens(-funding));
+            /// AUDIT FIX (P10-C-2): Route funding shortfalls to InsuranceFund
+            _settleAndCoverShortfall(subaccount, _wadToTokens(-funding));
         }
 
         pos.entryFundingIndex = currentIndex;
@@ -379,6 +496,11 @@ contract MarginEngine is IMarginEngine, Ownable2Step, Pausable, ReentrancyGuard 
         return _subaccountMarkets[subaccount];
     }
 
+    /// @notice P9-C-1: Get global open interest for a market.
+    function getOpenInterest(bytes32 marketId) external view returns (uint256, uint256) {
+        return (totalLongOI[marketId], totalShortOI[marketId]);
+    }
+
     // ─────────────────────────────────────────────────────
     // Internal — margin calculations
     // ─────────────────────────────────────────────────────
@@ -413,6 +535,38 @@ contract MarginEngine is IMarginEngine, Ownable2Step, Pausable, ReentrancyGuard 
 
     function _computeFreeCollateral(bytes32 subaccount) internal view returns (int256) {
         int256 equity = _computeEquity(subaccount);
+        uint256 imr = _computeIMR(subaccount);
+        return equity - int256(imr);
+    }
+
+    /// AUDIT FIX (P9-C-2): Free collateral for withdrawal — excludes positive unrealized PnL.
+    /// Prevents Hyperliquid-style attacks where traders withdraw paper profits,
+    /// then let positions go underwater, forcing insurance fund losses.
+    function _computeWithdrawableFreeCollateral(bytes32 subaccount) internal view returns (int256) {
+        uint256 bal = vault.balance(subaccount, collateralToken);
+        int256 equity = int256(bal * collateralScale);
+
+        bytes32[] storage mktList = _subaccountMarkets[subaccount];
+        for (uint256 i = 0; i < mktList.length; i++) {
+            Position storage pos = _positions[subaccount][mktList[i]];
+            if (pos.size == 0) continue;
+
+            uint256 indexPrice = oracle.getIndexPrice(mktList[i]);
+            int256 pnl = (int256(indexPrice) - int256(pos.entryPrice)) * pos.size / int256(WAD);
+
+            // Only include NEGATIVE PnL (losses reduce withdrawable). Positive PnL excluded.
+            if (pnl < 0) {
+                equity += pnl;
+            }
+
+            // Pending funding — only deduct funding OWED, not receivable.
+            /// AUDIT FIX (P10-M-2): Excluding positive receivables prevents withdrawing
+            /// paper inflows before they are settled, which would let traders drain
+            /// collateral leaving the position undercollateralised if the funding reverses.
+            int256 funding = fundingEngine.getPendingFunding(mktList[i], pos.size, pos.entryFundingIndex);
+            if (funding > 0) { equity -= funding; }
+        }
+
         uint256 imr = _computeIMR(subaccount);
         return equity - int256(imr);
     }
@@ -477,6 +631,12 @@ contract MarginEngine is IMarginEngine, Ownable2Step, Pausable, ReentrancyGuard 
                 break;
             }
         }
+
+        /// AUDIT FIX (P9-H-3): Auto-remove from ADL participant list when position closes.
+        /// Prevents stale entries from bloating the scan window and blocking ADL execution.
+        if (address(adl) != address(0)) {
+            try adl.removeParticipant(marketId, subaccount) {} catch {}
+        }
     }
 
     /// AUDIT FIX (P2-CRIT-2): Guard against type(int256).min — uint256(-min) overflows silently
@@ -498,7 +658,9 @@ contract MarginEngine is IMarginEngine, Ownable2Step, Pausable, ReentrancyGuard 
     /// AUDIT FIX (P5-H-9): Protocol-favorable WAD-to-token conversion.
     /// Floor division on negative values rounds toward zero, systematically undercharging users.
     /// Fix: round debits UP (away from zero), credits DOWN (toward zero).
+    /// AUDIT FIX (P10-L-6): Guard against type(int256).min — negating it overflows silently.
     function _wadToTokens(int256 wadAmount) internal view returns (int256) {
+        require(wadAmount != type(int256).min, "ME: wadAmount overflow");
         if (wadAmount >= 0) return wadAmount / int256(collateralScale);
         return -((-wadAmount + int256(collateralScale) - 1) / int256(collateralScale));
     }

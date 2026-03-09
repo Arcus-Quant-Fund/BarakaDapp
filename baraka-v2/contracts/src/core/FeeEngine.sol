@@ -4,6 +4,7 @@ pragma solidity ^0.8.24;
 import "@openzeppelin/contracts/access/Ownable2Step.sol";
 import "@openzeppelin/contracts/token/ERC20/extensions/IERC20Metadata.sol";
 import "@openzeppelin/contracts/governance/utils/IVotes.sol";
+import "@openzeppelin/contracts/utils/math/Math.sol";
 import "../interfaces/IFeeEngine.sol";
 import "../interfaces/IVault.sol";
 import "../interfaces/ISubaccountManager.sol";
@@ -155,7 +156,7 @@ contract FeeEngine is IFeeEngine, Ownable2Step {
 
     function computeMakerRebate(bytes32 subaccount, uint256 notional) external view override returns (uint256) {
         FeeTier memory tier = _getTier(subaccount);
-        return notional * tier.makerFeeBps / WAD;
+        return Math.mulDiv(notional, tier.makerFeeBps, WAD);
     }
 
     // ─────────────────────────────────────────────────────
@@ -166,7 +167,7 @@ contract FeeEngine is IFeeEngine, Ownable2Step {
         require(authorised[msg.sender], "FE: not authorised");
 
         FeeTier memory tier = _getTier(subaccount);
-        fee = notional * tier.takerFeeBps / WAD;
+        fee = Math.mulDiv(notional, tier.takerFeeBps, WAD);
         if (fee == 0) return 0;
 
         // Convert from WAD to token decimals
@@ -213,8 +214,11 @@ contract FeeEngine is IFeeEngine, Ownable2Step {
         require(authorised[msg.sender], "FE: not authorised");
 
         FeeTier memory tier = _getTier(takerSubaccount);
-        uint256 takerFee = notional * tier.takerFeeBps / WAD;
-        uint256 makerRebate = notional * tier.makerFeeBps / WAD;
+        /// AUDIT FIX (P10-L-4): Use Math.mulDiv to prevent overflow on extreme notionals.
+        /// Plain multiplication overflows uint256 when notional approaches max (e.g. $10B in WAD =
+        /// 1e28; 1e28 * 5e14 = 5e42 > 2^256). Math.mulDiv uses 512-bit intermediate arithmetic.
+        uint256 takerFee = Math.mulDiv(notional, tier.takerFeeBps, WAD);
+        uint256 makerRebate = Math.mulDiv(notional, tier.makerFeeBps, WAD);
 
         if (takerFee == 0) return;
 

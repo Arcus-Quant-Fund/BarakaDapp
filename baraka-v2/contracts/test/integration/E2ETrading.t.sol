@@ -69,7 +69,7 @@ contract E2ETrading is Test {
         vault.setApprovedToken(address(usdc), true);
         vault.setAuthorised(address(marginEngine), true);
         marginEngine.setAuthorised(address(matchingEngine), true);
-        marginEngine.createMarket(BTC_MARKET, 0.2e18, 0.05e18, 10_000_000e18);
+        marginEngine.createMarket(BTC_MARKET, 0.2e18, 0.05e18, 10_000_000e18, 1_000_000e18);
         orderBook.setAuthorised(address(matchingEngine), true);
         matchingEngine.setOrderBook(BTC_MARKET, address(orderBook));
         matchingEngine.setTreasury(owner);

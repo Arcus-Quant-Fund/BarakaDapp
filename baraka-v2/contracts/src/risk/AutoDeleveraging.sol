@@ -132,7 +132,14 @@ contract AutoDeleveraging is IAutoDeleveraging, Ownable2Step, ReentrancyGuard {
         /// AUDIT FIX (L3-M-4): Oracle staleness check in ADL
         require(!oracle.isStale(marketId), "ADL: stale oracle");
         uint256 remaining = shortfallWad;
-        bytes32[] storage participants = marketParticipants[marketId];
+        /// AUDIT FIX (P10-H-1): Use memory copy, NOT storage pointer.
+        /// Using `storage` here caused a silent iterator corruption bug: when executeADL
+        /// calls marginEngine.updatePosition() which triggers _cleanupPosition() which calls
+        /// adl.removeParticipant() (swap-and-pop), the loop's `participants` view shifts
+        /// mid-iteration — entries are skipped or processed twice, and the loop index can
+        /// overshoot, triggering an array-bounds panic that silently exits the ADL execution.
+        /// Copying to memory snaps the participant list at the start of the call.
+        bytes32[] memory participants = marketParticipants[marketId];
 
         /// AUDIT FIX (P5-M-21): Settle funding for the market ONCE before the ADL loop.
         /// Without this, the first counterparty's updatePosition calls updateFunding() which
@@ -179,6 +186,20 @@ contract AutoDeleveraging is IAutoDeleveraging, Ownable2Step, ReentrancyGuard {
             }
 
             if (!isOpposing || unrealizedPnl <= 0) continue;
+
+            /// AUDIT FIX (P10-M-8): Subtract pending funding to get net PnL for ranking.
+            /// Without this, a counterparty with large unrealized PnL but large outstanding
+            /// funding debt ranks higher than one with lower PnL but no funding owed, even
+            /// though the former is less net-profitable. Netting gives a fairer ranking.
+            if (address(fundingEngine) != address(0)) {
+                try fundingEngine.getPendingFunding(marketId, cPos.size, cPos.entryFundingIndex)
+                    returns (int256 pendingFund)
+                {
+                    // pendingFund > 0 means position owes funding → reduces net PnL
+                    unrealizedPnl -= pendingFund;
+                } catch {}
+            }
+            if (unrealizedPnl <= 0) continue;
 
             candidates[candidateCount] = counterparty;
             candidatePnl[candidateCount] = uint256(unrealizedPnl);
@@ -250,6 +271,8 @@ contract AutoDeleveraging is IAutoDeleveraging, Ownable2Step, ReentrancyGuard {
                 break;
             }
         }
+        /// AUDIT FIX (P10-L-1): Emit event so off-chain indexers track participant list changes.
+        emit ParticipantRemoved(marketId, subaccount);
     }
 
     /// AUDIT FIX (L3-L-2): Guard against type(int256).min overflow

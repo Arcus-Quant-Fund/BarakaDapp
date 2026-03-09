@@ -50,6 +50,12 @@ contract InsuranceFund is IInsuranceFund, Ownable2Step, Pausable, ReentrancyGuar
     mapping(address => uint256) public weeklyClaimsSum;
     mapping(address => uint256) public lastClaimReset;
 
+    /// @notice P9-H-1: Epochal drawdown rate limit (prevents single-block fund drainage)
+    uint256 public maxDrawdownPerEpoch;     // max tokens drainable per epoch (0 = unlimited)
+    uint256 public epochDuration = 1 hours; // epoch length
+    mapping(address => uint256) public epochDrawdownUsed;  // token -> amount drawn this epoch
+    mapping(address => uint256) public epochStart;         // token -> epoch start timestamp
+
     // ─────────────────────────────────────────────────────
     // Events
     // ─────────────────────────────────────────────────────
@@ -99,6 +105,15 @@ contract InsuranceFund is IInsuranceFund, Ownable2Step, Pausable, ReentrancyGuar
         revert("IF: renounce disabled");
     }
 
+    /// @notice P9-H-1: Set maximum insurance fund drawdown per epoch.
+    /// @param _maxDrawdown Maximum tokens drainable per epoch (0 = unlimited).
+    /// @param _epochDuration Epoch length in seconds (minimum 10 minutes).
+    function setDrawdownLimit(uint256 _maxDrawdown, uint256 _epochDuration) external onlyOwner {
+        require(_epochDuration >= 10 minutes, "IF: epoch too short");
+        maxDrawdownPerEpoch = _maxDrawdown;
+        epochDuration = _epochDuration;
+    }
+
     // ─────────────────────────────────────────────────────
     // IInsuranceFund
     // ─────────────────────────────────────────────────────
@@ -137,6 +152,9 @@ contract InsuranceFund is IInsuranceFund, Ownable2Step, Pausable, ReentrancyGuar
         require(amount > 0, "IF: zero amount");
         uint256 actual = IERC20(token).balanceOf(address(this));
         require(actual >= amount, "IF: insufficient reserves");
+
+        /// AUDIT FIX (P9-H-1): Enforce epochal drawdown limit
+        _checkDrawdownLimit(token, amount);
 
         _updateWeeklyClaims(token, amount);
         IERC20(token).safeTransfer(msg.sender, amount);
@@ -245,5 +263,28 @@ contract InsuranceFund is IInsuranceFund, Ownable2Step, Pausable, ReentrancyGuar
             lastClaimReset[token] = block.timestamp;
         }
         weeklyClaimsSum[token] += amount;
+    }
+
+    /// @notice P9-H-1: Check and update epochal drawdown tracking.
+    /// Prevents single-block insurance fund drainage (real-world: Hyperliquid JELLY exploit pattern).
+    function _checkDrawdownLimit(address token, uint256 amount) internal {
+        if (maxDrawdownPerEpoch == 0) return; // rate limiting disabled
+        uint256 currentEpochStart = epochStart[token];
+        if (currentEpochStart == 0) {
+            epochStart[token] = block.timestamp;
+            epochDrawdownUsed[token] = amount;
+        } else if (block.timestamp >= currentEpochStart + epochDuration) {
+            /// AUDIT FIX (P10-M-4): Advance epoch by epochDuration rather than resetting to block.timestamp.
+            /// AUDIT FIX (P12-IF-1): Advance directly to the CURRENT epoch boundary (not just one ahead).
+            /// Without this, if the fund is dormant for N epochs, the first N consecutive coverShortfall
+            /// calls each advance one epoch and drain maxDrawdownPerEpoch per call — N × drawdown in one block.
+            /// Computing epochsElapsed jumps the epoch anchor to the correct current boundary in one step.
+            uint256 epochsElapsed = (block.timestamp - currentEpochStart) / epochDuration;
+            epochStart[token] = currentEpochStart + epochsElapsed * epochDuration;
+            epochDrawdownUsed[token] = amount;
+        } else {
+            epochDrawdownUsed[token] += amount;
+        }
+        require(epochDrawdownUsed[token] <= maxDrawdownPerEpoch, "IF: epoch drawdown limit exceeded");
     }
 }

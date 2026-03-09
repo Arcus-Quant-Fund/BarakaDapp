@@ -82,8 +82,8 @@ contract BatchSettlementTest is Test {
         vault.setAuthorised(address(marginEngine), true);
         marginEngine.setAuthorised(address(batchSettlement), true);
         // Create markets
-        marginEngine.createMarket(BTC_MARKET, 0.2e18, 0.05e18, 10_000_000e18);
-        marginEngine.createMarket(ETH_MARKET, 0.2e18, 0.05e18, 10_000_000e18);
+        marginEngine.createMarket(BTC_MARKET, 0.2e18, 0.05e18, 10_000_000e18, 1_000_000e18);
+        marginEngine.createMarket(ETH_MARKET, 0.2e18, 0.05e18, 10_000_000e18, 1_000_000e18);
 
         // Set oracle prices
         oracle.setIndexPrice(BTC_MARKET, 50_000e18);

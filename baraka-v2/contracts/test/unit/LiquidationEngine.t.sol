@@ -122,7 +122,7 @@ contract LiquidationEngineTest is Test {
 
         // --- Market creation ---
         // IMR = 20% (5x), MMR = 5% (20x maintenance)
-        marginEngine.createMarket(BTC_MARKET, 0.2e18, 0.05e18, 10_000_000e18);
+        marginEngine.createMarket(BTC_MARKET, 0.2e18, 0.05e18, 10_000_000e18, 1_000_000e18);
 
         // --- OrderBook wiring ---
         orderBook.setAuthorised(address(matchingEngine), true);

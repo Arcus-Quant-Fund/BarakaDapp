@@ -18,6 +18,7 @@ interface IMarginEngine {
         uint256 initialMarginRate;     // IMR in 1e18 (e.g. 0.1e18 = 10% = 10x max leverage)
         uint256 maintenanceMarginRate; // MMR in 1e18 (e.g. 0.05e18 = 5%)
         uint256 maxPositionSize;       // max notional per subaccount per market
+        uint256 maxOpenInterest;       // P9-C-1: max global OI (long or short) per market (size units, WAD)
         bool    active;
     }
 

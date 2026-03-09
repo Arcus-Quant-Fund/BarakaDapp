@@ -60,7 +60,7 @@ contract MarginEngineTest is Test {
         marginEngine.setAuthorised(matcher, true);
 
         // Create BTC market: 10% IMR, 5% MMR, 10M max
-        marginEngine.createMarket(BTC, 0.10e18, 0.05e18, 10_000_000e18);
+        marginEngine.createMarket(BTC, 0.10e18, 0.05e18, 10_000_000e18, 1_000_000e18);
 
         // Set oracle prices
         oracle.setIndexPrice(BTC, 50_000e18);
@@ -114,7 +114,7 @@ contract MarginEngineTest is Test {
 
     function test_createMarket_basic() public {
         vm.prank(owner);
-        marginEngine.createMarket(ETH, 0.20e18, 0.05e18, 5_000_000e18);
+        marginEngine.createMarket(ETH, 0.20e18, 0.05e18, 5_000_000e18, 1_000_000e18);
 
         IMarginEngine.MarketParams memory p = marginEngine.getMarketParams(ETH);
         assertEq(p.initialMarginRate, 0.20e18);
@@ -126,37 +126,37 @@ contract MarginEngineTest is Test {
     function test_createMarket_revert_alreadyExists() public {
         vm.prank(owner);
         vm.expectRevert("ME: market exists");
-        marginEngine.createMarket(BTC, 0.20e18, 0.05e18, 1e18);
+        marginEngine.createMarket(BTC, 0.20e18, 0.05e18, 1e18, 1_000_000e18);
     }
 
     function test_createMarket_revert_imrLeMmr() public {
         vm.prank(owner);
         vm.expectRevert("ME: IMR <= MMR");
-        marginEngine.createMarket(ETH, 0.05e18, 0.05e18, 1e18);
+        marginEngine.createMarket(ETH, 0.05e18, 0.05e18, 1e18, 1_000_000e18);
     }
 
     function test_createMarket_revert_zeroMmr() public {
         vm.prank(owner);
         vm.expectRevert("ME: zero MMR");
-        marginEngine.createMarket(ETH, 0.10e18, 0, 1e18);
+        marginEngine.createMarket(ETH, 0.10e18, 0, 1e18, 1_000_000e18);
     }
 
     function test_createMarket_revert_imrOver100() public {
         vm.prank(owner);
         vm.expectRevert("ME: IMR > 100%");
-        marginEngine.createMarket(ETH, WAD + 1, 0.50e18, 1e18);
+        marginEngine.createMarket(ETH, WAD + 1, 0.50e18, 1e18, 1_000_000e18);
     }
 
     function test_createMarket_revert_zeroMaxSize() public {
         vm.prank(owner);
         vm.expectRevert("ME: zero max size");
-        marginEngine.createMarket(ETH, 0.10e18, 0.05e18, 0);
+        marginEngine.createMarket(ETH, 0.10e18, 0.05e18, 0, 1_000_000e18);
     }
 
     function test_createMarket_revert_nonOwner() public {
         vm.prank(alice);
         vm.expectRevert();
-        marginEngine.createMarket(ETH, 0.10e18, 0.05e18, 1e18);
+        marginEngine.createMarket(ETH, 0.10e18, 0.05e18, 1e18, 1_000_000e18);
     }
 
     // ═══════════════════════════════════════════════════════
@@ -392,7 +392,7 @@ contract MarginEngineTest is Test {
         for (uint8 i = 0; i < 20; i++) {
             bytes32 mkt = keccak256(abi.encode("MKT", i));
             vm.prank(owner);
-            marginEngine.createMarket(mkt, 0.10e18, 0.05e18, 100_000_000e18);
+            marginEngine.createMarket(mkt, 0.10e18, 0.05e18, 100_000_000e18, 1_000_000e18);
             oracle.setIndexPrice(mkt, 100e18);
             oracle.setMarkPrice(mkt, 100e18);
             vm.prank(owner);
@@ -404,7 +404,7 @@ contract MarginEngineTest is Test {
         // 21st market should fail
         bytes32 mkt21 = keccak256(abi.encode("MKT", uint8(20)));
         vm.prank(owner);
-        marginEngine.createMarket(mkt21, 0.10e18, 0.05e18, 100_000_000e18);
+        marginEngine.createMarket(mkt21, 0.10e18, 0.05e18, 100_000_000e18, 1_000_000e18);
         oracle.setIndexPrice(mkt21, 100e18);
 
         vm.prank(matcher);
@@ -587,7 +587,7 @@ contract MarginEngineTest is Test {
 
     function test_getSubaccountMarkets_multipleMarkets() public {
         vm.prank(owner);
-        marginEngine.createMarket(ETH, 0.10e18, 0.05e18, 10_000_000e18);
+        marginEngine.createMarket(ETH, 0.10e18, 0.05e18, 10_000_000e18, 1_000_000e18);
         oracle.setIndexPrice(ETH, 3000e18);
         oracle.setMarkPrice(ETH, 3000e18);
         vm.prank(owner);

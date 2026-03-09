@@ -59,6 +59,14 @@ contract ShariahRegistry is IShariahRegistry, Ownable2Step {
     /// @notice Emergency halt flag
     bool private _halted;
 
+    /// AUDIT FIX (P10-M-6): Governance override for permanent halt.
+    /// If the Shariah board goes dark or becomes unresponsive, the protocol can be
+    /// permanently frozen. The owner (DAO governance) may propose an un-halt override;
+    /// after HALT_OVERRIDE_DELAY has elapsed without board action, executeHaltOverride()
+    /// can be called to resume trading. The board can still halt again at any time.
+    uint256 public constant HALT_OVERRIDE_DELAY = 48 hours;
+    uint256 public haltOverrideProposedAt; // 0 = no pending override
+
     /// @notice MarginEngine reference (for leverage validation)
     IMarginEngine public marginEngine;
 
@@ -75,6 +83,10 @@ contract ShariahRegistry is IShariahRegistry, Ownable2Step {
     event FatwaCidSet(string cid);
     event ShariahBoardSet(address indexed board);
     event ProtocolHalted(bool halted);
+    /// AUDIT FIX (P10-M-6): Governance override events
+    event HaltOverrideProposed(uint256 executeAfter);
+    event HaltOverrideCancelled();
+    event HaltOverrideExecuted();
 
     // ─────────────────────────────────────────────────────
     // Modifiers
@@ -148,9 +160,44 @@ contract ShariahRegistry is IShariahRegistry, Ownable2Step {
     }
 
     /// @notice Emergency halt — freezes all trading immediately.
+    /// Halt is instant (emergency use). Un-halt also goes through board, but owner
+    /// has a timelock-gated override for the case where board becomes unresponsive.
     function setHalt(bool halted) external onlyShariahBoard {
         _halted = halted;
+        // If board un-halts, cancel any pending governance override
+        if (!halted && haltOverrideProposedAt != 0) {
+            haltOverrideProposedAt = 0;
+            emit HaltOverrideCancelled();
+        }
         emit ProtocolHalted(halted);
+    }
+
+    /// AUDIT FIX (P10-M-6): Owner proposes a governance halt override.
+    /// Only meaningful when protocol is halted. Starts the 48-hour countdown.
+    /// The board can still call setHalt(false) to cancel this before it executes.
+    function proposeHaltOverride() external onlyOwner {
+        require(_halted, "SR: not halted");
+        require(haltOverrideProposedAt == 0, "SR: override already pending");
+        haltOverrideProposedAt = block.timestamp;
+        emit HaltOverrideProposed(block.timestamp + HALT_OVERRIDE_DELAY);
+    }
+
+    /// AUDIT FIX (P10-M-6): Execute the governance override after the delay has elapsed.
+    /// Resumes trading. The board retains the ability to re-halt immediately after.
+    function executeHaltOverride() external onlyOwner {
+        require(haltOverrideProposedAt != 0, "SR: no override pending");
+        require(block.timestamp >= haltOverrideProposedAt + HALT_OVERRIDE_DELAY, "SR: override delay not elapsed");
+        haltOverrideProposedAt = 0;
+        _halted = false;
+        emit HaltOverrideExecuted();
+        emit ProtocolHalted(false);
+    }
+
+    /// AUDIT FIX (P10-M-6): Owner can cancel a pending override (governance changed mind).
+    function cancelHaltOverride() external onlyOwner {
+        require(haltOverrideProposedAt != 0, "SR: no override pending");
+        haltOverrideProposedAt = 0;
+        emit HaltOverrideCancelled();
     }
 
     /// AUDIT FIX (P5-H-3): Prevent ownership renouncement — contract requires owner for admin operations.

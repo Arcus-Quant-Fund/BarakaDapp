@@ -187,6 +187,7 @@ contract FundingEngineTest is Test {
 
     function test_updateFunding_freezesDuringStaleOracle() public {
         oracle.setMarkPrice(BTC, 51_000e18);
+        oracle.setIndexPrice(BTC, 50_000e18);
 
         fundingEngine.updateFunding(BTC);
         vm.warp(block.timestamp + 1 hours);
@@ -194,7 +195,7 @@ contract FundingEngineTest is Test {
         // Make oracle stale
         oracle.setIndexPrice(BTC, 0);
 
-        // Should return unchanged index (clock frozen)
+        // Should return unchanged index (clock frozen, wasStale flag set)
         int256 idx = fundingEngine.updateFunding(BTC);
         assertEq(idx, 0);
 
@@ -202,10 +203,16 @@ contract FundingEngineTest is Test {
         oracle.setIndexPrice(BTC, 50_000e18);
         vm.warp(block.timestamp + 4 hours);
 
-        // Now funding accrues for total elapsed since last real update (5h, capped to 8h)
+        // P10-M-7: First call after recovery resets the clock without accruing.
+        // Prevents a retroactive funding spike at post-recovery rates for the entire outage duration.
         idx = fundingEngine.updateFunding(BTC);
-        // rate = 0.02, elapsed = 5h = 18000s, accrual = 0.02 * 18000 / 28800 = 0.0125
-        assertEq(idx, 0.0125e18);
+        assertEq(idx, 0, "P10-M-7: no retroactive spike on oracle recovery");
+
+        // Normal accrual resumes from the reset point
+        vm.warp(block.timestamp + FUNDING_PERIOD);
+        idx = fundingEngine.updateFunding(BTC);
+        // rate = 0.02, elapsed = 8h, accrual = 0.02 * 28800 / 28800 = 0.02
+        assertEq(idx, 0.02e18, "P10-M-7: normal accrual resumes after recovery");
     }
 
     // ═══════════════════════════════════════════════════════

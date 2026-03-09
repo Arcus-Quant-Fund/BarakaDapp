@@ -106,6 +106,8 @@ contract MatchingEngine is Ownable2Step, Pausable, ReentrancyGuard {
     /// AUDIT FIX (P3-CLOB-6): Emitted when a maker's updatePosition reverts (insolvent maker).
     /// The maker order is cancelled and the taker fill continues uninterrupted.
     event MakerCancelledInsolvent(bytes32 indexed marketId, bytes32 indexed makerOrderId, bytes32 indexed makerSubaccount);
+    /// AUDIT FIX (P10-C-1): Emitted when taker reversal fails after insolvent maker — OI invariant broken.
+    event TakerReversalFailed(bytes32 indexed marketId, bytes32 indexed takerSubaccount, int256 takerDelta);
 
     // ─────────────────────────────────────────────────────
     // Constructor
@@ -181,7 +183,14 @@ contract MatchingEngine is Ownable2Step, Pausable, ReentrancyGuard {
         commitRevealEnabled[marketId] = enabled;
     }
 
+    /// AUDIT FIX (P10-H-6 + P10-L-2): Enforce min=1 and max=256 on commitRevealDelay.
+    /// Min=1: delay=0 allows same-block commit+reveal, defeating MEV protection entirely.
+    /// Max=256: reveal window is [commitBlock+delay, commitBlock+delay+256]. If delay>256,
+    /// the window opens AFTER the commit has already expired — all commits become permanently
+    /// unrevealable, bricking all commit-reveal markets.
     function setCommitRevealDelay(uint256 blocks) external onlyOwner {
+        require(blocks >= 1,   "MaE: delay must be >= 1 block");
+        require(blocks <= 256, "MaE: delay exceeds commit reveal window");
         commitRevealDelay = blocks;
     }
 
@@ -272,7 +281,11 @@ contract MatchingEngine is Ownable2Step, Pausable, ReentrancyGuard {
         require(commitRevealEnabled[marketId], "MaE: commit-reveal not enabled");
 
         // Verify commit
+        /// AUDIT FIX (P10-H-5): Include block.chainid and address(this) for domain separation.
+        /// Without these, a commit on Ethereum mainnet has the same hash on Arbitrum — an observer
+        /// can replay a valid testnet commit on mainnet. This mirrors EIP-712 domain separator.
         bytes32 commitHash = keccak256(abi.encodePacked(
+            block.chainid, address(this),
             marketId, subaccount, side, price, size, orderType, tif, nonce, msg.sender
         ));
         uint256 commitBlock = commits[commitHash];
@@ -348,6 +361,15 @@ contract MatchingEngine is Ownable2Step, Pausable, ReentrancyGuard {
             require(complianceOracle.isCompliant(marketId), "ME: market not compliant");
         }
 
+        /// AUDIT FIX (P9-M-1): Block self-trading (same owner on both sides).
+        /// Prevents cross-account opposing position attacks where an attacker opens
+        /// long+short via two subaccounts, liquidates the losing side, and profits from
+        /// the winning side. Real-world ref: Mango Markets $117M exploit pattern.
+        require(
+            subaccountManager.getOwner(fill.takerSubaccount) != subaccountManager.getOwner(fill.makerSubaccount),
+            "MaE: self-trade not allowed"
+        );
+
         // Determine maker/taker sides
         int256 takerDelta;
         int256 makerDelta;
@@ -364,11 +386,15 @@ contract MatchingEngine is Ownable2Step, Pausable, ReentrancyGuard {
         marginEngine.updatePosition(fill.takerSubaccount, marketId, takerDelta, fill.price);
 
         // P3-CLOB-6 FIX: Insolvent maker must not revert taker — cancel and skip.
-        // AUDIT FIX (P3-CLOB-6): Wrap maker's updatePosition in try/catch. If the maker has gone
-        // insolvent between order placement and fill execution, their updatePosition will revert.
-        // Without this guard that revert propagates to the taker, DOSing their fill entirely.
-        // On revert: cancel the maker's resting order and emit an event; taker fill continues.
+        // AUDIT FIX (P10-C-1): Track whether fill fully settled via makerSucceeded flag.
+        // Oracle update and fee charging must ONLY occur when both sides committed.
+        // Previously, oracle.updateMarkPrice() and feeEngine.processTradeFees() were called
+        // unconditionally — even when the maker reverted and the taker position was reversed.
+        // This caused phantom mark price updates and fee charges for fills that never settled,
+        // enabling oracle manipulation and free-fee extraction by griefing the maker side.
+        bool makerSucceeded = false;
         try marginEngine.updatePosition(fill.makerSubaccount, marketId, makerDelta, fill.price) {
+            makerSucceeded = true;
             /// AUDIT FIX (P7-M-2): Register both taker and maker as market participants
             /// for ADL ranking. Without this, ADL iterates an empty list and cannot cover
             /// shortfalls when InsuranceFund is exhausted.
@@ -381,30 +407,42 @@ contract MatchingEngine is Ownable2Step, Pausable, ReentrancyGuard {
             /// Without reversal, the taker holds an open position with no counterparty: open interest
             /// becomes asymmetric, funding settlement diverges, and the system cannot be made whole.
             /// Reversal uses -takerDelta to exactly unwind the position just applied above.
-            /// Wrapped in try/catch: if the reversal itself fails (extreme edge case), we still
-            /// cancel the maker order and emit the event to keep state as consistent as possible.
-            try marginEngine.updatePosition(fill.takerSubaccount, marketId, -takerDelta, fill.price) {} catch {}
+            bool reversed = false;
+            try marginEngine.updatePosition(fill.takerSubaccount, marketId, -takerDelta, fill.price) {
+                reversed = true;
+            } catch {}
+            /// AUDIT FIX (P10-C-1): Emit TakerReversalFailed when taker unwind also fails.
+            /// This is an extreme edge case (taker went insolvent between fill dispatch and reversal)
+            /// but must be surfaced so the protocol can be manually reconciled rather than silently
+            /// accumulating un-backed open interest.
+            if (!reversed) {
+                emit TakerReversalFailed(marketId, fill.takerSubaccount, takerDelta);
+            }
             IOrderBook ob = orderBooks[marketId];
             try ob.cancelOrder(fill.makerOrderId) {} catch {}
             emit MakerCancelledInsolvent(marketId, fill.makerOrderId, fill.makerSubaccount);
         }
 
-        // Update EWMA mark price in oracle
-        /// AUDIT FIX (P2-HIGH-6): Feed each fill price into oracle EWMA. Without this call,
-        /// mark price is stuck at the initial value and funding rates are wrong.
-        if (address(oracle) != address(0)) {
-            try oracle.updateMarkPrice(marketId, fill.price) {} catch {}
-        }
+        // Only update oracle and charge fees when the fill actually settled on both sides.
+        // AUDIT FIX (P10-C-1): Gate oracle + fee calls behind makerSucceeded.
+        if (makerSucceeded) {
+            // Update EWMA mark price in oracle
+            /// AUDIT FIX (P2-HIGH-6): Feed each fill price into oracle EWMA. Without this call,
+            /// mark price is stuck at the initial value and funding rates are wrong.
+            if (address(oracle) != address(0)) {
+                try oracle.updateMarkPrice(marketId, fill.price) {} catch {}
+            }
 
-        // Charge fees via FeeEngine (if set)
-        // AUDIT FIX (L1B-H-3): Use processTradeFees (atomic taker+maker) to avoid phantom balance
-        // AUDIT FIX (L1-M-8): Try/catch — fee failure should not brick trading
-        if (address(feeEngine) != address(0)) {
-            /// AUDIT FIX (P2-HIGH-7): Use Math.mulDiv to prevent overflow on extreme size×price products
-            uint256 notional = Math.mulDiv(fill.size, fill.price, 1e18);
-            try feeEngine.processTradeFees(fill.takerSubaccount, fill.makerSubaccount, notional) {
-            } catch {
-                emit FeeProcessingFailed(marketId, fill.takerSubaccount, fill.makerSubaccount);
+            // Charge fees via FeeEngine (if set)
+            // AUDIT FIX (L1B-H-3): Use processTradeFees (atomic taker+maker) to avoid phantom balance
+            // AUDIT FIX (L1-M-8): Try/catch — fee failure should not brick trading
+            if (address(feeEngine) != address(0)) {
+                /// AUDIT FIX (P2-HIGH-7): Use Math.mulDiv to prevent overflow on extreme size×price products
+                uint256 notional = Math.mulDiv(fill.size, fill.price, 1e18);
+                try feeEngine.processTradeFees(fill.takerSubaccount, fill.makerSubaccount, notional) {
+                } catch {
+                    emit FeeProcessingFailed(marketId, fill.takerSubaccount, fill.makerSubaccount);
+                }
             }
         }
     }

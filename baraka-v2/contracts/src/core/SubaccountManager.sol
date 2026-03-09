@@ -3,6 +3,7 @@ pragma solidity ^0.8.24;
 
 import "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
 import "../interfaces/ISubaccountManager.sol";
+import "../interfaces/IOrderBook.sol";
 
 /**
  * @title SubaccountManager
@@ -35,12 +36,16 @@ contract SubaccountManager is ISubaccountManager, ReentrancyGuard {
     /// @notice owner → count of created subaccounts
     mapping(address => uint256) private _counts;
 
+    /// AUDIT FIX (P10-H-7): Registered orderbooks — iterated in closeSubaccount to cancel resting orders.
+    address[] private _registeredOrderBooks;
+
     // ─────────────────────────────────────────────────────
     // Events
     // ─────────────────────────────────────────────────────
 
     event SubaccountCreated(address indexed owner, uint8 index, bytes32 indexed subaccountId);
     event SubaccountClosed(address indexed owner, uint8 index, bytes32 indexed subaccountId);
+    event OrderBookRegistered(address indexed orderBook);
 
     // ─────────────────────────────────────────────────────
     // Core
@@ -62,15 +67,40 @@ contract SubaccountManager is ISubaccountManager, ReentrancyGuard {
     /// Closed subaccounts can be re-created via createSubaccount().
     /// @dev Owner mapping preserved intentionally — downstream contracts use getOwner()
     ///      for position management. Closing only affects the `exists` flag and count.
+    /// AUDIT FIX (P10-H-7): Cancel all resting orders before closing. Without this,
+    /// orders placed by a closed subaccount remain live in the orderbook. When filled,
+    /// MatchingEngine's existence check (P7-L-2) fires at settlement — the order was
+    /// already placed and sits in the book unguarded until matched or manually cancelled.
     function closeSubaccount(uint8 index) external {
         bytes32 subaccountId = getSubaccountId(msg.sender, index);
         require(_exists[subaccountId], "SAM: not exists");
         require(_owners[subaccountId] == msg.sender, "SAM: not owner");
 
+        for (uint256 i = 0; i < _registeredOrderBooks.length; i++) {
+            try IOrderBook(_registeredOrderBooks[i]).cancelAllOrders(subaccountId) {} catch {}
+        }
+
         _exists[subaccountId] = false;
         _counts[msg.sender]--;
 
         emit SubaccountClosed(msg.sender, index, subaccountId);
+    }
+
+    /// AUDIT FIX (P10-H-7): Register an orderbook for resting-order cancellation on subaccount close.
+    /// Permissionless — any contract can self-register. Malicious registrations are harmless:
+    /// cancelAllOrders() in the try/catch silently fails if the caller lacks permission or
+    /// the subaccount has no orders. Duplicate registration is deduplicated inline.
+    function registerOrderBook(address ob) external {
+        require(ob != address(0), "SAM: zero orderbook");
+        /// AUDIT FIX (P12-SAM-1): Cap array length to prevent gas exhaustion in closeSubaccount().
+        /// An adversary registering hundreds of dummy addresses would cause closeSubaccount() to
+        /// iterate the full array, potentially consuming block gas limit via the try/catch loop.
+        require(_registeredOrderBooks.length < 32, "SAM: too many orderbooks");
+        for (uint256 i = 0; i < _registeredOrderBooks.length; i++) {
+            if (_registeredOrderBooks[i] == ob) return;
+        }
+        _registeredOrderBooks.push(ob);
+        emit OrderBookRegistered(ob);
     }
 
     // ─────────────────────────────────────────────────────

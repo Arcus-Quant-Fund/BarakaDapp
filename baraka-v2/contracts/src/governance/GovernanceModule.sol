@@ -25,6 +25,10 @@ contract GovernanceModule is ReentrancyGuard {
     uint256 public constant QUORUM_BPS = 400;       // 4%
     uint256 public constant MIN_VOTING_PERIOD = 48 hours;
     uint256 public constant PROPOSAL_EXPIRY = 14 days;
+    /// AUDIT FIX (P12-GM-1): Maximum time after creation during which a proposal can be queued.
+    /// Without this, a winning proposal could be queued months after the voting window closed.
+    /// 14 days = 7-day voting window + 7-day buffer. Proposals not queued within this window expire.
+    uint256 public constant QUEUE_DEADLINE = 14 days;
     uint256 public constant MIN_PROPOSER_BALANCE = 1e18;
     /// AUDIT FIX (GOV-H-3): Snapshot delay prevents 1-block flash loan governance attacks
     uint256 public constant SNAPSHOT_DELAY = 256;
@@ -156,6 +160,8 @@ contract GovernanceModule is ReentrancyGuard {
         }
 
         require(block.timestamp >= p.createdAt + MIN_VOTING_PERIOD, "Governance: voting period not over");
+        /// AUDIT FIX (P12-GM-1): Proposals must be queued within QUEUE_DEADLINE of creation.
+        require(block.timestamp <= p.createdAt + QUEUE_DEADLINE, "Governance: queue deadline passed");
 
         p.status = ProposalStatus.Queued;
         p.queuedAt = block.timestamp;

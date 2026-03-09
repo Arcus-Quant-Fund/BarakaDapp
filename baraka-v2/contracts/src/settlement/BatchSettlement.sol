@@ -174,6 +174,13 @@ contract BatchSettlement is Ownable2Step, ReentrancyGuard {
 
     /// AUDIT FIX (P5-H-12): External wrapper for try/catch in settleBatch.
     /// Only callable by this contract (self-call from settleBatch loop).
+    /// AUDIT NOTE (P10-M-4): `nonReentrant` cannot be added here because `settleBatch`
+    /// already holds the ReentrancyGuard lock when it makes `this.settleOneExternal()` calls;
+    /// a second `nonReentrant` on this function would cause every settlement to revert.
+    /// Reentrancy into this function is already blocked by two independent guards:
+    ///   1. `msg.sender == address(this)` — no external contract can call this directly.
+    ///   2. `settleBatch`'s `nonReentrant` — the outer lock is held for the entire batch duration;
+    ///      any reentrant call to `settleBatch` (the only authorised entry point) is rejected.
     function settleOneExternal(SettlementItem calldata item) external {
         require(msg.sender == address(this), "BS: self-call only");
         _settleOne(item);
