@@ -71,6 +71,10 @@ contract FeeEngine is IFeeEngine, Ownable2Step {
     event TakerFeeCharged(bytes32 indexed subaccount, uint256 notional, uint256 fee);
     event MakerRebatePaid(bytes32 indexed subaccount, uint256 notional, uint256 rebate);
     event FeeSplitUpdated(uint256 treasury, uint256 insurance, uint256 staker);
+    /// AUDIT FIX (P13-FE-1): Add missing admin events for observability.
+    event AuthorisedSet(address indexed caller, bool status);
+    event BRKXTokenSet(address indexed token);
+    event TierUpdated(uint256 indexed index, uint256 minBRKX, uint256 takerBps, uint256 makerBps);
 
     // ─────────────────────────────────────────────────────
     // Constructor
@@ -107,6 +111,7 @@ contract FeeEngine is IFeeEngine, Ownable2Step {
     function setAuthorised(address caller, bool status) external onlyOwner {
         require(caller != address(0), "FE: zero address");
         authorised[caller] = status;
+        emit AuthorisedSet(caller, status);
     }
 
     function setRecipients(address _treasury, address _insuranceFund, address _stakerPool) external onlyOwner {
@@ -126,6 +131,7 @@ contract FeeEngine is IFeeEngine, Ownable2Step {
 
     function setBRKXToken(address _brkx) external onlyOwner {
         brkxToken = _brkx;
+        emit BRKXTokenSet(_brkx);
     }
 
     function setTier(uint256 index, uint256 minBRKX, uint256 takerBps, uint256 makerBps) external onlyOwner {
@@ -138,6 +144,7 @@ contract FeeEngine is IFeeEngine, Ownable2Step {
             require(minBRKX < _tiers[index + 1].minBRKX, "FE: tier threshold not increasing");
         }
         _tiers[index] = FeeTier(minBRKX, takerBps, makerBps);
+        emit TierUpdated(index, minBRKX, takerBps, makerBps);
     }
 
     /// AUDIT FIX (P5-H-3): Prevent ownership renouncement — contract requires owner for admin operations.

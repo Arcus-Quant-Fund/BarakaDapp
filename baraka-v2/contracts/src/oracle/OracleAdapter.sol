@@ -69,6 +69,11 @@ contract OracleAdapter is IOracleAdapter, Ownable2Step {
     event MarketOracleSet(bytes32 indexed marketId, address priceFeed, uint256 heartbeat);
     event IndexPriceUpdated(bytes32 indexed marketId, uint256 price);
     event MarkPriceUpdated(bytes32 indexed marketId, uint256 price);
+    /// AUDIT FIX (P13-OA-1): Add missing admin events for observability.
+    event AuthorisedSet(address indexed caller, bool status);
+    event MarkEwmaAlphaUpdated(uint256 alpha);
+    event SequencerUptimeFeedSet(address indexed feed);
+    event MaxPriceDeviationSet(uint256 deviation);
 
     // ─────────────────────────────────────────────────────
     // Constructor
@@ -106,6 +111,7 @@ contract OracleAdapter is IOracleAdapter, Ownable2Step {
 
     function setAuthorised(address caller, bool status) external onlyOwner {
         authorised[caller] = status;
+        emit AuthorisedSet(caller, status);
     }
 
     /// AUDIT FIX (P2-HIGH-8): Prevent ownership renouncement — OracleAdapter requires owner for market setup.
@@ -117,11 +123,13 @@ contract OracleAdapter is IOracleAdapter, Ownable2Step {
     function setMarkEwmaAlpha(uint256 alpha) external onlyOwner {
         require(alpha > 0 && alpha <= 0.20e18, "OA: alpha out of range (max 20%)");
         markEwmaAlpha = alpha;
+        emit MarkEwmaAlphaUpdated(alpha);
     }
 
     /// AUDIT FIX (P5-H-5): Set Arbitrum L2 Sequencer Uptime Feed address. address(0) disables check.
     function setSequencerUptimeFeed(address feed) external onlyOwner {
         sequencerUptimeFeed = feed;
+        emit SequencerUptimeFeedSet(feed);
     }
 
     /// @notice P9-H-2: Set circuit breaker max price deviation (WAD). 0 = disabled.
@@ -129,6 +137,7 @@ contract OracleAdapter is IOracleAdapter, Ownable2Step {
     function setMaxPriceDeviation(uint256 deviation) external onlyOwner {
         require(deviation <= 0.50e18, "OA: deviation > 50%");
         maxPriceDeviation = deviation;
+        emit MaxPriceDeviationSet(deviation);
     }
 
     // ─────────────────────────────────────────────────────
