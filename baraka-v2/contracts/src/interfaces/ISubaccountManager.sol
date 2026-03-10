@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: MIT
+// SPDX-License-Identifier: BUSL-1.1
 pragma solidity ^0.8.24;
 
 /**
@@ -15,8 +15,10 @@ interface ISubaccountManager {
     }
 
     function createSubaccount(uint8 index) external returns (bytes32 subaccountId);
-    function getSubaccountId(address owner, uint8 index) external pure returns (bytes32);
+    /// AUDIT FIX (P19-L-2): Renamed `owner` → `user` to avoid shadowing Ownable2Step.owner().
+    function getSubaccountId(address user, uint8 index) external pure returns (bytes32);
     function getOwner(bytes32 subaccountId) external view returns (address);
     function exists(bytes32 subaccountId) external view returns (bool);
-    function subaccountCount(address owner) external view returns (uint256);
+    /// AUDIT FIX (P19-L-2): Renamed `owner` → `user` to avoid shadowing Ownable2Step.owner().
+    function subaccountCount(address user) external view returns (uint256);
 }

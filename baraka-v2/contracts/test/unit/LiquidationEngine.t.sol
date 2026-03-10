@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: MIT
+// SPDX-License-Identifier: BUSL-1.1
 pragma solidity ^0.8.24;
 
 import "forge-std/Test.sol";
@@ -119,6 +119,7 @@ contract LiquidationEngineTest is Test {
         marginEngine.setAuthorised(address(matchingEngine), true);
         marginEngine.setAuthorised(address(liquidationEngine), true);
         marginEngine.setAuthorised(address(adl), true);
+        marginEngine.setLiquidationEngine(address(liquidationEngine));
 
         // --- Market creation ---
         // IMR = 20% (5x), MMR = 5% (20x maintenance)

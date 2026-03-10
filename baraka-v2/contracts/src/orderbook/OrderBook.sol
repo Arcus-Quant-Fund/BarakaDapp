@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: MIT
+// SPDX-License-Identifier: BUSL-1.1
 pragma solidity ^0.8.24;
 
 import "@openzeppelin/contracts/access/Ownable2Step.sol";
@@ -54,6 +54,11 @@ contract OrderBook is IOrderBook, Ownable2Step, Pausable, ReentrancyGuard {
     /// _subaccountOrders growth. Market makers with hundreds of GTC orders per day cause
     /// the array to grow to thousands of entries, making cancelAllOrders() hit gas limits.
     uint256 public constant MAX_ACTIVE_ORDERS = 200;
+
+    /// AUDIT FIX (P17-HIGH-2): Auto-compaction threshold for _subaccountOrders.
+    /// When array length exceeds this, dead entries are compacted inline on next restOrder.
+    /// Set at 2× MAX_ACTIVE_ORDERS — at most half the array is dead entries before compaction.
+    uint256 public constant AUTO_COMPACT_THRESHOLD = 400;
 
     // ─────────────────────────────────────────────────────
     // Types
@@ -566,6 +571,14 @@ contract OrderBook is IOrderBook, Ownable2Step, Pausable, ReentrancyGuard {
         /// AUDIT FIX (P6-I-1): Track active order for cancelAllOrders().
         _subaccountOrders[subaccount].push(orderId);
 
+        /// AUDIT FIX (P17-HIGH-2): Auto-compact when dead entries accumulate.
+        /// After ~75 days of active trading without external compactOrders() calls,
+        /// _subaccountOrders bloats with filled/cancelled entries, making cancelAllOrders()
+        /// exceed gas limits. Auto-compact inline when array exceeds threshold.
+        if (_subaccountOrders[subaccount].length > AUTO_COMPACT_THRESHOLD) {
+            _autoCompact(subaccount);
+        }
+
         if (side == Side.Buy) {
             _addToLevel(bidLevels[price], orderId, size);
             if (!bidLevels[price].exists) {
@@ -715,6 +728,11 @@ contract OrderBook is IOrderBook, Ownable2Step, Pausable, ReentrancyGuard {
                 bidLevels[price].exists = false;
                 bidLevels[price].headOrderId = bytes32(0);
                 bidLevels[price].tailOrderId = bytes32(0);
+                /// AUDIT FIX (P20-L-2): Zero orderCount when removing empty level.
+                /// Previously, stale orderCount persisted after level removal. If the same
+                /// price level was re-added, it inherited the old count, causing level.orderCount
+                /// to desync from actual orders and potentially hitting MAX_ORDERS_PER_LEVEL early.
+                bidLevels[price].orderCount = 0;
             }
         }
         while (_bidPrices.length > write) _bidPrices.pop();
@@ -734,6 +752,8 @@ contract OrderBook is IOrderBook, Ownable2Step, Pausable, ReentrancyGuard {
                 askLevels[price].exists = false;
                 askLevels[price].headOrderId = bytes32(0);
                 askLevels[price].tailOrderId = bytes32(0);
+                /// AUDIT FIX (P20-L-2): Zero orderCount when removing empty level.
+                askLevels[price].orderCount = 0;
             }
         }
         while (_askPrices.length > write) _askPrices.pop();
@@ -747,7 +767,11 @@ contract OrderBook is IOrderBook, Ownable2Step, Pausable, ReentrancyGuard {
     /// periodically to prevent unbounded array growth from accumulating dead entries.
     function compactOrders(bytes32 subaccount) external nonReentrant {
         require(authorised[msg.sender], "OB: not authorised");
+        _autoCompact(subaccount);
+    }
 
+    /// AUDIT FIX (P17-HIGH-2): Internal auto-compaction — shared by compactOrders() and _restOrder().
+    function _autoCompact(bytes32 subaccount) internal {
         bytes32[] storage orderIds = _subaccountOrders[subaccount];
         uint256 write = 0;
         for (uint256 read = 0; read < orderIds.length; read++) {
@@ -785,8 +809,10 @@ contract OrderBook is IOrderBook, Ownable2Step, Pausable, ReentrancyGuard {
         return (_bidPrices[0] + _askPrices[0]) / 2;
     }
 
+    /// AUDIT FIX (P18-M-6): Guard against underflow on crossed book (best bid >= best ask)
     function spread() external view override returns (uint256) {
         if (_bidPrices.length == 0 || _askPrices.length == 0) return type(uint256).max;
+        if (_askPrices[0] <= _bidPrices[0]) return 0;
         return _askPrices[0] - _bidPrices[0];
     }
 

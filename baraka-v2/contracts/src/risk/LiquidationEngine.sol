@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: MIT
+// SPDX-License-Identifier: BUSL-1.1
 pragma solidity ^0.8.24;
 
 import "@openzeppelin/contracts/access/Ownable2Step.sol";
@@ -153,21 +153,121 @@ contract LiquidationEngine is ILiquidationEngine, Ownable2Step, Pausable, Reentr
     // Admin
     // ─────────────────────────────────────────────────────
 
+    /// AUDIT FIX (P19-M-9): After finalize(), instant setters disabled — only timelocked paths work.
+    bool public finalized;
+
+    function finalize() external onlyOwner {
+        finalized = true;
+    }
+
     /// AUDIT FIX (L3-L-1): Validate ADL address — zero address corrupts liquidation cascade
     function setADL(address _adl) external onlyOwner {
+        require(!finalized, "LE: use timelocked update");
         require(_adl != address(0), "LE: zero ADL");
         adl = IAutoDeleveraging(_adl);
     }
 
     function setInsuranceFund(address _if) external onlyOwner {
+        require(!finalized, "LE: use timelocked update");
         require(_if != address(0), "LE: zero IF");
         insuranceFund = _if;
     }
 
     /// AUDIT FIX (P7-L-1): Set FundingEngine for funding-aware shortfall computation.
     function setFundingEngine(address _fundingEngine) external onlyOwner {
+        require(!finalized, "LE: use timelocked update");
         require(_fundingEngine != address(0), "LE: zero FE");
         fundingEngine = IFundingEngine(_fundingEngine);
+    }
+
+    /// AUDIT FIX (P19-M-9): Timelocked ADL update — consistent with oracle/ME timelocks.
+    address public pendingADL;
+    uint256 public pendingADLTimestamp;
+    event ADLUpdateInitiated(address indexed newADL, uint256 effectiveTime);
+    event ADLUpdated(address indexed newADL);
+    event ADLUpdateCancelled(address indexed cancelled);
+
+    function initiateADLUpdate(address newADL) external onlyOwner {
+        require(newADL != address(0), "LE: zero ADL");
+        pendingADL = newADL;
+        pendingADLTimestamp = block.timestamp;
+        emit ADLUpdateInitiated(newADL, block.timestamp + DEPENDENCY_TIMELOCK);
+    }
+
+    function applyADLUpdate() external onlyOwner {
+        require(pendingADL != address(0), "LE: no pending update");
+        require(block.timestamp >= pendingADLTimestamp + DEPENDENCY_TIMELOCK, "LE: timelock active");
+        adl = IAutoDeleveraging(pendingADL);
+        emit ADLUpdated(pendingADL);
+        pendingADL = address(0);
+        pendingADLTimestamp = 0;
+    }
+
+    function cancelADLUpdate() external onlyOwner {
+        require(pendingADL != address(0), "LE: no pending update");
+        emit ADLUpdateCancelled(pendingADL);
+        pendingADL = address(0);
+        pendingADLTimestamp = 0;
+    }
+
+    /// AUDIT FIX (P19-M-9): Timelocked InsuranceFund update.
+    address public pendingInsuranceFund;
+    uint256 public pendingInsuranceFundTimestamp;
+    event InsuranceFundUpdateInitiated(address indexed newIF, uint256 effectiveTime);
+    event InsuranceFundUpdated(address indexed newIF);
+    event InsuranceFundUpdateCancelled(address indexed cancelled);
+
+    function initiateInsuranceFundUpdate(address newIF) external onlyOwner {
+        require(newIF != address(0), "LE: zero IF");
+        pendingInsuranceFund = newIF;
+        pendingInsuranceFundTimestamp = block.timestamp;
+        emit InsuranceFundUpdateInitiated(newIF, block.timestamp + DEPENDENCY_TIMELOCK);
+    }
+
+    function applyInsuranceFundUpdate() external onlyOwner {
+        require(pendingInsuranceFund != address(0), "LE: no pending update");
+        require(block.timestamp >= pendingInsuranceFundTimestamp + DEPENDENCY_TIMELOCK, "LE: timelock active");
+        insuranceFund = pendingInsuranceFund;
+        emit InsuranceFundUpdated(pendingInsuranceFund);
+        pendingInsuranceFund = address(0);
+        pendingInsuranceFundTimestamp = 0;
+    }
+
+    function cancelInsuranceFundUpdate() external onlyOwner {
+        require(pendingInsuranceFund != address(0), "LE: no pending update");
+        emit InsuranceFundUpdateCancelled(pendingInsuranceFund);
+        pendingInsuranceFund = address(0);
+        pendingInsuranceFundTimestamp = 0;
+    }
+
+    /// AUDIT FIX (P19-M-9): Timelocked FundingEngine update.
+    address public pendingFundingEngine;
+    uint256 public pendingFundingEngineTimestamp;
+    event FundingEngineUpdateInitiated(address indexed newFE, uint256 effectiveTime);
+    event FundingEngineUpdated_(address indexed newFE);
+    event FundingEngineUpdateCancelled_(address indexed cancelled);
+
+    function initiateFundingEngineUpdate(address newFE) external onlyOwner {
+        require(newFE != address(0), "LE: zero FE");
+        pendingFundingEngine = newFE;
+        pendingFundingEngineTimestamp = block.timestamp;
+        emit FundingEngineUpdateInitiated(newFE, block.timestamp + DEPENDENCY_TIMELOCK);
+    }
+
+    function applyFundingEngineUpdate() external onlyOwner {
+        require(pendingFundingEngine != address(0), "LE: no pending update");
+        require(block.timestamp >= pendingFundingEngineTimestamp + DEPENDENCY_TIMELOCK, "LE: timelock active");
+        fundingEngine = IFundingEngine(pendingFundingEngine);
+        emit FundingEngineUpdated_(pendingFundingEngine);
+        pendingFundingEngine = address(0);
+        pendingFundingEngineTimestamp = 0;
+    }
+
+    function cancelFundingEngineUpdate() external onlyOwner {
+        require(pendingFundingEngine != address(0), "LE: no pending update");
+        emit FundingEngineUpdateCancelled_(pendingFundingEngine);
+        pendingFundingEngine = address(0);
+        pendingFundingEngineTimestamp = 0;
     }
 
     function setLiquidationPenalty(uint256 rate) external onlyOwner {
@@ -212,6 +312,16 @@ contract LiquidationEngine is ILiquidationEngine, Ownable2Step, Pausable, Reentr
         pendingOracleTimestamp = 0;
     }
 
+    /// AUDIT FIX (P18-H-3): Cancel pending oracle update
+    /// AUDIT FIX (P19-M-2): Emit event for off-chain monitoring
+    function cancelOracleUpdate() external onlyOwner {
+        require(pendingOracle != address(0), "LE: no pending update");
+        emit OracleUpdateCancelled(pendingOracle);
+        pendingOracle = address(0);
+        pendingOracleTimestamp = 0;
+    }
+    event OracleUpdateCancelled(address indexed cancelled);
+
     /// AUDIT FIX (P16-UP-C2): Timelocked marginEngine update to prevent brick risk
     function initiateMarginEngineUpdate(address newMarginEngine) external onlyOwner {
         require(newMarginEngine != address(0), "LE: zero address");
@@ -228,6 +338,16 @@ contract LiquidationEngine is ILiquidationEngine, Ownable2Step, Pausable, Reentr
         pendingMarginEngine = address(0);
         pendingMarginEngineTimestamp = 0;
     }
+
+    /// AUDIT FIX (P18-H-3): Cancel pending marginEngine update
+    /// AUDIT FIX (P19-M-2): Emit event for off-chain monitoring
+    function cancelMarginEngineUpdate() external onlyOwner {
+        require(pendingMarginEngine != address(0), "LE: no pending update");
+        emit MarginEngineUpdateCancelled(pendingMarginEngine);
+        pendingMarginEngine = address(0);
+        pendingMarginEngineTimestamp = 0;
+    }
+    event MarginEngineUpdateCancelled(address indexed cancelled);
 
     // ─────────────────────────────────────────────────────
     // Core — liquidation
@@ -279,15 +399,12 @@ contract LiquidationEngine is ILiquidationEngine, Ownable2Step, Pausable, Reentr
         // AUDIT FIX (L3-H-3): Save original direction before close (position zeroed by updatePosition)
         bool wasLong = pos.size > 0;
 
-        // Capture balance before close for shortfall computation
-        uint256 balanceBeforeClose = vault.balance(subaccount, collateralToken);
-
-        /// AUDIT FIX (P7-L-1): Compute pending funding BEFORE close (position state is
-        /// modified by updatePosition). Funding settled inside updatePosition changes the
-        /// effective available collateral — ignoring it misstates shortfall.
-        int256 _pendingFunding;
-        if (address(fundingEngine) != address(0)) {
-            _pendingFunding = fundingEngine.getPendingFunding(marketId, pos.size, pos.entryFundingIndex);
+        /// AUDIT FIX (P17-H-1): Enable liquidation mode for full liquidation to prevent triple-dip.
+        /// MarginEngine accumulates shortfalls instead of calling IF directly, allowing a single
+        /// IF call below that respects the 10% per-event cap per liquidation (not per sub-call).
+        bool isFullLiq = (closeSize == absSize);
+        if (isFullLiq) {
+            marginEngine.setLiquidationMode(true);
         }
 
         // Execute the close via MarginEngine
@@ -337,46 +454,23 @@ contract LiquidationEngine is ILiquidationEngine, Ownable2Step, Pausable, Reentr
                 vault.chargeFee(subaccount, collateralToken, residual, insuranceFund);
             }
 
-            // Compute shortfall: loss that exceeded available collateral
-            // AUDIT FIX (P3-LIQ-2): Subtract actualPenalty from available collateral.
-            // AUDIT FIX (P7-L-1): Also subtract funding owed from available collateral.
-            // balanceBeforeClose was captured BEFORE updatePosition() which settles both
-            // funding AND PnL. If the bankrupt position owed funding, the actual collateral
-            // available to absorb losses is reduced by the funding amount.
-            uint256 shortfallTokens;
-            if (pnlRealized < 0) {
-                /// AUDIT FIX (P5-H-10): Ceiling division — floor truncation understates loss,
-                /// causing InsuranceFund/ADL to cover less than actual shortfall.
-                uint256 lossTokens = (uint256(-pnlRealized) + collateralScale - 1) / collateralScale;
-                uint256 availableCollateral = balanceBeforeClose > actualPenalty
-                    ? balanceBeforeClose - actualPenalty
-                    : 0;
-                /// AUDIT FIX (P7-L-1): Adjust for funding settled inside updatePosition.
-                /// Funding > 0 means position owed funding → reduces available collateral.
-                /// Funding < 0 means position received funding → increases available.
-                if (_pendingFunding > 0) {
-                    uint256 fundingTokens = uint256(_pendingFunding) / collateralScale;
-                    availableCollateral = availableCollateral > fundingTokens
-                        ? availableCollateral - fundingTokens
-                        : 0;
-                } else if (_pendingFunding < 0) {
-                    availableCollateral += uint256(-_pendingFunding) / collateralScale;
-                }
-                shortfallTokens = lossTokens > availableCollateral ? lossTokens - availableCollateral : 0;
-            }
+            /// AUDIT FIX (P17-H-1): Use ME's accumulated shortfall — exact token-level gap from
+            /// all vault.settlePnL caps during this liquidation. Replaces the previous theoretical
+            /// shortfall computation that could diverge from actual settlement reality.
+            /// Single IF call prevents triple-dip (funding + PnL + external = 3 × 10% = 30% drain).
+            uint256 shortfallTokens = marginEngine.consumeAccumulatedShortfall();
 
             if (shortfallTokens > 0) {
-                // AUDIT FIX (L3-H-4): Try InsuranceFund BEFORE ADL
+                // AUDIT FIX (L3-H-4): Try InsuranceFund BEFORE ADL — single call per liquidation
                 // Guard: only call if insuranceFund is a contract (not EOA)
                 if (insuranceFund != address(0) && insuranceFund.code.length > 0) {
                     try IInsuranceFund(insuranceFund).fundBalance(collateralToken) returns (uint256 ifBalance) {
                         uint256 covered = shortfallTokens > ifBalance ? ifBalance : shortfallTokens;
                         if (covered > 0) {
-                            /// AUDIT FIX (P15-M-14): Use returned actualCovered — IF may cap at 10% of pool.
+                            /// AUDIT FIX (P15-M-14): Use returned actualCovered — IF caps at 10% of pool.
                             uint256 actualCovered = IInsuranceFund(insuranceFund).coverShortfall(collateralToken, covered);
                             /// AUDIT FIX (P2-HIGH-9): Forward IF payout to Vault to back winner's
-                            /// phantom settlePnL credit. Without this, tokens sit in LiquidationEngine
-                            /// and Vault's actual token balance stays below sum of internal balances.
+                            /// phantom settlePnL credit.
                             IERC20(collateralToken).safeTransfer(address(vault), actualCovered);
                             shortfallTokens -= actualCovered;
                         }

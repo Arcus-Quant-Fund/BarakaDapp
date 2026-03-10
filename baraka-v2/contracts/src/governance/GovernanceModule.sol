@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: MIT
+// SPDX-License-Identifier: BUSL-1.1
 pragma solidity ^0.8.24;
 
 import "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
@@ -190,8 +190,17 @@ contract GovernanceModule is ReentrancyGuard {
         p.status = ProposalStatus.Executed;
 
         // AUDIT FIX (GOV-H-1): Was draining ALL ETH on every execution. Use value: 0.
-        (bool ok, bytes memory err) = p.target.call{value: 0}(p.callData);
-        require(ok, string(abi.encodePacked("Governance: execution failed: ", err)));
+        /// AUDIT FIX (P19-L-7): Bubble up raw revert data instead of garbling custom errors.
+        /// Previously used `string(abi.encodePacked("...", err))` which produces garbage for
+        /// ABI-encoded custom errors. Now re-throws the exact revert data from the target.
+        (bool ok, bytes memory returnData) = p.target.call{value: 0}(p.callData);
+        if (!ok) {
+            if (returnData.length > 0) {
+                assembly { revert(add(returnData, 32), mload(returnData)) }
+            } else {
+                revert("Governance: execution failed");
+            }
+        }
 
         emit ProposalExecuted(proposalId);
     }
@@ -237,7 +246,8 @@ contract GovernanceModule is ReentrancyGuard {
     }
 
     /// @notice Emergency pause any whitelisted Pausable contract. Shariah board only.
-    function emergencyPause(address target) external onlyShariahMultisig {
+    /// AUDIT FIX (P16-RE-L1): Added nonReentrant — these make arbitrary .call() to targets.
+    function emergencyPause(address target) external onlyShariahMultisig nonReentrant {
         require(target != address(0), "Governance: zero target");
         require(pausableTargets[target], "Governance: target not whitelisted");
         (bool ok,) = target.call(abi.encodeWithSignature("pause()"));
@@ -246,7 +256,8 @@ contract GovernanceModule is ReentrancyGuard {
     }
 
     /// AUDIT FIX (GOV-M-2): Emergency unpause — prevents accidental pause requiring 96h+ to reverse
-    function emergencyUnpause(address target) external onlyShariahMultisig {
+    /// AUDIT FIX (P16-RE-L1): Added nonReentrant — these make arbitrary .call() to targets.
+    function emergencyUnpause(address target) external onlyShariahMultisig nonReentrant {
         require(target != address(0), "Governance: zero target");
         require(pausableTargets[target], "Governance: target not whitelisted");
         (bool ok,) = target.call(abi.encodeWithSignature("unpause()"));

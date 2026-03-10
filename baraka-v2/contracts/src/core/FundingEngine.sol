@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: MIT
+// SPDX-License-Identifier: BUSL-1.1
 pragma solidity ^0.8.24;
 
 import "@openzeppelin/contracts/access/Ownable2Step.sol";
@@ -124,6 +124,16 @@ contract FundingEngine is IFundingEngine, Ownable2Step, Pausable {
         pendingOracleTimestamp = 0;
     }
 
+    /// AUDIT FIX (P18-H-3): Cancel pending oracle update
+    /// AUDIT FIX (P19-M-2): Emit event for off-chain monitoring
+    function cancelOracleUpdate() external onlyOwner {
+        require(pendingOracle != address(0), "FE: no pending update");
+        emit OracleUpdateCancelled(pendingOracle);
+        pendingOracle = address(0);
+        pendingOracleTimestamp = 0;
+    }
+    event OracleUpdateCancelled(address indexed cancelled);
+
     function pause() external onlyOwner { _pause(); }
     function unpause() external onlyOwner { _unpause(); }
 
@@ -147,10 +157,13 @@ contract FundingEngine is IFundingEngine, Ownable2Step, Pausable {
         uint256 elapsed = block.timestamp - state.lastUpdateTime;
         if (elapsed == 0) return state.cumulativeIndex;
 
-        /// AUDIT FIX (P15-M-11): Enforce minimum interval between funding accruals.
-        /// With very short intervals, integer division in (rate * elapsed / FUNDING_PERIOD)
-        /// truncates toward zero, and precision loss accumulates over many calls.
-        require(elapsed >= MIN_FUNDING_INTERVAL, "FE: funding too frequent");
+        /// AUDIT FIX (P15-M-11): Minimum interval between funding accruals.
+        /// With very short intervals, integer division truncates toward zero.
+        /// AUDIT FIX (P18-H-4): Changed from require to early return. The require blocked ALL
+        /// position updates (trades, liquidations, ADL) for up to 59 minutes after any
+        /// updateFunding call, because MarginEngine._settleFundingForPosition() calls this
+        /// without try/catch. A griefer calling updateFunding() every hour could DoS an entire market.
+        if (elapsed < MIN_FUNDING_INTERVAL) return state.cumulativeIndex;
 
         /// AUDIT FIX (P6-M-1): Do NOT advance clock during oracle staleness.
         /// _computePremiumRate returns 0 when stale (P5-M-7), but if we advance lastUpdateTime,
@@ -237,7 +250,11 @@ contract FundingEngine is IFundingEngine, Ownable2Step, Pausable {
             uint256 elapsed = block.timestamp - lastUpdate;
             /// AUDIT FIX (L1B-M-7): Cap elapsed time in view too
             if (elapsed > FUNDING_PERIOD) elapsed = FUNDING_PERIOD;
-            if (elapsed > 0) {
+            /// AUDIT FIX (P20-M-10): Mirror MIN_FUNDING_INTERVAL check from updateFunding().
+            /// Without this, getPendingFunding returns non-zero pending funding that updateFunding
+            /// will NOT accrue (because elapsed < MIN_FUNDING_INTERVAL causes early return).
+            /// This desync causes margin calculations to overestimate/underestimate funding obligations.
+            if (elapsed > 0 && elapsed >= MIN_FUNDING_INTERVAL) {
                 int256 rate = _computePremiumRate(marketId);
                 uint256 clamp = clampRate[marketId];
                 if (clamp > 0) {

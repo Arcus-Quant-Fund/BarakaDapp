@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: MIT
+// SPDX-License-Identifier: BUSL-1.1
 pragma solidity ^0.8.24;
 
 import "@openzeppelin/contracts/access/Ownable2Step.sol";
@@ -144,12 +144,52 @@ contract MatchingEngine is Ownable2Step, Pausable, ReentrancyGuard {
     }
 
     function setInsuranceFund(address _insuranceFund) external onlyOwner {
+        require(!finalized, "MaE: use timelocked update");
         require(_insuranceFund != address(0), "MaE: zero IF");
         insuranceFund = _insuranceFund;
     }
 
+    /// AUDIT FIX (P19-M-10): Timelocked dependency updates — consistent with other contracts.
+    /// After finalize(), instant setters are disabled; only timelocked paths work.
+    uint256 constant DEPENDENCY_TIMELOCK = 48 hours;
+    bool public finalized;
+
+    function finalize() external onlyOwner {
+        finalized = true;
+    }
+
     function setFeeEngine(address _feeEngine) external onlyOwner {
+        require(!finalized, "MaE: use timelocked update");
         feeEngine = IFeeEngine(_feeEngine);
+    }
+
+    // ── Timelocked FeeEngine ──
+    address public pendingFeeEngine;
+    uint256 public pendingFeeEngineTimestamp;
+    event FeeEngineUpdateInitiated(address indexed newFE, uint256 effectiveTime);
+    event FeeEngineUpdated(address indexed newFE);
+    event FeeEngineUpdateCancelled(address indexed cancelled);
+
+    function initiateFeeEngineUpdate(address newFE) external onlyOwner {
+        pendingFeeEngine = newFE;
+        pendingFeeEngineTimestamp = block.timestamp;
+        emit FeeEngineUpdateInitiated(newFE, block.timestamp + DEPENDENCY_TIMELOCK);
+    }
+
+    function applyFeeEngineUpdate() external onlyOwner {
+        require(pendingFeeEngine != address(0), "MaE: no pending update");
+        require(block.timestamp >= pendingFeeEngineTimestamp + DEPENDENCY_TIMELOCK, "MaE: timelock active");
+        feeEngine = IFeeEngine(pendingFeeEngine);
+        emit FeeEngineUpdated(pendingFeeEngine);
+        pendingFeeEngine = address(0);
+        pendingFeeEngineTimestamp = 0;
+    }
+
+    function cancelFeeEngineUpdate() external onlyOwner {
+        require(pendingFeeEngine != address(0), "MaE: no pending update");
+        emit FeeEngineUpdateCancelled(pendingFeeEngine);
+        pendingFeeEngine = address(0);
+        pendingFeeEngineTimestamp = 0;
     }
 
     /// AUDIT FIX (L1-M-4): Cap fee rates — prevent owner setting 100% fees
@@ -161,8 +201,39 @@ contract MatchingEngine is Ownable2Step, Pausable, ReentrancyGuard {
     }
 
     function setOracle(address _oracle) external onlyOwner {
+        require(!finalized, "MaE: use timelocked update");
         require(_oracle != address(0), "MaE: zero oracle");
         oracle = IOracleAdapter(_oracle);
+    }
+
+    // ── Timelocked Oracle ──
+    address public pendingOracle;
+    uint256 public pendingOracleTimestamp;
+    event OracleUpdateInitiated(address indexed newOracle, uint256 effectiveTime);
+    event OracleUpdated(address indexed newOracle);
+    event OracleUpdateCancelled(address indexed cancelled);
+
+    function initiateOracleUpdate(address newOracle) external onlyOwner {
+        require(newOracle != address(0), "MaE: zero oracle");
+        pendingOracle = newOracle;
+        pendingOracleTimestamp = block.timestamp;
+        emit OracleUpdateInitiated(newOracle, block.timestamp + DEPENDENCY_TIMELOCK);
+    }
+
+    function applyOracleUpdate() external onlyOwner {
+        require(pendingOracle != address(0), "MaE: no pending update");
+        require(block.timestamp >= pendingOracleTimestamp + DEPENDENCY_TIMELOCK, "MaE: timelock active");
+        oracle = IOracleAdapter(pendingOracle);
+        emit OracleUpdated(pendingOracle);
+        pendingOracle = address(0);
+        pendingOracleTimestamp = 0;
+    }
+
+    function cancelOracleUpdate() external onlyOwner {
+        require(pendingOracle != address(0), "MaE: no pending update");
+        emit OracleUpdateCancelled(pendingOracle);
+        pendingOracle = address(0);
+        pendingOracleTimestamp = 0;
     }
 
     /// AUDIT FIX (P3-CROSS-6): Setter for ComplianceOracle. When set, every fill execution
@@ -174,9 +245,38 @@ contract MatchingEngine is Ownable2Step, Pausable, ReentrancyGuard {
         complianceOracle = IComplianceOracle(_complianceOracle);
     }
 
-    /// AUDIT FIX (P7-M-2): Set ADL contract for participant registration after fills.
     function setADL(address _adl) external onlyOwner {
+        require(!finalized, "MaE: use timelocked update");
         adl = IAutoDeleveraging(_adl);
+    }
+
+    // ── Timelocked ADL ──
+    address public pendingADL;
+    uint256 public pendingADLTimestamp;
+    event ADLUpdateInitiated(address indexed newADL, uint256 effectiveTime);
+    event ADLUpdated(address indexed newADL);
+    event ADLUpdateCancelled(address indexed cancelled);
+
+    function initiateADLUpdate(address newADL) external onlyOwner {
+        pendingADL = newADL;
+        pendingADLTimestamp = block.timestamp;
+        emit ADLUpdateInitiated(newADL, block.timestamp + DEPENDENCY_TIMELOCK);
+    }
+
+    function applyADLUpdate() external onlyOwner {
+        require(pendingADL != address(0), "MaE: no pending update");
+        require(block.timestamp >= pendingADLTimestamp + DEPENDENCY_TIMELOCK, "MaE: timelock active");
+        adl = IAutoDeleveraging(pendingADL);
+        emit ADLUpdated(pendingADL);
+        pendingADL = address(0);
+        pendingADLTimestamp = 0;
+    }
+
+    function cancelADLUpdate() external onlyOwner {
+        require(pendingADL != address(0), "MaE: no pending update");
+        emit ADLUpdateCancelled(pendingADL);
+        pendingADL = address(0);
+        pendingADLTimestamp = 0;
     }
 
     function setCommitReveal(bytes32 marketId, bool enabled) external onlyOwner {
@@ -234,7 +334,10 @@ contract MatchingEngine is Ownable2Step, Pausable, ReentrancyGuard {
         {
             uint256 maxLev = shariahRegistry.maxLeverage(marketId);
             IMarginEngine.MarketParams memory mktParams = marginEngine.getMarketParams(marketId);
-            require(mktParams.initialMarginRate >= 1e18 / maxLev, "MaE: market exceeds Shariah leverage");
+            /// AUDIT FIX (P20-L-5): Use ceiling division for Shariah leverage check.
+            /// Floor division (1e18/33e17 = 0) allowed 0% IMR at certain maxLeverage values,
+            /// bypassing the leverage cap. Ceiling division ensures IMR >= ceil(1/maxLev).
+            require(mktParams.initialMarginRate >= (1e18 + maxLev - 1) / maxLev, "MaE: market exceeds Shariah leverage");
         }
 
         // Pre-trade margin check: ensure subaccount has enough free collateral
@@ -323,7 +426,8 @@ contract MatchingEngine is Ownable2Step, Pausable, ReentrancyGuard {
         {
             uint256 maxLev = shariahRegistry.maxLeverage(marketId);
             IMarginEngine.MarketParams memory mktParams = marginEngine.getMarketParams(marketId);
-            require(mktParams.initialMarginRate >= 1e18 / maxLev, "MaE: market exceeds Shariah leverage");
+            /// AUDIT FIX (P20-L-5): Use ceiling division for Shariah leverage check.
+            require(mktParams.initialMarginRate >= (1e18 + maxLev - 1) / maxLev, "MaE: market exceeds Shariah leverage");
         }
 
         // AUDIT FIX (L1-H-1): Add margin check to revealOrder (was missing — could open

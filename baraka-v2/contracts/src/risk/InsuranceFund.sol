@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: MIT
+// SPDX-License-Identifier: BUSL-1.1
 pragma solidity ^0.8.24;
 
 import "@openzeppelin/contracts/access/Ownable2Step.sol";
@@ -282,7 +282,10 @@ contract InsuranceFund is IInsuranceFund, Ownable2Step, Pausable, ReentrancyGuar
                 claims = claims / 2;
             }
             weeklyClaimsSum[token] = claims;
-            lastClaimReset[token] = block.timestamp;
+            /// AUDIT FIX (P18-M-7): Advance to period boundary instead of block.timestamp.
+            /// Using block.timestamp causes the weekly window to drift, making the EWMA
+            /// decay timing and distribution cooldown inconsistent.
+            lastClaimReset[token] = lastReset + periodsPassed * 7 days;
         } else if (lastReset == 0) {
             lastClaimReset[token] = block.timestamp;
         }

@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: MIT
+// SPDX-License-Identifier: BUSL-1.1
 pragma solidity ^0.8.24;
 
 import "@openzeppelin/contracts/access/Ownable2Step.sol";
@@ -68,7 +68,9 @@ contract iCDS is Ownable2Step, Pausable, ReentrancyGuard {
         oracle = IOracleAdapter(_oracle);
     }
 
+    /// AUDIT FIX (P21-L-1): Add zero-address check consistent with TakafulPool and all other contracts
     function setKeeper(address keeper, bool status) external onlyOwner {
+        require(keeper != address(0), "iCDS: zero keeper");
         authorisedKeepers[keeper] = status;
         emit KeeperSet(keeper, status);
     }

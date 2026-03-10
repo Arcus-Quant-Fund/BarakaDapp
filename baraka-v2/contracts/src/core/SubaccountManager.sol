@@ -1,6 +1,7 @@
-// SPDX-License-Identifier: MIT
+// SPDX-License-Identifier: BUSL-1.1
 pragma solidity ^0.8.24;
 
+import "@openzeppelin/contracts/access/Ownable2Step.sol";
 import "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
 import "../interfaces/ISubaccountManager.sol";
 import "../interfaces/IOrderBook.sol";
@@ -21,14 +22,13 @@ import "../interfaces/IOrderBook.sol";
  *           - Subaccount 0: BTC long + ETH short (shared margin)
  *           - Subaccount 1: DOGE long (isolated — own collateral)
  */
-contract SubaccountManager is ISubaccountManager, ReentrancyGuard {
+/// AUDIT FIX (P19-M-1 / P21): Inherit Ownable2Step for ownership transfer + renounce protection.
+/// Previously used a custom `owner` with no transfer mechanism — single point of failure.
+contract SubaccountManager is ISubaccountManager, Ownable2Step, ReentrancyGuard {
 
     // ─────────────────────────────────────────────────────
     // State
     // ─────────────────────────────────────────────────────
-
-    /// AUDIT FIX (P16-AC-H1): Owner for access control on orderbook management.
-    address public owner;
 
     /// @notice subaccountId → owner address
     mapping(bytes32 => address) private _owners;
@@ -43,22 +43,15 @@ contract SubaccountManager is ISubaccountManager, ReentrancyGuard {
     address[] private _registeredOrderBooks;
 
     // ─────────────────────────────────────────────────────
-    // Errors & Modifiers
-    // ─────────────────────────────────────────────────────
-
-    /// AUDIT FIX (P16-AC-H1): Restrict orderbook management to deployer.
-    modifier onlyOwner() {
-        require(msg.sender == owner, "SAM: not contract owner");
-        _;
-    }
-
-    // ─────────────────────────────────────────────────────
     // Constructor
     // ─────────────────────────────────────────────────────
 
-    /// AUDIT FIX (P16-AC-H1): Set deployer as owner for orderbook access control.
-    constructor() {
-        owner = msg.sender;
+    /// AUDIT FIX (P16-AC-H1 + P19-M-1): Ownable2Step — deployer is initial owner, transferable.
+    constructor() Ownable(msg.sender) {}
+
+    /// AUDIT FIX (P5-H-3): Prevent ownership renouncement — contract requires owner for admin operations.
+    function renounceOwnership() public view override onlyOwner {
+        revert("SAM: renounce disabled");
     }
 
     // ─────────────────────────────────────────────────────
@@ -144,12 +137,13 @@ contract SubaccountManager is ISubaccountManager, ReentrancyGuard {
     // View
     // ─────────────────────────────────────────────────────
 
-    /// @notice Deterministic subaccount ID from owner + index.
+    /// @notice Deterministic subaccount ID from user address + index.
     /// @dev INFO (L0-I-6): abi.encodePacked is safe here — (address, uint8) is a fixed-size
     ///      tuple with no collision risk (address=20 bytes, uint8=1 byte, no variable-length data).
     /// @dev INFO (L1-I-4): Owner added per AUDIT FIX (P16-AC-H1) for orderbook management access control.
-    function getSubaccountId(address owner, uint8 index) public pure override returns (bytes32) {
-        return keccak256(abi.encodePacked(owner, index));
+    /// AUDIT FIX (P19-L-2): Renamed `owner` → `user` to avoid shadowing Ownable2Step.owner().
+    function getSubaccountId(address user, uint8 index) public pure override returns (bytes32) {
+        return keccak256(abi.encodePacked(user, index));
     }
 
     function getOwner(bytes32 subaccountId) external view override returns (address) {
@@ -160,7 +154,8 @@ contract SubaccountManager is ISubaccountManager, ReentrancyGuard {
         return _exists[subaccountId];
     }
 
-    function subaccountCount(address owner) external view override returns (uint256) {
-        return _counts[owner];
+    /// AUDIT FIX (P19-L-2): Renamed `owner` → `user` to avoid shadowing Ownable2Step.owner().
+    function subaccountCount(address user) external view override returns (uint256) {
+        return _counts[user];
     }
 }

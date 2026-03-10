@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: MIT
+// SPDX-License-Identifier: BUSL-1.1
 pragma solidity ^0.8.24;
 
 import "@openzeppelin/contracts/access/Ownable2Step.sol";
@@ -250,7 +250,10 @@ contract ShariahRegistry is IShariahRegistry, Ownable2Step {
         if (address(marginEngine) != address(0) && newSize != 0) {
             uint256 ml = _maxLeverage[marketId];
             if (ml == 0) ml = DEFAULT_MAX_LEVERAGE;
-            uint256 minIMR = WAD / ml; // e.g. 5x → 0.2e18 = 20%
+            /// AUDIT FIX (P21-M-6): Use ceiling division, consistent with MatchingEngine (P20-L-5).
+            /// Floor division (WAD/ml) can produce a lower minIMR than MatchingEngine's ceiling check,
+            /// causing ShariahRegistry to approve markets that MatchingEngine then rejects on every trade.
+            uint256 minIMR = (WAD + ml - 1) / ml; // e.g. 5x → ceil(1/5) = 0.2e18 = 20%
 
             IMarginEngine.MarketParams memory params = marginEngine.getMarketParams(marketId);
             require(params.initialMarginRate >= minIMR, "SR: market IMR below Shariah minimum");

@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: MIT
+// SPDX-License-Identifier: BUSL-1.1
 pragma solidity ^0.8.24;
 
 import "@openzeppelin/contracts/access/Ownable2Step.sol";
@@ -82,9 +82,14 @@ contract ComplianceOracle is Ownable2Step {
     // Admin — board management
     // ─────────────────────────────────────────────────────
 
+    /// AUDIT FIX (P21-L-2): Cap board size to prevent unbounded gas in _countValidSignatures().
+    /// Real-world Shariah boards are < 20 members. 20 is generous.
+    uint256 public constant MAX_BOARD_MEMBERS = 20;
+
     function addBoardMember(address member) external onlyOwner {
         require(member != address(0), "CO: zero address");
         require(!isBoardMember[member], "CO: already member");
+        require(boardMembers.length < MAX_BOARD_MEMBERS, "CO: board full");
         isBoardMember[member] = true;
         /// AUDIT FIX (P6-L-1): Record addition timestamp — old signatures from before
         /// removal/re-addition won't count (checked in _countValidSignatures).
@@ -168,8 +173,12 @@ contract ComplianceOracle is Ownable2Step {
             // excludes the old signature; the count field is only informational.
         }
 
+        /// AUDIT FIX (P20-L-3): Only increment signaturesCount on first sign.
+        /// Re-signing (after removal + re-add) would double-count, inflating the informational counter.
+        if (!hasSignedAttestation[attestationId][msg.sender]) {
+            att.signaturesCount++;
+        }
         hasSignedAttestation[attestationId][msg.sender] = true;
-        att.signaturesCount++;
 
         emit AttestationSigned(attestationId, msg.sender);
     }

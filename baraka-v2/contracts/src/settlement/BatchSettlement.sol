@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: MIT
+// SPDX-License-Identifier: BUSL-1.1
 pragma solidity ^0.8.24;
 
 import "@openzeppelin/contracts/access/Ownable2Step.sol";
@@ -174,6 +174,16 @@ contract BatchSettlement is Ownable2Step, ReentrancyGuard {
         pendingOracleTimestamp = 0;
     }
 
+    /// AUDIT FIX (P18-H-3): Cancel pending oracle update
+    /// AUDIT FIX (P19-M-2): Emit event for off-chain monitoring
+    function cancelOracleUpdate() external onlyOwner {
+        require(pendingOracle != address(0), "BS: no pending update");
+        emit OracleUpdateCancelled(pendingOracle);
+        pendingOracle = address(0);
+        pendingOracleTimestamp = 0;
+    }
+    event OracleUpdateCancelled(address indexed cancelled);
+
     /// AUDIT FIX (P16-UP-C2): Timelocked marginEngine update to prevent brick risk
     function initiateMarginEngineUpdate(address newMarginEngine) external onlyOwner {
         require(newMarginEngine != address(0), "BS: zero address");
@@ -190,6 +200,16 @@ contract BatchSettlement is Ownable2Step, ReentrancyGuard {
         pendingMarginEngine = address(0);
         pendingMarginEngineTimestamp = 0;
     }
+
+    /// AUDIT FIX (P18-H-3): Cancel pending marginEngine update
+    /// AUDIT FIX (P19-M-2): Emit event for off-chain monitoring
+    function cancelMarginEngineUpdate() external onlyOwner {
+        require(pendingMarginEngine != address(0), "BS: no pending update");
+        emit MarginEngineUpdateCancelled(pendingMarginEngine);
+        pendingMarginEngine = address(0);
+        pendingMarginEngineTimestamp = 0;
+    }
+    event MarginEngineUpdateCancelled(address indexed cancelled);
 
     // ─────────────────────────────────────────────────────
     // Core — batch settlement

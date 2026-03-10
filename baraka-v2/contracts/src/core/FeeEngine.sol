@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: MIT
+// SPDX-License-Identifier: BUSL-1.1
 pragma solidity ^0.8.24;
 
 import "@openzeppelin/contracts/access/Ownable2Step.sol";
@@ -78,6 +78,8 @@ contract FeeEngine is IFeeEngine, Ownable2Step, ReentrancyGuard {
     event AuthorisedSet(address indexed caller, bool status);
     event BRKXTokenSet(address indexed token);
     event TierUpdated(uint256 indexed index, uint256 minBRKX, uint256 takerBps, uint256 makerBps);
+    /// AUDIT FIX (P18-M-8): Add missing event for setRecipients observability.
+    event RecipientsUpdated(address indexed treasury, address indexed insuranceFund, address stakerPool);
 
     // ─────────────────────────────────────────────────────
     // Constructor
@@ -117,11 +119,13 @@ contract FeeEngine is IFeeEngine, Ownable2Step, ReentrancyGuard {
         emit AuthorisedSet(caller, status);
     }
 
+    /// AUDIT FIX (P18-M-8): Emit event on recipient changes for off-chain monitoring.
     function setRecipients(address _treasury, address _insuranceFund, address _stakerPool) external onlyOwner {
         require(_treasury != address(0) && _insuranceFund != address(0), "FE: zero recipient");
         treasury = _treasury;
         insuranceFund = _insuranceFund;
         stakerPool = _stakerPool;
+        emit RecipientsUpdated(_treasury, _insuranceFund, _stakerPool);
     }
 
     function setFeeSplit(uint256 _treasury, uint256 _insurance, uint256 _staker) external onlyOwner {
@@ -154,6 +158,12 @@ contract FeeEngine is IFeeEngine, Ownable2Step, ReentrancyGuard {
         if (index < _tiers.length - 1) {
             require(minBRKX < _tiers[index + 1].minBRKX, "FE: tier threshold not increasing");
         }
+        /// AUDIT FIX (P19-L-6): Taker fee must be >= maker rebate to maintain positive net fee revenue.
+        require(takerBps >= makerBps, "FE: taker fee < maker rebate");
+        /// AUDIT FIX (P20-M-1): Minimum net fee floor — prevents zero-revenue tier configurations.
+        /// Without this, taker=maker is valid (zero protocol revenue per trade).
+        /// Floor at 0.5 bps (5e13) — allows tight spreads for VIP tiers while ensuring revenue > 0.
+        require(takerBps - makerBps >= 5e13, "FE: net fee < 0.5 bps minimum");
         _tiers[index] = FeeTier(minBRKX, takerBps, makerBps);
         emit TierUpdated(index, minBRKX, takerBps, makerBps);
     }
@@ -240,12 +250,17 @@ contract FeeEngine is IFeeEngine, Ownable2Step, ReentrancyGuard {
         /// AUDIT FIX (P16-UP-M3): Fail loud if fee recipients not configured
         require(treasury != address(0), "FE: treasury not set");
 
-        FeeTier memory tier = _getTier(takerSubaccount);
+        FeeTier memory takerTier = _getTier(takerSubaccount);
+        /// AUDIT FIX (P21-M-1): Use maker's OWN tier for rebate, not taker's tier.
+        /// Previously, maker rebate was derived from the taker's BRKX holdings. A Tier 3 maker
+        /// (50k BRKX, entitled to 2.0 bps rebate) trading against a Tier 0 taker only got 0.5 bps.
+        /// This systematically under-rewarded high-tier market makers and over-rewarded low-tier ones.
+        FeeTier memory makerTier = _getTier(makerSubaccount);
         /// AUDIT FIX (P10-L-4): Use Math.mulDiv to prevent overflow on extreme notionals.
         /// Plain multiplication overflows uint256 when notional approaches max (e.g. $10B in WAD =
         /// 1e28; 1e28 * 5e14 = 5e42 > 2^256). Math.mulDiv uses 512-bit intermediate arithmetic.
-        uint256 takerFee = Math.mulDiv(notional, tier.takerFeeBps, WAD);
-        uint256 makerRebate = Math.mulDiv(notional, tier.makerFeeBps, WAD);
+        uint256 takerFee = Math.mulDiv(notional, takerTier.takerFeeBps, WAD);
+        uint256 makerRebate = Math.mulDiv(notional, makerTier.makerFeeBps, WAD);
 
         if (takerFee == 0) return;
 

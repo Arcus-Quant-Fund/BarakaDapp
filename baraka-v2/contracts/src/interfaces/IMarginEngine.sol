@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: MIT
+// SPDX-License-Identifier: BUSL-1.1
 pragma solidity ^0.8.24;
 
 /**
@@ -32,4 +32,9 @@ interface IMarginEngine {
 
     function updatePosition(bytes32 subaccount, bytes32 marketId, int256 sizeDelta, uint256 fillPrice) external;
     function settleFunding(bytes32 subaccount) external;
+
+    /// AUDIT FIX (P17-H-1): Liquidation mode — prevents triple-dip IF drainage.
+    /// When enabled, _settleAndCoverShortfall accumulates shortfalls instead of calling IF.
+    function setLiquidationMode(bool enabled) external;
+    function consumeAccumulatedShortfall() external returns (uint256);
 }

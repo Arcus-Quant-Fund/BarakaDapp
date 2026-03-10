@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: MIT
+// SPDX-License-Identifier: BUSL-1.1
 pragma solidity ^0.8.24;
 
 import "@openzeppelin/contracts/access/Ownable2Step.sol";
@@ -97,7 +97,9 @@ contract TakafulPool is Ownable2Step, Pausable, ReentrancyGuard {
         emit PoolCreated(poolId, asset, token, floorWad);
     }
 
+    /// AUDIT FIX (P19-L-5): Add zero-address check consistent with all other contracts
     function setKeeper(address keeper, bool status) external onlyOwner {
+        require(keeper != address(0), "TP: zero keeper");
         authorisedKeepers[keeper] = status;
         emit KeeperSet(keeper, status);
     }
@@ -136,7 +138,7 @@ contract TakafulPool is Ownable2Step, Pausable, ReentrancyGuard {
     }
 
     function pause() external onlyOwner { _pause(); }
-    function unpause() external onlyOwner { _unpause(); }
+    // unpause() defined below with emergencyRecovered guard
 
     /// AUDIT FIX (P5-H-3): Prevent ownership renouncement — contract requires owner for admin operations.
     function renounceOwnership() public view override onlyOwner {
@@ -236,13 +238,25 @@ contract TakafulPool is Ownable2Step, Pausable, ReentrancyGuard {
         emit ClaimPaid(poolId, beneficiary, payout);
     }
 
-    /// AUDIT FIX (P16-UP-H5): Emergency token recovery when contract is paused
+    /// AUDIT FIX (P19-M-11): Track whether emergency recovery has been used.
+    /// After recovery, unpause is blocked — contract is in one-way migration mode.
+    bool public emergencyRecovered;
+
+    /// AUDIT FIX (P16-UP-H5): Emergency token recovery when contract is paused.
+    /// WARNING: This desyncs poolBalance from actual token balances. Contract cannot be
+    /// unpaused after recovery — use only for one-way migration to a new contract.
     function emergencyRecoverTokens(address token, address to, uint256 amount) external onlyOwner whenPaused {
         require(to != address(0), "TP: zero recipient");
+        emergencyRecovered = true;
         IERC20(token).safeTransfer(to, amount);
         emit EmergencyRecovery(token, to, amount);
     }
     event EmergencyRecovery(address indexed token, address indexed to, uint256 amount);
+
+    function unpause() external onlyOwner {
+        require(!emergencyRecovered, "TP: cannot unpause after emergency recovery");
+        _unpause();
+    }
 
     function distributeSurplus(bytes32 poolId, address recipient) external onlyOwner nonReentrant whenNotPaused {
         Pool storage p = pools[poolId];

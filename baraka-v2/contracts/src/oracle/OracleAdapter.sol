@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: MIT
+// SPDX-License-Identifier: BUSL-1.1
 pragma solidity ^0.8.24;
 
 import "@openzeppelin/contracts/access/Ownable2Step.sol";
@@ -106,10 +106,30 @@ contract OracleAdapter is IOracleAdapter, Ownable2Step {
         mo.active = true;
         mo.lastUpdateTime = 0; // stale until keeper refreshes from the new feed
         // lastIndexPrice and lastMarkPrice preserved — prevents margin/liquidation blackout
+
+        /// AUDIT FIX (P21-M-3): Seed chainlinkReferencePrice from new feed on market setup.
+        /// Previously, both lastIndexPrice and chainlinkReferencePrice were 0 for brand-new markets,
+        /// causing the circuit breaker to be completely skipped on the first updateIndexPrice() call.
+        /// A compromised feed could anchor at any price without deviation check.
+        /// Now we read the initial price from the new feed and set it as the reference baseline.
+        if (chainlinkReferencePrice[marketId] == 0) {
+            (bool ok, bytes memory retData) = priceFeed.staticcall(
+                abi.encodeWithSignature("latestRoundData()")
+            );
+            if (ok && retData.length >= 160) {
+                (, int256 seedAnswer,,,) = abi.decode(retData, (uint80, int256, uint256, uint256, uint80));
+                if (seedAnswer > 0) {
+                    chainlinkReferencePrice[marketId] = uint256(seedAnswer) * WAD / (10 ** uint256(feedDecimals));
+                }
+            }
+        }
+
         emit MarketOracleSet(marketId, priceFeed, heartbeat);
     }
 
+    /// AUDIT FIX (P19-M-7): Add zero-address check consistent with all other contracts
     function setAuthorised(address caller, bool status) external onlyOwner {
+        require(caller != address(0), "OA: zero address");
         authorised[caller] = status;
         emit AuthorisedSet(caller, status);
     }
@@ -135,9 +155,12 @@ contract OracleAdapter is IOracleAdapter, Ownable2Step {
     /// @notice P9-H-2: Set circuit breaker max price deviation (WAD).
     /// @param deviation Max deviation in WAD (e.g. 0.15e18 = 15%). Range: [1%, 50%].
     /// AUDIT FIX (P15-M-3): Enforce minimum 1% — deviation=0 fully disables the circuit breaker.
+    /// AUDIT FIX (P19-L-4): Widened upper bound from 50% to 100%. During black swan events
+    /// (e.g., 60%+ crash in 1 hour), 50% cap prevents legitimate price updates, freezing the oracle.
+    /// Owner can adjust deviation threshold to match market conditions. 1% floor prevents disabling.
     function setMaxPriceDeviation(uint256 deviation) external onlyOwner {
         require(deviation >= 0.01e18, "OA: deviation < 1% (min floor)");
-        require(deviation <= 0.50e18, "OA: deviation > 50%");
+        require(deviation <= 1e18, "OA: deviation > 100%");
         maxPriceDeviation = deviation;
         emit MaxPriceDeviationSet(deviation);
     }
@@ -306,11 +329,14 @@ contract OracleAdapter is IOracleAdapter, Ownable2Step {
     }
 
     /// AUDIT FIX (L1B-M-2): Use 1x heartbeat consistently
+    /// AUDIT FIX (P15-L-12): Use `>=` instead of `>` — at exactly the heartbeat boundary,
+    /// the price should be considered stale (conservative). Off-by-one previously allowed
+    /// a 1-second window where a stale price was treated as fresh.
     function isStale(bytes32 marketId) external view override returns (bool) {
         MarketOracle storage mo = marketOracles[marketId];
         if (!mo.active) return true;
         if (mo.lastUpdateTime == 0) return true;
-        return block.timestamp - mo.lastUpdateTime > mo.heartbeat;
+        return block.timestamp - mo.lastUpdateTime >= mo.heartbeat;
     }
 
     // ─────────────────────────────────────────────────────

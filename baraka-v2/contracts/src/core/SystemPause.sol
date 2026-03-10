@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: MIT
+// SPDX-License-Identifier: BUSL-1.1
 pragma solidity ^0.8.24;
 
 import "@openzeppelin/contracts/access/Ownable2Step.sol";
@@ -44,6 +44,8 @@ contract SystemPause is Ownable2Step {
     function registerTarget(address target) external onlyOwner {
         require(target != address(0), "SP: zero address");
         require(!isRegistered[target], "SP: already registered");
+        /// AUDIT FIX (P17-MED-5): Cap registered targets to prevent gas DoS
+        require(targets.length < 50, "SP: max 50 targets");
         targets.push(target);
         isRegistered[target] = true;
         emit TargetRegistered(target);

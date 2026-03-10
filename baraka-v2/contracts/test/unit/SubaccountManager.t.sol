@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: MIT
+// SPDX-License-Identifier: BUSL-1.1
 pragma solidity ^0.8.24;
 
 import "forge-std/Test.sol";
@@ -214,7 +214,7 @@ contract SubaccountManagerTest is Test {
         sam.registerOrderBook(address(0xBEEF));
 
         // Non-owner reverts
-        vm.expectRevert("SAM: not contract owner");
+        vm.expectRevert(abi.encodeWithSignature("OwnableUnauthorizedAccount(address)", alice));
         vm.prank(alice);
         sam.registerOrderBook(address(0xCAFE));
     }
@@ -230,7 +230,7 @@ contract SubaccountManagerTest is Test {
     function test_removeOrderBook_onlyOwner() public {
         sam.registerOrderBook(address(0xBEEF));
 
-        vm.expectRevert("SAM: not contract owner");
+        vm.expectRevert(abi.encodeWithSignature("OwnableUnauthorizedAccount(address)", alice));
         vm.prank(alice);
         sam.removeOrderBook(address(0xBEEF));
     }

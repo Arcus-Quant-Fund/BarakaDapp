@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: MIT
+// SPDX-License-Identifier: BUSL-1.1
 pragma solidity ^0.8.24;
 
 import "@openzeppelin/contracts/access/Ownable2Step.sol";
@@ -42,6 +42,11 @@ contract Vault is IVault, Ownable2Step, Pausable, ReentrancyGuard {
 
     /// @notice Guardian — can revoke authorised callers but cannot grant (from v1 CV-M-4)
     address public guardian;
+
+    /// AUDIT FIX (P18-M-1): Prevent unpause after emergency migration.
+    /// After emergencyMigrate, stale _balances remain but tokens are gone.
+    /// If accidentally unpaused, settlePnL credits create unbacked balances.
+    bool public migrated;
 
     // ─────────────────────────────────────────────────────
     // Events
@@ -104,7 +109,11 @@ contract Vault is IVault, Ownable2Step, Pausable, ReentrancyGuard {
     }
 
     function pause() external onlyOwner { _pause(); }
-    function unpause() external onlyOwner { _unpause(); }
+    /// AUDIT FIX (P18-M-1): Prevent unpause after migration
+    function unpause() external onlyOwner {
+        require(!migrated, "Vault: migrated");
+        _unpause();
+    }
 
     // ─────────────────────────────────────────────────────
     // Deposit / Withdraw (user-facing)
@@ -298,6 +307,8 @@ contract Vault is IVault, Ownable2Step, Pausable, ReentrancyGuard {
         bytes32[] calldata subaccounts
     ) external onlyOwner whenPaused {
         require(newVault != address(0), "Vault: zero address");
+        /// AUDIT FIX (P17-MED-4): Prevent gas limit exceeded during migration
+        require(subaccounts.length <= 500, "Vault: batch too large");
         for (uint256 i = 0; i < subaccounts.length; i++) {
             uint256 bal = _balances[subaccounts[i]][token];
             if (bal > 0) {
@@ -309,6 +320,10 @@ contract Vault is IVault, Ownable2Step, Pausable, ReentrancyGuard {
         if (total > 0) {
             IERC20(token).safeTransfer(newVault, total);
         }
+        /// AUDIT FIX (P17-M-2): Reset tracked balance after migration to prevent stale state
+        totalTrackedBalance[token] = 0;
+        /// AUDIT FIX (P18-M-1): Mark vault as migrated — prevents accidental unpause
+        migrated = true;
         emit EmergencyMigration(newVault, token, total);
     }
 

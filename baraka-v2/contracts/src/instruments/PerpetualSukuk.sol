@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: MIT
+// SPDX-License-Identifier: BUSL-1.1
 pragma solidity ^0.8.24;
 
 import "@openzeppelin/contracts/access/Ownable2Step.sol";
@@ -74,7 +74,7 @@ contract PerpetualSukuk is Ownable2Step, Pausable, ReentrancyGuard {
     }
 
     function pause() external onlyOwner { _pause(); }
-    function unpause() external onlyOwner { _unpause(); }
+    // unpause() defined below with emergencyRecovered guard
 
     /// AUDIT FIX (P5-H-3): Prevent ownership renouncement — contract requires owner for admin operations.
     function renounceOwnership() public view override onlyOwner {
@@ -252,13 +252,24 @@ contract PerpetualSukuk is Ownable2Step, Pausable, ReentrancyGuard {
         emit Redeemed(id, msg.sender, principal, actualCall);
     }
 
-    /// AUDIT FIX (P16-UP-H5): Emergency token recovery when contract is paused
+    /// AUDIT FIX (P20-M-9): Track whether emergency recovery has been used.
+    bool public emergencyRecovered;
+
+    /// AUDIT FIX (P16-UP-H5): Emergency token recovery when contract is paused.
+    /// WARNING: This desyncs _issuerReserve/_investorPrincipal from actual balances.
+    /// Contract cannot be unpaused after recovery — one-way migration only.
     function emergencyRecoverTokens(address token, address to, uint256 amount) external onlyOwner whenPaused {
         require(to != address(0), "PS: zero recipient");
+        emergencyRecovered = true;
         IERC20(token).safeTransfer(to, amount);
         emit EmergencyRecovery(token, to, amount);
     }
     event EmergencyRecovery(address indexed token, address indexed to, uint256 amount);
+
+    function unpause() external onlyOwner {
+        require(!emergencyRecovered, "PS: cannot unpause after emergency recovery");
+        _unpause();
+    }
 
     /// AUDIT FIX (PS-M-1): Allow issuer to top up reserve for profit distribution + call upside
     function topUpReserve(uint256 id, uint256 amount) external nonReentrant whenNotPaused {

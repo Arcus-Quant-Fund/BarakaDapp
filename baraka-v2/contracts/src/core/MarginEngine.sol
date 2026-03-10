@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: MIT
+// SPDX-License-Identifier: BUSL-1.1
 pragma solidity ^0.8.24;
 
 import "@openzeppelin/contracts/access/Ownable2Step.sol";
@@ -87,6 +87,23 @@ contract MarginEngine is IMarginEngine, Ownable2Step, Pausable, ReentrancyGuard 
     /// @notice P10-C-2: InsuranceFund — covers PnL settlement shortfalls when losers are undercollateralized
     IInsuranceFund public insuranceFund;
 
+    /// AUDIT FIX (P17-H-1): Liquidation mode — accumulates shortfalls for single IF call by LiquidationEngine.
+    /// Prevents triple-dip where a single liquidation calls IF.coverShortfall() up to 3 times
+    /// (funding shortfall, PnL shortfall, external shortfall), each subject to the 10% per-event cap,
+    /// draining up to 30% of the fund from one liquidation event.
+    bool private _inLiquidation;
+    uint256 private _accumulatedShortfall;
+
+    /// AUDIT FIX (P18-H-1): Restrict liquidation mode to LiquidationEngine specifically.
+    /// Generic onlyAuthorised would let any authorized contract (MatchingEngine, BatchSettlement)
+    /// accidentally enable liquidation mode, silently disabling IF coverage for all settlements.
+    address public liquidationEngine;
+
+    /// AUDIT FIX (P17-H-2): Track total uncovered shortfalls for monitoring.
+    /// Accumulates when IF cannot fully cover during normal trading. Nonzero value indicates
+    /// protocol insolvency drift — admin should trigger ADL or recapitalize IF.
+    uint256 public totalUncoveredShortfall;
+
     // ─────────────────────────────────────────────────────
     // Events
     // ─────────────────────────────────────────────────────
@@ -102,6 +119,8 @@ contract MarginEngine is IMarginEngine, Ownable2Step, Pausable, ReentrancyGuard 
     /// Previously, IF coverage failures were silently swallowed by try-catch. This event surfaces
     /// the shortfall so monitoring can trigger ADL or admin intervention.
     event InsuranceFundCoverageFailed(bytes32 indexed subaccount, address indexed token, uint256 shortfall);
+    /// AUDIT FIX (P17-C-1): Emitted per market during exportPositions to capture OI state for migration.
+    event OISnapshot(bytes32 indexed marketId, uint256 longOI, uint256 shortOI);
 
     // ─────────────────────────────────────────────────────
     // Modifiers
@@ -215,6 +234,35 @@ contract MarginEngine is IMarginEngine, Ownable2Step, Pausable, ReentrancyGuard 
         insuranceFund = IInsuranceFund(_if);
     }
 
+    /// AUDIT FIX (P18-H-1): Set LiquidationEngine address for exclusive liquidation mode access.
+    function setLiquidationEngine(address _le) external onlyOwner {
+        require(_le != address(0), "ME: zero LE");
+        liquidationEngine = _le;
+    }
+
+    /// AUDIT FIX (P18-M-5): Events for liquidation mode state changes
+    event LiquidationModeSet(bool enabled);
+    event AccumulatedShortfallConsumed(uint256 shortfall);
+
+    /// AUDIT FIX (P17-H-1): Enable/disable liquidation mode.
+    /// AUDIT FIX (P18-H-1): Restricted to LiquidationEngine only (not generic onlyAuthorised).
+    function setLiquidationMode(bool enabled) external {
+        require(msg.sender == liquidationEngine, "ME: not LE");
+        _inLiquidation = enabled;
+        if (enabled) _accumulatedShortfall = 0;
+        emit LiquidationModeSet(enabled);
+    }
+
+    /// AUDIT FIX (P17-H-1): Read and reset accumulated shortfall, exiting liquidation mode.
+    /// AUDIT FIX (P18-H-1): Restricted to LiquidationEngine only.
+    function consumeAccumulatedShortfall() external returns (uint256 shortfall) {
+        require(msg.sender == liquidationEngine, "ME: not LE");
+        shortfall = _accumulatedShortfall;
+        _accumulatedShortfall = 0;
+        _inLiquidation = false;
+        emit AccumulatedShortfallConsumed(shortfall);
+    }
+
     // ─── AUDIT FIX (P16-UP-C2): Timelocked dependency updates ───
 
     uint256 constant DEPENDENCY_TIMELOCK = 48 hours;
@@ -245,6 +293,16 @@ contract MarginEngine is IMarginEngine, Ownable2Step, Pausable, ReentrancyGuard 
         pendingOracleTimestamp = 0;
     }
 
+    /// AUDIT FIX (P18-H-3): Cancel pending oracle update — clears time bomb from compromised key
+    /// AUDIT FIX (P19-M-4): Emit event for off-chain monitoring
+    function cancelOracleUpdate() external onlyOwner {
+        require(pendingOracle != address(0), "ME: no pending update");
+        emit OracleUpdateCancelled(pendingOracle);
+        pendingOracle = address(0);
+        pendingOracleTimestamp = 0;
+    }
+    event OracleUpdateCancelled(address indexed cancelled);
+
     function initiateFundingEngineUpdate(address newFE) external onlyOwner {
         require(newFE != address(0), "ME: zero address");
         pendingFundingEngine = newFE;
@@ -260,6 +318,16 @@ contract MarginEngine is IMarginEngine, Ownable2Step, Pausable, ReentrancyGuard 
         pendingFundingEngine = address(0);
         pendingFundingEngineTimestamp = 0;
     }
+
+    /// AUDIT FIX (P18-H-3): Cancel pending FundingEngine update
+    /// AUDIT FIX (P19-M-4): Emit event for off-chain monitoring
+    function cancelFundingEngineUpdate() external onlyOwner {
+        require(pendingFundingEngine != address(0), "ME: no pending update");
+        emit FundingEngineUpdateCancelled(pendingFundingEngine);
+        pendingFundingEngine = address(0);
+        pendingFundingEngineTimestamp = 0;
+    }
+    event FundingEngineUpdateCancelled(address indexed cancelled);
 
     /// @notice Update market margin parameters.
     function updateMarket(bytes32 marketId, uint256 imr, uint256 mmr) external onlyOwner {
@@ -490,18 +558,30 @@ contract MarginEngine is IMarginEngine, Ownable2Step, Pausable, ReentrancyGuard 
     /// the requested debit is partially settled and the remainder is a shortfall (phantom money).
     /// The InsuranceFund covers this gap by transferring tokens directly to the Vault,
     /// restoring the invariant: sum(internal balances) <= vault.token.balanceOf(vault).
+    ///
+    /// AUDIT FIX (P17-H-1): In liquidation mode, shortfalls are accumulated instead of calling IF.
+    /// LiquidationEngine makes a single IF call for the combined shortfall, preventing triple-dip
+    /// where 3 separate IF calls each drain up to 10% of the fund (30% total per liquidation).
     function _settleAndCoverShortfall(bytes32 subaccount, int256 tokenAmount) internal {
         int256 actualSettled = vault.settlePnL(subaccount, collateralToken, tokenAmount);
         // Only debits can produce shortfalls (credits always succeed)
         if (tokenAmount < 0 && actualSettled > tokenAmount) {
             uint256 shortfall = uint256(actualSettled - tokenAmount);
+
+            /// AUDIT FIX (P17-H-1): In liquidation mode, accumulate for single IF call
+            if (_inLiquidation) {
+                _accumulatedShortfall += shortfall;
+                emit InsuranceFundCoverageFailed(subaccount, collateralToken, shortfall);
+                return;
+            }
+
             uint256 totalCovered = 0;
             if (address(insuranceFund) != address(0)) {
                 try insuranceFund.fundBalance(collateralToken) returns (uint256 ifBalance) {
                     uint256 covered = shortfall > ifBalance ? ifBalance : shortfall;
                     if (covered > 0) {
                         /// Mirror LiquidationEngine pattern: IF sends to MarginEngine, ME forwards to Vault.
-                        /// AUDIT FIX (P15-M-14): Use returned actualCovered — IF may cap at 50% of pool.
+                        /// AUDIT FIX (P15-M-14): Use returned actualCovered — IF may cap at 10% of pool.
                         try insuranceFund.coverShortfall(collateralToken, covered) returns (uint256 actualCovered) {
                             IERC20(collateralToken).safeTransfer(address(vault), actualCovered);
                             totalCovered = actualCovered;
@@ -510,10 +590,11 @@ contract MarginEngine is IMarginEngine, Ownable2Step, Pausable, ReentrancyGuard 
                 } catch {}
             }
             /// AUDIT FIX (P15-H-5): Emit event when shortfall is not fully covered.
-            /// Previously, IF coverage failures were silently swallowed. Uncovered shortfalls
-            /// indicate the protocol is heading toward insolvency and ADL should be triggered.
+            /// AUDIT FIX (P17-H-2): Track cumulative uncovered shortfalls for monitoring.
             if (totalCovered < shortfall) {
-                emit InsuranceFundCoverageFailed(subaccount, collateralToken, shortfall - totalCovered);
+                uint256 uncovered = shortfall - totalCovered;
+                totalUncoveredShortfall += uncovered;
+                emit InsuranceFundCoverageFailed(subaccount, collateralToken, uncovered);
             }
         }
     }
@@ -730,8 +811,11 @@ contract MarginEngine is IMarginEngine, Ownable2Step, Pausable, ReentrancyGuard 
     // ─────────────────────────────────────────────────────
 
     /// AUDIT FIX (P16-UP-C1): Emergency position export — emits all positions for off-chain reconstruction.
+    /// AUDIT FIX (P17-C-1): Also emits OISnapshot per market so the importing engine can verify OI totals.
     /// @param subaccounts Array of subaccounts to export
     function exportPositions(bytes32[] calldata subaccounts) external onlyOwner whenPaused {
+        /// AUDIT FIX (P17-MED-3): Prevent gas limit exceeded during migration
+        require(subaccounts.length <= 200, "ME: export batch too large");
         for (uint256 i = 0; i < subaccounts.length; i++) {
             bytes32[] storage mktList = _subaccountMarkets[subaccounts[i]];
             for (uint256 j = 0; j < mktList.length; j++) {
@@ -743,6 +827,13 @@ contract MarginEngine is IMarginEngine, Ownable2Step, Pausable, ReentrancyGuard 
                     );
                 }
             }
+        }
+        /// AUDIT FIX (P17-C-1): Emit OI totals for all registered markets.
+        /// The importing engine reconstructs OI from individual positions, but these
+        /// snapshots let off-chain tooling verify the reconstruction matches.
+        for (uint256 k = 0; k < markets.length; k++) {
+            bytes32 mktId = markets[k];
+            emit OISnapshot(mktId, totalLongOI[mktId], totalShortOI[mktId]);
         }
     }
 
@@ -762,8 +853,21 @@ contract MarginEngine is IMarginEngine, Ownable2Step, Pausable, ReentrancyGuard 
             entryPrices.length == fundingIndices.length,
             "ME: array length mismatch"
         );
+        /// AUDIT FIX (P17-MED-3): Prevent gas limit exceeded during migration
+        require(subaccounts.length <= 200, "ME: import batch too large");
         for (uint256 i = 0; i < subaccounts.length; i++) {
             Position storage pos = _positions[subaccounts[i]][marketIds[i]];
+            /// AUDIT FIX (P19-H-3): Subtract old OI contribution before overwriting position.
+            /// Without this, retrying importPositions with overlapping entries double-counts OI,
+            /// inflating totalLongOI/totalShortOI and making subsequent trades hit the OI cap.
+            {
+                int256 oldSize = pos.size;
+                if (oldSize > 0) {
+                    totalLongOI[marketIds[i]] -= uint256(oldSize);
+                } else if (oldSize < 0) {
+                    totalShortOI[marketIds[i]] -= uint256(-oldSize);
+                }
+            }
             pos.size = sizes[i];
             pos.entryPrice = entryPrices[i];
             pos.entryFundingIndex = fundingIndices[i];
@@ -773,6 +877,22 @@ contract MarginEngine is IMarginEngine, Ownable2Step, Pausable, ReentrancyGuard 
                 require(_subaccountMarkets[subaccounts[i]].length < 20, "ME: max 20 markets per subaccount");
                 _hasPosition[subaccounts[i]][marketIds[i]] = true;
                 _subaccountMarkets[subaccounts[i]].push(marketIds[i]);
+            }
+            /// AUDIT FIX (P17-C-1): Restore OI counters during migration import.
+            if (sizes[i] > 0) {
+                totalLongOI[marketIds[i]] += uint256(sizes[i]);
+            } else if (sizes[i] < 0) {
+                totalShortOI[marketIds[i]] += uint256(-sizes[i]);
+            }
+            /// AUDIT FIX (P18-M-2): Validate OI against maxOpenInterest after import.
+            /// Without this, importPositions can exceed the global OI cap, making the
+            /// maxOpenInterest invariant inconsistent after migration.
+            {
+                uint256 maxOI = _marketParams[marketIds[i]].maxOpenInterest;
+                if (maxOI > 0) {
+                    require(totalLongOI[marketIds[i]] <= maxOI, "ME: import exceeds long OI cap");
+                    require(totalShortOI[marketIds[i]] <= maxOI, "ME: import exceeds short OI cap");
+                }
             }
             emit PositionSnapshot(subaccounts[i], marketIds[i], sizes[i], entryPrices[i], fundingIndices[i]);
         }
