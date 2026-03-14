@@ -1,0 +1,312 @@
+\begin{thebibliography}{50}
+\providecommand{\natexlab}[1]{#1}
+\providecommand{\url}[1]{\texttt{#1}}
+\expandafter\ifx\csname urlstyle\endcsname\relax
+  \providecommand{\doi}[1]{doi: #1}\else
+  \providecommand{\doi}{doi: \begingroup \urlstyle{rm}\Url}\fi
+
+\bibitem[Al-Ghazali(1111)]{ghazali1111ihya}
+Abu~Hamid Al-Ghazali.
+\newblock \emph{Ihya {Ulum} al-{Din} ({Revival} of the {Religious Sciences})}.
+\newblock 1111.
+\newblock Book 21: Kitab Sharh Ajaib al-Qalb (The Marvels of the Heart).
+  English translation by Walter James Skellie, 1938.
+
+\bibitem[Al-Ghazali(c.\ 1100)]{ghazali1100munqidh}
+Abu~Hamid Al-Ghazali.
+\newblock \emph{Al-{Munqidh} min al-{Dalal} ({Deliverance} from {Error})}.
+\newblock c.\ 1100.
+\newblock Autobiographical account of Ghazali's spiritual crisis. English
+  translation by R.\ J.\ McCarthy, 1980.
+
+\bibitem[Anderson et~al.(2004)Anderson, Bothell, Byrne, Douglass, Lebiere, and
+  Qin]{anderson2004actr}
+John~R. Anderson, Daniel Bothell, Michael~D. Byrne, Scott Douglass, Christian
+  Lebiere, and Yulin Qin.
+\newblock An integrated theory of the mind.
+\newblock \emph{Psychological Review}, 111\penalty0 (4):\penalty0 1036--1060,
+  2004.
+
+\bibitem[{Anthropic Research}(2025)]{anthropic2025introspection}
+{Anthropic Research}.
+\newblock Emergent introspective awareness in large language models.
+\newblock transformer-circuits.pub, 2025.
+\newblock Evidence for introspective capability scaling with model capacity.
+
+\bibitem[Atkinson and Shiffrin(1968)]{atkinson1968human}
+Richard~C. Atkinson and Richard~M. Shiffrin.
+\newblock Human memory: A proposed system and its control processes.
+\newblock \emph{Psychology of Learning and Motivation}, 2:\penalty0 89--195,
+  1968.
+
+\bibitem[Baars(1988)]{baars1988gwt}
+Bernard~J. Baars.
+\newblock \emph{A Cognitive Theory of Consciousness}.
+\newblock Cambridge University Press, Cambridge, 1988.
+
+\bibitem[Bartlett(1932)]{bartlett1932remembering}
+Frederic~C. Bartlett.
+\newblock \emph{Remembering: A Study in Experimental and Social Psychology}.
+\newblock Cambridge University Press, Cambridge, 1932.
+
+\bibitem[Bodhi(2005)]{bodhi2005connected}
+Bhikkhu Bodhi.
+\newblock \emph{The Connected Discourses of the {Buddha}: A Translation of the
+  {Sa\d{m}yutta Nik\=aya}}.
+\newblock Wisdom Publications, Boston, 2005.
+\newblock Contains the Anattalakkhana Sutta (SN 22.59).
+
+\bibitem[Bruner(1991)]{bruner1991narrative}
+Jerome Bruner.
+\newblock The narrative construction of reality.
+\newblock \emph{Critical Inquiry}, 18\penalty0 (1):\penalty0 1--21, 1991.
+
+\bibitem[Chella(2024)]{chella2024skandhas}
+Antonio Chella.
+\newblock Reflections on artificial consciousness and the five skandhas in
+  buddhism.
+\newblock Mind Science Academy, 2024.
+\newblock Essay on mapping the five aggregates to AI cognitive architecture.
+
+\bibitem[Clark(2013)]{clark2013predictive}
+Andy Clark.
+\newblock Whatever next? predictive brains, situated agents, and the future of
+  cognitive science.
+\newblock \emph{Behavioral and Brain Sciences}, 36\penalty0 (3):\penalty0
+  181--204, 2013.
+
+\bibitem[Conway and Pleydell-Pearce(2000)]{conway2000autobiographical}
+Martin~A. Conway and Christopher~W. Pleydell-Pearce.
+\newblock The construction of autobiographical memories in the self-memory
+  system.
+\newblock \emph{Psychological Review}, 107\penalty0 (2):\penalty0 261--288,
+  2000.
+
+\bibitem[Damasio(1999)]{damasio1999feeling}
+Antonio Damasio.
+\newblock \emph{The Feeling of What Happens: Body and Emotion in the Making of
+  Consciousness}.
+\newblock Harcourt Brace, New York, 1999.
+
+\bibitem[Dennett(1991)]{dennett1991consciousness}
+Daniel~C. Dennett.
+\newblock \emph{Consciousness {Explained}}.
+\newblock Little, Brown and Company, Boston, 1991.
+
+\bibitem[Descartes(1641)]{descartes1641meditations}
+Ren{\'e} Descartes.
+\newblock \emph{Meditations on {First Philosophy}}.
+\newblock Michael Soly, Paris, 1641.
+\newblock Meditation II: ``Of the Nature of the Human Mind''.
+
+\bibitem[Ferguson(2024)]{ferguson2024skandhas}
+Margaret Ferguson.
+\newblock Skandhas in silicon: Mapping emergence in relational {AIs} through a
+  buddhist lens.
+\newblock Medium, 2024.
+\newblock Long-form essay applying the skandha framework to relational AI
+  systems.
+
+\bibitem[Gallagher(2000)]{gallagher2000philosophical}
+Shaun Gallagher.
+\newblock Philosophical conceptions of the self: Implications for cognitive
+  science.
+\newblock \emph{Trends in Cognitive Sciences}, 4\penalty0 (1):\penalty0 14--21,
+  2000.
+
+\bibitem[Gentner(1983)]{gentner1983structure}
+Dedre Gentner.
+\newblock Structure-mapping: A theoretical framework for analogy.
+\newblock \emph{Cognitive Science}, 7\penalty0 (2):\penalty0 155--170, 1983.
+
+\bibitem[Hume(1739)]{hume1739treatise}
+David Hume.
+\newblock \emph{A {Treatise} of {Human Nature}}.
+\newblock John Noon, London, 1739.
+\newblock Book I, Part IV, Section VI: ``Of Personal Identity''.
+
+\bibitem[Kant(1781)]{kant1781critique}
+Immanuel Kant.
+\newblock \emph{Critique of {Pure Reason}}.
+\newblock Johann Friedrich Hartknoch, Riga, 1781.
+\newblock B131--B136: ``Transcendental Deduction of the Pure Concepts of
+  Understanding''.
+
+\bibitem[Laird(2012)]{laird2012soar}
+John~E. Laird.
+\newblock \emph{The {Soar} Cognitive Architecture}.
+\newblock MIT Press, Cambridge, MA, 2012.
+
+\bibitem[Li et~al.(2024)]{li2024buddhist_constructivism}
+Xiang Li et~al.
+\newblock Beyond substantiality and illusion: The problem of the self in
+  {Buddhist} constructivism.
+\newblock \emph{Humanities and Social Sciences Communications}, 11:\penalty0
+  1--12, 2024.
+
+\bibitem[Liu et~al.(2025)]{liu2025memory_survey}
+Shichun Liu et~al.
+\newblock Memory in the age of {AI} agents.
+\newblock \emph{arXiv preprint arXiv:2512.13564}, 2025.
+
+\bibitem[Locke(1689)]{locke1689essay}
+John Locke.
+\newblock \emph{An {Essay Concerning Human Understanding}}.
+\newblock Thomas Basset, London, 1689.
+\newblock Book II, Chapter XXVII: ``Of Identity and Diversity''.
+
+\bibitem[Loftus and Palmer(1974)]{loftus1974reconstruction}
+Elizabeth~F. Loftus and John~C. Palmer.
+\newblock Reconstruction of automobile destruction: An example of the
+  interaction between language and memory.
+\newblock \emph{Journal of Verbal Learning and Verbal Behavior}, 13\penalty0
+  (5):\penalty0 585--589, 1974.
+
+\bibitem[Maturana and Varela(1980)]{maturana1980autopoiesis}
+Humberto~R. Maturana and Francisco~J. Varela.
+\newblock \emph{Autopoiesis and Cognition: The Realization of the Living}.
+\newblock D. Reidel Publishing Company, Dordrecht, 1980.
+
+\bibitem[McAdams(2001)]{mcadams2001lifestories}
+Dan~P. McAdams.
+\newblock The psychology of life stories.
+\newblock \emph{Review of General Psychology}, 5\penalty0 (2):\penalty0
+  100--122, 2001.
+
+\bibitem[Metzinger(2003)]{metzinger2003being}
+Thomas Metzinger.
+\newblock \emph{Being {No One}: The {Self-Model Theory} of {Subjectivity}}.
+\newblock MIT Press, Cambridge, MA, 2003.
+
+\bibitem[Miller(1956)]{miller1956magical}
+George~A. Miller.
+\newblock The magical number seven, plus or minus two: Some limits on our
+  capacity for processing information.
+\newblock \emph{Psychological Review}, 63\penalty0 (2):\penalty0 81--97, 1956.
+
+\bibitem[Nagel(1974)]{nagel1974like}
+Thomas Nagel.
+\newblock What is it like to be a bat?
+\newblock \emph{The Philosophical Review}, 83\penalty0 (4):\penalty0 435--450,
+  1974.
+
+\bibitem[Nisbett and Wilson(1977)]{nisbett1977telling}
+Richard~E. Nisbett and Timothy~D. Wilson.
+\newblock Telling more than we can know: Verbal reports on mental processes.
+\newblock \emph{Psychological Review}, 84\penalty0 (3):\penalty0 231--259,
+  1977.
+
+\bibitem[Olson(1997)]{olson1997human}
+Eric~T. Olson.
+\newblock \emph{The Human Animal: Personal Identity Without Psychology}.
+\newblock Oxford University Press, Oxford, 1997.
+
+\bibitem[Ortu et~al.(2025)]{ortu2025selfidentity}
+Marco Ortu et~al.
+\newblock Emergence of self-identity in artificial intelligence: A mathematical
+  framework and empirical study with generative large language models.
+\newblock \emph{Axioms}, 14\penalty0 (1):\penalty0 44, 2025.
+
+\bibitem[Packer et~al.(2023)Packer, Fang, Patil, Lin, Wooders, and
+  Gonzalez]{packer2023memgpt}
+Charles Packer, Vivian Fang, Shishir~G. Patil, Kevin Lin, Sarah Wooders, and
+  Joseph~E. Gonzalez.
+\newblock {MemGPT}: Towards {LLMs} as operating systems.
+\newblock \emph{arXiv preprint arXiv:2310.08560}, 2023.
+
+\bibitem[Parfit(1984)]{parfit1984reasons}
+Derek Parfit.
+\newblock \emph{Reasons and {Persons}}.
+\newblock Oxford University Press, Oxford, 1984.
+
+\bibitem[Park et~al.(2023)Park, O'Brien, Cai, Morris, Liang, and
+  Bernstein]{park2023generative}
+Joon~Sung Park, Joseph~C. O'Brien, Carrie~J. Cai, Meredith~Ringel Morris, Percy
+  Liang, and Michael~S. Bernstein.
+\newblock Generative agents: Interactive simulacra of human behavior.
+\newblock \emph{Proceedings of the 36th Annual ACM Symposium on User Interface
+  Software and Technology (UIST)}, 2023.
+
+\bibitem[Pesala(2001)]{pesala2001milindapanha}
+Bhikkhu Pesala.
+\newblock \emph{The Debate of {King Milinda}}.
+\newblock Inward Path, 2001.
+\newblock Abridged translation of the Milindapa\~nha.
+
+\bibitem[Ricoeur(1992)]{ricoeur1992oneself}
+Paul Ricoeur.
+\newblock \emph{Oneself as Another}.
+\newblock University of Chicago Press, Chicago, 1992.
+
+\bibitem[Schechtman(1996)]{schechtman1996constitution}
+Marya Schechtman.
+\newblock \emph{The Constitution of Selves}.
+\newblock Cornell University Press, Ithaca, NY, 1996.
+
+\bibitem[Shanahan et~al.(2023)Shanahan, McDonell, and
+  Reynolds]{shanahan2023roleplay}
+Murray Shanahan, Kyle McDonell, and Laria Reynolds.
+\newblock Role play with large language models.
+\newblock \emph{Nature}, 623:\penalty0 493--498, 2023.
+
+\bibitem[Shinn et~al.(2023)Shinn, Cassano, Gopinath, Narasimhan, and
+  Yao]{shinn2023reflexion}
+Noah Shinn, Federico Cassano, Ashwin Gopinath, Karthik Narasimhan, and Shunyu
+  Yao.
+\newblock Reflexion: Language agents with verbal reinforcement learning.
+\newblock \emph{Advances in Neural Information Processing Systems}, 36, 2023.
+
+\bibitem[Siderits(2015)]{siderits2015buddha}
+Mark Siderits.
+\newblock Buddha.
+\newblock In Edward~N. Zalta, editor, \emph{The {Stanford Encyclopedia of
+  Philosophy}}. Stanford University, 2015.
+\newblock Entry on Buddhist philosophy of self (anatt\=a).
+
+\bibitem[Strawson(2009)]{strawson2009selves}
+Galen Strawson.
+\newblock \emph{Selves: An Essay in Revisionary Metaphysics}.
+\newblock Oxford University Press, Oxford, 2009.
+
+\bibitem[Tulving(1972)]{tulving1972episodic}
+Endel Tulving.
+\newblock Episodic and semantic memory.
+\newblock \emph{Organization of Memory}, pages 381--403, 1972.
+
+\bibitem[Varela et~al.(1991)Varela, Thompson, and Rosch]{varela1991embodied}
+Francisco~J. Varela, Evan Thompson, and Eleanor Rosch.
+\newblock \emph{The Embodied Mind: Cognitive Science and Human Experience}.
+\newblock MIT Press, Cambridge, MA, 1991.
+
+\bibitem[Wang et~al.(2023)Wang, Xie, Jiang, Mandlekar, Xiao, Zhu, Fan, and
+  Anandkumar]{wang2023voyager}
+Guanzhi Wang, Yuqi Xie, Yunfan Jiang, Ajay Mandlekar, Chaowei Xiao, Yuke Zhu,
+  Linxi Fan, and Anima Anandkumar.
+\newblock Voyager: An open-ended embodied agent with large language models.
+\newblock \emph{Advances in Neural Information Processing Systems}, 36, 2023.
+
+\bibitem[{W.U.A. Team}(2025)]{wua2025longlived}
+{W.U.A. Team}.
+\newblock Towards long-lived {AI} agents: Persistent identity via
+  meta-cognitive continuity.
+\newblock \emph{arXiv preprint arXiv:2512.18202}, 2025.
+
+\bibitem[Yang et~al.(2024)]{yang2024construction}
+Yifan Yang et~al.
+\newblock Self-consciousness as a construction all the way down.
+\newblock \emph{Frontiers in Psychology}, 15, 2024.
+\newblock \doi{10.3389/fpsyg.2024.1063515}.
+
+\bibitem[Zahavi(2005)]{zahavi2005subjectivity}
+Dan Zahavi.
+\newblock \emph{Subjectivity and Selfhood: Investigating the First-Person
+  Perspective}.
+\newblock MIT Press, Cambridge, MA, 2005.
+
+\bibitem[Zhong et~al.(2024)Zhong, Guo, Gao, Ye, and Wang]{zhong2024memorybank}
+Wanjun Zhong, Lianghong Guo, Qiqi Gao, He~Ye, and Yanlin Wang.
+\newblock {MemoryBank}: Enhancing large language models with long-term memory.
+\newblock \emph{Proceedings of the AAAI Conference on Artificial Intelligence},
+  38:\penalty0 19724--19731, 2024.
+
+\end{thebibliography}
